@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:clinice_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    open-in-view: false
+  flyway:
+    enabled: false
+  security:
+    jwt:
+      secret: c2VjcmV0LWZvci10ZXN0cy1vbmx5LWNsaW5pY2VsLXNlY3JldC1rZXktMzI=
+      expiration-millis: 3600000
+      issuer: clinic-Test
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace

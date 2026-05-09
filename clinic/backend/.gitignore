@@ -1,0 +1,182 @@
+# ============================================================
+#  clinic — Full-Stack .gitignore
+#  Covers: Next.js (frontend) + Spring Boot (backend)
+# ============================================================
+
+
+# ========================
+# SECRETS & ENVIRONMENT
+# ========================
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.*.local
+*.jks
+*.p12
+*.pem
+*.key
+*.cert
+application-secrets.properties
+application-local.properties
+application-dev.properties
+application-prod.properties
+
+
+# ========================
+# NEXT.JS (Frontend)
+# ========================
+node_modules/
+.next/
+out/
+dist/
+build/
+.vercel/
+.turbo/
+
+# Next.js cache
+.next/cache/
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Optional: lock files (pick ONE and keep it, ignore the others)
+# Uncomment the ones you DON'T use:
+# package-lock.json   ← keep if using npm
+# yarn.lock           ← keep if using yarn
+# pnpm-lock.yaml      ← keep if using pnpm
+
+
+# ========================
+# SPRING BOOT (Backend)
+# ========================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+.flattened-pom.xml
+.m2/
+
+# Gradle (if used)
+.gradle/
+build/
+gradle-wrapper.properties
+
+# Compiled Java classes
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+
+# ========================
+# DATABASE
+# ========================
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+*.mv.db
+*.trace.db
+
+
+# ========================
+# LOGS
+# ========================
+*.log
+logs/
+*.pid
+*.seed
+log/
+
+
+# ========================
+# TEST COVERAGE
+# ========================
+coverage/
+jacoco.csv
+.jacoco.exec
+*.exec
+lcov.info
+.nyc_output/
+
+
+# ========================
+# IDE & EDITORS
+# ========================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# Vim / Emacs swap files
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+
+# ========================
+# OPERATING SYSTEM
+# ========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+
+# ========================
+# DOCKER
+# ========================
+docker-compose.override.yml
+# Keep docker-compose.yml committed — only override is ignored
+
+
+# ========================
+# MISC
+# ========================
+*.tmp
+*.temp
+*.bak
+*.orig
+.cache/
+.parcel-cache/

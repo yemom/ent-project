@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/clinic_db
+    username: clinic_user
+    password: clinic_secure_password_change_me
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+logging:
+  level:
+    com.clinic: DEBUG
+    org.springframework.security: INFO
