@@ -1,6 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useEffect, useState } from 'react';
 import { listAppointments } from '@/services/api/appointments';
+import { getFriendlyErrorMessage } from '@/lib/error-handler';
 import { useAuthStore } from '@/store/auth-store';
 import type { Appointment } from '@/types/api';
 
@@ -8,43 +10,46 @@ export function useAppointments() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const user = useAuthStore(s => s.user);
+    const user = useAuthStore((state) => state.user);
 
     useEffect(() => {
         async function fetchAppointments() {
             try {
                 setIsLoading(true);
-                const params: any = {};
+
+                const params: Record<string, string> = {};
                 if (user?.role === 'DOCTOR') params.doctorId = user.id;
                 if (user?.role === 'PATIENT') params.patientId = user.id;
-                
+
                 const data = await listAppointments(params);
-                // Map AppointmentItem to Appointment
-                const mapped: Appointment[] = (data.content ?? []).map((a: any) => ({
-                    id: a.id,
-                    patient: { 
-                        id: a.patient?.id || a.patientId || '1', 
-                        fullName: a.patient?.fullName || a.patientName || 'Unknown Patient' 
+
+                // Normalize backend records into the shape used by the UI cards and tables.
+                const mapped: Appointment[] = (data.content ?? []).map((appointment: any) => ({
+                    id: appointment.id,
+                    patient: {
+                        id: appointment.patient?.id || appointment.patientId || '1',
+                        fullName: appointment.patient?.fullName || appointment.patientName || 'Unknown Patient'
                     },
-                    doctor: { 
-                        id: a.doctor?.id || a.doctorId || '1', 
-                        fullName: a.doctor?.fullName || a.doctorName || 'Unknown Doctor' 
+                    doctor: {
+                        id: appointment.doctor?.id || appointment.doctorId || '1',
+                        fullName: appointment.doctor?.fullName || appointment.doctorName || 'Unknown Doctor'
                     },
-                    time: new Date(a.appointmentDate || a.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    status: a.status,
-                    type: a.reasonForVisit || a.reason || 'General'
+                    time: new Date(appointment.appointmentDate || appointment.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    status: appointment.status,
+                    type: appointment.reasonForVisit || appointment.reason || 'General'
                 }));
+
                 setAppointments(mapped);
                 setError(null);
             } catch (err) {
-                setError('Failed to load appointments');
+                setError(getFriendlyErrorMessage(err, 'We could not load appointments right now. Please try again in a moment.'));
             } finally {
                 setIsLoading(false);
             }
         }
 
         fetchAppointments();
-    }, []); // runs once when the component mounts
+    }, [user?.id, user?.role]);
 
     return { appointments, isLoading, error };
 }

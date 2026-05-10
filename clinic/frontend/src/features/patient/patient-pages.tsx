@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/layouts/page-header';
 import { createAppointment, listAppointments } from '@/services/api/appointments';
 import { listMedicalRecords, searchMedicalRecords } from '@/services/api/medical-records';
-import { listPrescriptions } from '@/services/api/prescriptions';
-import { listDoctors } from '@/services/api/users';
+import { listPrescriptions } from '@/features/prescriptions';
+import { getPatient, listDoctors } from '@/services/api/users';
 import { useAuthStore } from '@/store/auth-store';
 
 type CountState = {
@@ -105,7 +105,8 @@ export function PatientBookingPage() {
   const router = useRouter();
   const search = useSearchParams();
   const selectedDoctorId = search.get('doctorId') ?? '';
-  const [query, setQuery] = useState('');
+  const urlQuery = search.get('q') ?? '';
+  const [query, setQuery] = useState(urlQuery);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('09:00 AM');
@@ -113,6 +114,10 @@ export function PatientBookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [realDoctors, setRealDoctors] = useState<any[]>([]);
   const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
 
   useEffect(() => {
     async function fetchDoctors() {
@@ -127,7 +132,7 @@ export function PatientBookingPage() {
           rating: '5.0'
         })));
       } catch (err) {
-        console.error("Failed to fetch doctors", err);
+        // Silent fail - demo doctors will be shown as fallback
       }
     }
     fetchDoctors();
@@ -299,9 +304,18 @@ export function PatientBookingPage() {
 }
 
 export function PatientAppointmentsPage() {
+  const urlQuery = useSearchParams().get('q') ?? '';
   const [appointments, setAppointments] = useState<Array<{ id: string; reason: string; status: string; scheduledAt: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const user = useAuthStore((s) => s.user);
+
+  const filteredAppointments = useMemo(() => {
+    if (!urlQuery.trim()) return appointments;
+    const q = urlQuery.toLowerCase();
+    return appointments.filter((appointment) =>
+      [appointment.reason, appointment.status, appointment.scheduledAt].some((value) => value.toLowerCase().includes(q))
+    );
+  }, [appointments, urlQuery]);
 
   useEffect(() => {
     async function fetchData() {
@@ -327,9 +341,9 @@ export function PatientAppointmentsPage() {
       <Card>
         <CardContent className="space-y-3 p-6">
           {isLoading ? <div className="text-sm text-muted-foreground">Loading appointments...</div> : null}
-          {!isLoading && appointments.length === 0 ? <div className="text-sm text-muted-foreground">No appointments found.</div> : null}
+          {!isLoading && filteredAppointments.length === 0 ? <div className="text-sm text-muted-foreground">No appointments found.</div> : null}
           {!isLoading
-            ? appointments.map((item) => (
+            ? filteredAppointments.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
                   <span>{item.reason} - {new Date(item.scheduledAt).toLocaleString()}</span>
                   <Badge variant={item.status === 'CONFIRMED' ? 'success' : item.status === 'PENDING' ? 'warning' : 'outline'}>{item.status}</Badge>
@@ -343,9 +357,16 @@ export function PatientAppointmentsPage() {
 }
 
 export function PatientRecordsPage() {
+  const urlQuery = useSearchParams().get('q') ?? '';
   const [records, setRecords] = useState<Array<{ id: string; diagnosis: string; status: string; visitDate: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const user = useAuthStore((s) => s.user);
+
+  const filteredRecords = useMemo(() => {
+    if (!urlQuery.trim()) return records;
+    const q = urlQuery.toLowerCase();
+    return records.filter((record) => [record.diagnosis, record.status, record.visitDate].some((value) => value.toLowerCase().includes(q)));
+  }, [records, urlQuery]);
 
   useEffect(() => {
     async function fetchData() {
@@ -371,9 +392,9 @@ export function PatientRecordsPage() {
       <Card>
         <CardContent className="space-y-3 p-6">
           {isLoading ? <div className="text-sm text-muted-foreground">Loading records...</div> : null}
-          {!isLoading && records.length === 0 ? <div className="text-sm text-muted-foreground">No records found.</div> : null}
+          {!isLoading && filteredRecords.length === 0 ? <div className="text-sm text-muted-foreground">No records found.</div> : null}
           {!isLoading
-            ? records.map((record) => (
+            ? filteredRecords.map((record) => (
                 <div key={record.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
                   <span>{record.diagnosis} - {new Date(record.visitDate).toLocaleDateString()}</span>
                   <Badge variant="outline">{record.status}</Badge>
@@ -387,9 +408,18 @@ export function PatientRecordsPage() {
 }
 
 export function PatientPrescriptionsPage() {
+  const urlQuery = useSearchParams().get('q') ?? '';
   const [prescriptions, setPrescriptions] = useState<Array<{ id: string; drugName: string; status: string; prescribedAt: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const user = useAuthStore((s) => s.user);
+
+  const filteredPrescriptions = useMemo(() => {
+    if (!urlQuery.trim()) return prescriptions;
+    const q = urlQuery.toLowerCase();
+    return prescriptions.filter((prescription) =>
+      [prescription.drugName, prescription.status, prescription.prescribedAt].some((value) => value.toLowerCase().includes(q))
+    );
+  }, [prescriptions, urlQuery]);
 
   useEffect(() => {
     async function fetchData() {
@@ -415,9 +445,9 @@ export function PatientPrescriptionsPage() {
       <Card>
         <CardContent className="space-y-3 p-6">
           {isLoading ? <div className="text-sm text-muted-foreground">Loading prescriptions...</div> : null}
-          {!isLoading && prescriptions.length === 0 ? <div className="text-sm text-muted-foreground">No prescriptions found.</div> : null}
+          {!isLoading && filteredPrescriptions.length === 0 ? <div className="text-sm text-muted-foreground">No prescriptions found.</div> : null}
           {!isLoading
-            ? prescriptions.map((item) => (
+            ? filteredPrescriptions.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
                   <span>{item.drugName} - {new Date(item.prescribedAt).toLocaleDateString()}</span>
                   <Badge variant={item.status === 'ACTIVE' ? 'success' : item.status === 'PENDING' ? 'warning' : 'outline'}>{item.status}</Badge>
@@ -433,23 +463,180 @@ export function PatientPrescriptionsPage() {
 export function PatientProfilePage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const [profile, setProfile] = useState<any | null>(null);
+  const [records, setRecords] = useState<Array<{ id: string; diagnosis: string; treatment?: string; prescription?: string; status: string; visitDate: string; doctorName?: string }>>([]);
+  const [prescriptions, setPrescriptions] = useState<Array<{ id: string; drugName: string; status: string; prescribedAt: string }>>([]);
+  const [appointments, setAppointments] = useState<Array<{ id: string; reason: string; scheduledAt: string; doctorName?: string }>>([]);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user?.id) return;
+      const [patientData, recordData, prescriptionData, appointmentData] = await Promise.all([
+        getPatient(user.id).catch(() => null),
+        searchMedicalRecords({ patientId: user.id, size: 5 }).catch(() => ({ content: [] })),
+        listPrescriptions({ patientId: user.id, size: 5 }).catch(() => ({ content: [] })),
+        listAppointments({ patientId: user.id, size: 5 }).catch(() => ({ content: [] }))
+      ]);
+      setProfile(patientData);
+      setRecords((recordData.content ?? []).map((record: any) => ({
+        id: record.id,
+        diagnosis: record.diagnosis,
+        treatment: record.treatment,
+        prescription: record.prescription,
+        status: record.status || record.medicalRecordType || 'Completed',
+        visitDate: record.recordDate || record.visitDate || new Date().toISOString(),
+        doctorName: record.doctor?.fullName || record.doctorName
+      })));
+      setPrescriptions((prescriptionData.content ?? []).map((item: any) => ({
+        id: item.id,
+        drugName: item.drugName,
+        status: item.status,
+        prescribedAt: item.prescribedAt
+      })));
+      setAppointments((appointmentData.content ?? []).map((item: any) => ({
+        id: item.id,
+        reason: item.reasonForVisit || item.reason || 'Appointment',
+        scheduledAt: item.appointmentDate || item.scheduledAt,
+        doctorName: item.doctor?.fullName || item.doctorName
+      })));
+    }
+    fetchProfile();
+  }, [user?.id]);
+
+  const currentProfile = profile ?? user;
+  const allergies = profile?.allergies || 'None listed';
+  const bloodType = profile?.bloodType || 'N/A';
+  const lastVisit = appointments[0]?.scheduledAt || records[0]?.visitDate;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader title="Patient Profile" description="Review your account and care details." actionLabel="View Appointments" actionHref="/patient/appointments" />
-      <Card>
-        <CardHeader>
-          <CardTitle>{user?.fullName ?? 'Patient'}</CardTitle>
-          <CardDescription>{user?.email ?? 'No email available'}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-2xl bg-muted/50 p-4">Role: {user?.role ?? 'PATIENT'}</div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="rounded-2xl" onClick={() => router.push('/patient/records')}>Open Medical Records</Button>
-            <Button variant="outline" className="rounded-2xl" onClick={() => router.push('/patient/prescriptions')}>Open Prescriptions</Button>
+
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-white via-white to-teal-50 shadow-sm">
+        <CardContent className="p-6">
+          <div className="grid gap-6 lg:grid-cols-[150px_1fr_auto]">
+            <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-teal-100 text-4xl font-bold text-teal-800">
+              {(currentProfile?.fullName ?? 'Patient').split(' ').map((part: string) => part[0]).slice(0, 2).join('')}
+            </div>
+            <div>
+              <h2 className="text-4xl font-bold text-slate-950">{currentProfile?.fullName ?? 'Patient'}</h2>
+              <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <Badge variant="outline">ID: {(currentProfile?.id ?? user?.id ?? '').slice(0, 8)}</Badge>
+                {profile?.dateOfBirth && <Badge variant="outline">DOB: {new Date(profile.dateOfBirth).toLocaleDateString()}</Badge>}
+                {profile?.gender && <Badge variant="secondary">{profile.gender}</Badge>}
+              </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl bg-white/80 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Blood Type</p>
+                  <p className="mt-2 text-2xl font-semibold text-teal-800">{bloodType}</p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Last Visit</p>
+                  <p className="mt-2 text-xl font-semibold">{lastVisit ? new Date(lastVisit).toLocaleDateString() : 'N/A'}</p>
+                </div>
+                <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-700">Allergies</p>
+                  <p className="mt-2 text-xl font-semibold text-red-800">{allergies}</p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Risk Level</p>
+                  <p className="mt-2 text-xl font-semibold text-amber-700">{profile?.allergies ? 'Moderate' : 'Standard'}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 lg:flex-col">
+              <Button variant="outline" className="rounded-2xl">Edit Profile</Button>
+              <Button className="rounded-2xl bg-teal-700 hover:bg-teal-800" onClick={() => router.push('/patient/records')}>Export Records</Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <div className="space-y-6">
+          <div className="flex gap-6 border-b">
+            {['Clinical Timeline', 'Documents & Scans', 'Medications', 'Lab Results'].map((tab, index) => (
+              <button key={tab} className={`pb-4 text-lg ${index === 0 ? 'border-b-2 border-teal-700 font-semibold text-teal-800' : 'text-slate-700'}`}>
+                {tab}
+              </button>
+            ))}
+          </div>
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-2xl">Recent Activity</CardTitle>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm">Add Note</Button>
+                <Button variant="outline" size="sm">Upload Document</Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {records.length === 0 ? (
+                <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">No clinical activity found.</div>
+              ) : records.map((record) => (
+                <div key={record.id} className="rounded-2xl bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold">{record.diagnosis}</p>
+                      <p className="text-sm text-muted-foreground">{new Date(record.visitDate).toLocaleDateString()} • {record.doctorName || 'Care Team'}</p>
+                    </div>
+                    <Badge variant="success">{record.status}</Badge>
+                  </div>
+                  {record.treatment && <p className="mt-4 text-sm text-slate-700">{record.treatment}</p>}
+                  {record.prescription && <p className="mt-3 text-sm"><span className="font-semibold text-teal-800">Medication:</span> {record.prescription}</p>}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle>Active Medications</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/patient/prescriptions')}>View All</Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {prescriptions.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No active medications.</div>
+              ) : prescriptions.slice(0, 3).map((item) => (
+                <div key={item.id} className="rounded-2xl border border-teal-100 bg-teal-50/50 p-4">
+                  <p className="font-semibold text-teal-900">{item.drugName}</p>
+                  <p className="text-sm text-muted-foreground">{item.status}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Vitals History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex h-36 items-end gap-2">
+                {[58, 74, 92, 66, 100].map((height, index) => (
+                  <div key={index} className="flex-1 rounded-t bg-teal-700/30" style={{ height: `${height}%` }} />
+                ))}
+              </div>
+              <p className="mt-4 text-center text-sm text-muted-foreground">Systolic BP trend</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Care Team</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {Array.from(new Set(records.map((record) => record.doctorName).filter(Boolean))).slice(0, 3).map((name) => (
+                <div key={name} className="rounded-2xl bg-muted/50 p-3">
+                  <p className="font-semibold">{name}</p>
+                  <p className="text-sm text-teal-700">Care Provider</p>
+                </div>
+              ))}
+              <Button variant="outline" className="w-full rounded-2xl">Contact Team</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

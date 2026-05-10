@@ -4,14 +4,18 @@ import {
   ClipboardList,
   Clock3,
   Filter,
+  Pencil,
   PillBottle,
   Search,
-  Users,
   Shield,
+  Trash2,
+  Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from 'next/navigation';
-import { apiClient } from '@/services/api/client';
+import { PageHeader } from "@/components/layouts/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -19,9 +23,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/layouts/page-header";
 import {
   Table,
   TableBody,
@@ -34,10 +35,18 @@ import { Input } from "@/components/ui/input";
 import { useAppointments } from "@/hooks/useAppointments";
 import { createAppointment } from "@/services/api/appointments";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listMedicalRecords, searchMedicalRecords, createMedicalRecord } from "@/services/api/medical-records";
-import { listPrescriptions } from "@/services/api/prescriptions";
-import { listPatients } from "@/services/api/users";
+import { listMedicalRecords, searchMedicalRecords, createMedicalRecord, updateMedicalRecord, deleteMedicalRecord } from "@/services/api/medical-records";
+import { listPatients, updatePatient } from "@/services/api/users";
+import { 
+  listPrescriptionOrdersByDoctor, 
+  listPrescriptionOrders,
+  updatePrescriptionOrder, 
+  deletePrescriptionOrder 
+} from "@/features/prescriptions";
+import { apiClient } from "@/services/api/client";
 import { useAuthStore } from "@/store/auth-store";
+import { StatusAlert, type StatusType } from "@/components/shared/status-alert";
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
 
 // ============================================================================
 // DoctorDashboardPage
@@ -151,7 +160,12 @@ export function DoctorDashboardPage() {
 // ============================================================================
 export function DoctorAppointmentsPage() {
   const { appointments, isLoading, error } = useAppointments();
-  const [query, setQuery] = useState('');
+  const urlQuery = useSearchParams().get('q') ?? '';
+  const [query, setQuery] = useState(urlQuery);
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
 
   const filteredAppointments = useMemo(() => {
     if (!query.trim()) return appointments;
@@ -323,6 +337,12 @@ export function DoctorCreateAppointmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const user = useAuthStore(s => s.user);
 
+
+
+
+
+
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -471,10 +491,22 @@ export function DoctorCreateAppointmentPage() {
 // DoctorPatientsPage
 // ============================================================================
 export function DoctorPatientsPage() {
+  const urlQuery = useSearchParams().get('q') ?? '';
   const [patients, setPatients] = useState<
     Array<{ id: string; fullName: string; email: string; role: string; lastLogin?: string }>
   >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
+  const filteredPatients = useMemo(() => {
+    if (!query.trim()) return patients;
+    const q = query.toLowerCase();
+    return patients.filter((patient) => [patient.fullName, patient.email, patient.role].some((value) => value.toLowerCase().includes(q)));
+  }, [patients, query]);
 
   useEffect(() => {
     async function fetchData() {
@@ -504,8 +536,21 @@ export function DoctorPatientsPage() {
       />
       <Card>
         <CardHeader>
-          <CardTitle>Patient List</CardTitle>
-          <CardDescription>Recently registered or active patients</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Patient List</CardTitle>
+              <CardDescription>Recently registered or active patients</CardDescription>
+            </div>
+            <div className="flex min-w-64 gap-3 rounded-2xl border border-input bg-background p-3">
+              <Search className="h-5 w-5 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                placeholder="Search patients..."
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoading ? (
@@ -514,10 +559,10 @@ export function DoctorPatientsPage() {
               <Skeleton className="h-12 w-full rounded-2xl" />
               <Skeleton className="h-12 w-full rounded-2xl" />
             </>
-          ) : patients.length === 0 ? (
+          ) : filteredPatients.length === 0 ? (
             <div className="text-sm text-muted-foreground">No patients found.</div>
           ) : (
-            patients.map((patient) => (
+            filteredPatients.map((patient) => (
               <div key={patient.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
                 <div>
                   <p className="font-semibold">{patient.fullName}</p>
@@ -546,11 +591,70 @@ export function DoctorPatientsPage() {
 // ============================================================================
 export function DoctorPatientDetailPage({ id }: { id: string }) {
   const [patient, setPatient] = useState<
-    { id: string; fullName: string; email: string; role: string; lastLogin?: string } | null
+    {
+      id: string;
+      fullName: string;
+      email: string;
+      role: string;
+      lastLogin?: string;
+      phone?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      medicalHistory?: string;
+      bloodType?: string;
+      allergies?: string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
+      active?: boolean;
+    } | null
   >(null);
   const [records, setRecords] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const user = useAuthStore((s) => s.user);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ diagnosis: '', treatment: '', prescription: '', notes: '' });
+  const [status, setStatus] = useState<'success' | 'error' | null>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    bloodType: '',
+    allergies: '',
+    medicalHistory: '',
+    phone: '',
+    dateOfBirth: '',
+    gender: '',
+    emergencyContactName: '',
+    emergencyContactPhone: ''
+  });
+
+  const startEditingProfile = () => {
+    if (!patient) return;
+    setProfileForm({
+      bloodType: patient.bloodType || '',
+      allergies: patient.allergies || '',
+      medicalHistory: patient.medicalHistory || '',
+      phone: patient.phone || '',
+      dateOfBirth: patient.dateOfBirth || '',
+      gender: patient.gender || '',
+      emergencyContactName: patient.emergencyContactName || '',
+      emergencyContactPhone: patient.emergencyContactPhone || ''
+    });
+    setIsEditingProfile(true);
+    setStatus(null);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const updated = await updatePatient(id, profileForm);
+      if (patient) setPatient({ ...patient, ...updated });
+      setIsEditingProfile(false);
+      setStatus('success');
+      setStatusMessage('Patient profile updated successfully!');
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Failed to update patient profile'));
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -565,7 +669,16 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
             fullName: found.fullName,
             email: found.email,
             role: found.role,
-            lastLogin: found.lastLogin
+            lastLogin: found.lastLogin,
+            phone: found.phone,
+            dateOfBirth: found.dateOfBirth,
+            gender: found.gender,
+            medicalHistory: found.medicalHistory,
+            bloodType: found.bloodType,
+            allergies: found.allergies,
+            emergencyContactName: found.emergencyContactName,
+            emergencyContactPhone: found.emergencyContactPhone,
+            active: found.active
           });
         }
 
@@ -581,6 +694,46 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
     fetchData();
   }, [id]);
 
+  const startEditing = (record: any) => {
+    setEditingRecordId(record.id);
+    setEditForm({
+      diagnosis: record.diagnosis || '',
+      treatment: record.treatment || '',
+      prescription: record.prescription || '',
+      notes: record.notes || ''
+    });
+    setStatus(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRecordId) return;
+    try {
+      await updateMedicalRecord(editingRecordId, editForm);
+      setRecords(records.map(r =>
+        r.id === editingRecordId ? { ...r, ...editForm } : r
+      ));
+      setEditingRecordId(null);
+      setStatus('success');
+      setStatusMessage('Medical record updated successfully!');
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Failed to update medical record'));
+    }
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    if (!confirm('Delete this medical record? This action cannot be undone.')) return;
+    try {
+      await deleteMedicalRecord(recordId);
+      setRecords(records.filter(r => r.id !== recordId));
+      setStatus('success');
+      setStatusMessage('Medical record deleted successfully!');
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Failed to delete medical record'));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -589,6 +742,58 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
         actionLabel="Back to Directory"
         actionHref={user?.role === 'ADMIN' ? '/admin/patients' : '/doctor/patients'}
       />
+      <StatusAlert
+        status={status}
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss
+        autoDismissMs={3500}
+      />
+
+      {patient && (
+        <Card className="overflow-hidden border-0 bg-gradient-to-br from-white via-white to-teal-50 shadow-sm">
+          <CardContent className="p-6">
+            <div className="grid gap-6 lg:grid-cols-[150px_1fr_auto]">
+              <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-teal-100 text-4xl font-bold text-teal-800">
+                {patient.fullName.split(' ').map((part) => part[0]).slice(0, 2).join('')}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-4xl font-bold text-slate-950">{patient.fullName}</h2>
+                  <Badge variant={patient.active === false ? 'secondary' : 'success'}>{patient.active === false ? 'Inactive' : 'Active'}</Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                  <Badge variant="outline">ID: {patient.id.slice(0, 8)}</Badge>
+                  {patient.dateOfBirth && <Badge variant="outline">DOB: {new Date(patient.dateOfBirth).toLocaleDateString()}</Badge>}
+                  {patient.gender && <Badge variant="secondary">{patient.gender}</Badge>}
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-4">
+                  <div className="rounded-2xl bg-white/80 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Blood Type</p>
+                    <p className="mt-2 text-2xl font-semibold text-teal-800">{patient.bloodType || 'N/A'}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Last Login</p>
+                    <p className="mt-2 text-xl font-semibold">{patient.lastLogin ? new Date(patient.lastLogin).toLocaleDateString() : 'Never'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-700">Allergies</p>
+                    <p className="mt-2 text-xl font-semibold text-red-800">{patient.allergies || 'None listed'}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Risk Level</p>
+                    <p className="mt-2 text-xl font-semibold text-amber-700">{patient.allergies ? 'Moderate' : 'Standard'}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 lg:flex-col">
+                <Button variant="outline" className="rounded-2xl" onClick={startEditingProfile}>Edit Profile</Button>
+                <Button className="rounded-2xl bg-teal-700 hover:bg-teal-800" onClick={() => { window.print(); }}>Export Records</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -599,12 +804,98 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
           <CardContent>
             {isLoading ? (
               <div className="space-y-4">
-                <Skeleton className="h-8 w-1/3" />
                 <Skeleton className="h-8 w-1/2" />
                 <Skeleton className="h-8 w-1/4" />
               </div>
             ) : !patient ? (
               <div className="text-sm text-muted-foreground">Patient not found.</div>
+            ) : isEditingProfile ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Blood Type</label>
+                    <select
+                      className="w-full h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                      value={profileForm.bloodType}
+                      onChange={(e) => setProfileForm({ ...profileForm, bloodType: e.target.value })}
+                    >
+                      <option value="">Select Blood Type</option>
+                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Gender</label>
+                    <select
+                      className="w-full h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                      value={profileForm.gender}
+                      onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Date of Birth</label>
+                  <Input
+                    type="date"
+                    value={profileForm.dateOfBirth ? profileForm.dateOfBirth.split('T')[0] : ''}
+                    onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Phone Number</label>
+                  <Input
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Allergies</label>
+                  <Input
+                    value={profileForm.allergies}
+                    onChange={(e) => setProfileForm({ ...profileForm, allergies: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Emergency Name</label>
+                    <Input
+                      value={profileForm.emergencyContactName}
+                      onChange={(e) => setProfileForm({ ...profileForm, emergencyContactName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Emergency Phone</label>
+                    <Input
+                      value={profileForm.emergencyContactPhone}
+                      onChange={(e) => setProfileForm({ ...profileForm, emergencyContactPhone: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Medical History</label>
+                  <textarea
+                    className="w-full min-h-[100px] rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    value={profileForm.medicalHistory}
+                    onChange={(e) => setProfileForm({ ...profileForm, medicalHistory: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={handleSaveProfile}>Save Changes</Button>
+                  <Button variant="ghost" onClick={() => setIsEditingProfile(false)}>Cancel</Button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-4">
                 <div>
@@ -615,6 +906,12 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
                   <p className="text-sm font-semibold text-muted-foreground">Email</p>
                   <p className="text-lg">{patient.email}</p>
                 </div>
+                {patient.phone && (
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">Phone</p>
+                    <p className="text-lg">{patient.phone}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">System Role</p>
                   <Badge variant="outline">{patient.role}</Badge>
@@ -627,6 +924,18 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
                       : 'Never logged in'}
                   </p>
                 </div>
+                {(patient.emergencyContactName || patient.emergencyContactPhone) && (
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">Emergency Contact</p>
+                    <p className="text-lg">{patient.emergencyContactName || 'N/A'} {patient.emergencyContactPhone ? `• ${patient.emergencyContactPhone}` : ''}</p>
+                  </div>
+                )}
+                {patient.medicalHistory && (
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">Medical History</p>
+                    <p className="text-base text-muted-foreground">{patient.medicalHistory}</p>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -649,16 +958,65 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
               <div className="space-y-4">
                 {records.map((record) => (
                   <div key={record.id} className="border-b pb-4 last:border-0">
-                    <p className="font-semibold text-teal-700">
-                      {new Date(record.recordDate || record.visitDate).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm font-medium mt-1">Diagnosis: {record.diagnosis}</p>
-                    {record.treatment && <p className="text-sm text-muted-foreground">Treatment: {record.treatment}</p>}
-                    {record.prescription && (
-                      <div className="mt-2 p-2 bg-amber-50 rounded-lg border border-amber-100">
-                        <p className="text-xs font-bold text-amber-800 uppercase">Prescription</p>
-                        <p className="text-sm text-amber-900">{record.prescription}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold text-teal-700">
+                        {new Date(record.recordDate || record.visitDate).toLocaleDateString()}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => startEditing(record)}>
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteRecord(record.id)}>
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
                       </div>
+                    </div>
+                    {editingRecordId === record.id ? (
+                      <div className="mt-3 space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                        <Input
+                          value={editForm.diagnosis}
+                          onChange={(event) => setEditForm({ ...editForm, diagnosis: event.target.value })}
+                          placeholder="Diagnosis"
+                        />
+                        <Input
+                          value={editForm.treatment}
+                          onChange={(event) => setEditForm({ ...editForm, treatment: event.target.value })}
+                          placeholder="Treatment"
+                        />
+                        <Input
+                          value={editForm.prescription}
+                          onChange={(event) => setEditForm({ ...editForm, prescription: event.target.value })}
+                          placeholder="Prescription"
+                        />
+                        <textarea
+                          value={editForm.notes}
+                          onChange={(event) => setEditForm({ ...editForm, notes: event.target.value })}
+                          placeholder="Notes"
+                          className="min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setEditingRecordId(null)}>
+                            Cancel
+                          </Button>
+                          <Button size="sm" onClick={handleSaveEdit}>
+                            Save Changes
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium mt-1">Diagnosis: {record.diagnosis}</p>
+                        {record.treatment && <p className="text-sm text-muted-foreground">Treatment: {record.treatment}</p>}
+                        {record.notes && <p className="text-sm text-muted-foreground">Notes: {record.notes}</p>}
+                        {record.prescription && (
+                          <div className="mt-2 p-2 bg-amber-50 rounded-lg border border-amber-100">
+                            <p className="text-xs font-bold text-amber-800 uppercase">Prescription</p>
+                            <p className="text-sm text-amber-900">{record.prescription}</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
@@ -1001,6 +1359,21 @@ export function DoctorSchedulePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const user = useAuthStore(s => s.user);
 
+  const requestItems = useMemo(() => {
+    return appointments
+      .filter((item) => item.status === 'PENDING' || item.status === 'CONFIRMED')
+      .slice(0, 3)
+      .map((item) => ({
+        id: item.id,
+        patientName: item.patient.fullName,
+        note: item.status === 'PENDING'
+          ? `${item.type} request awaiting confirmation`
+          : `${item.type} scheduled for ${item.time}`,
+        received: item.time,
+        status: item.status
+      }));
+  }, [appointments]);
+
   useEffect(() => {
     async function fetchPatients() {
       try {
@@ -1157,6 +1530,46 @@ export function DoctorSchedulePage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle>Requests</CardTitle>
+              <Badge variant="default">{requestItems.length} New</Badge>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoading ? (
+                <>
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </>
+              ) : requestItems.length === 0 ? (
+                <div className="rounded-2xl border border-dashed p-5 text-sm text-muted-foreground">
+                  No current appointment requests.
+                </div>
+              ) : (
+                requestItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => { window.location.href = `/doctor/records/new?appointmentId=${item.id}`; }}
+                    className="w-full rounded-2xl bg-white p-4 text-left shadow-sm transition hover:bg-muted/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold">{item.patientName}</p>
+                      <span className="text-xs text-muted-foreground">{item.received}</span>
+                    </div>
+                    <p className="mt-2 text-sm italic text-muted-foreground">"{item.note}"</p>
+                    <Badge className="mt-3" variant={item.status === 'PENDING' ? 'warning' : 'outline'}>
+                      {item.status}
+                    </Badge>
+                  </button>
+                ))
+              )}
+              <Button variant="ghost" className="w-full text-teal-700" onClick={() => { window.location.href = '/doctor/appointments'; }}>
+                View all requests
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
@@ -1172,15 +1585,19 @@ export function DoctorCalendarPage() {
 // ============================================================================
 export function DoctorPrescriptionManagementPage() {
   const authUser = useAuthStore((state) => state.user);
-  const [prescriptions, setPrescriptions] = useState<
-    Array<{ id: string; drugName: string; status: string; prescribedAt: string; patientName: string; dosage: string }>
-  >([]);
+  const urlQuery = useSearchParams().get('q') ?? '';
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(urlQuery);
+  const [selectedPatientName, setSelectedPatientName] = useState('');
+  const [editingPrescriptionId, setEditingPrescriptionId] = useState<string | null>(null);
+  const [editPrescriptionForm, setEditPrescriptionForm] = useState({ drugName: '', dosage: '', diagnosis: '', treatment: '', notes: '' });
+  const [status, setStatus] = useState<StatusType>(null);
+  const [statusMessage, setStatusMessage] = useState('');
   const [newPrescriptionForm, setNewPrescriptionForm] = useState({
     patientName: '',
     drugName: '',
-    dosage: '',
+    dosage: '5mg',
     frequency: 'Once daily',
     duration: '14',
     instructions: ''
@@ -1188,30 +1605,101 @@ export function DoctorPrescriptionManagementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        const data = await listPrescriptions({ size: 30 });
-        setPrescriptions((data.content ?? []).map((p) => ({
-          id: p.id,
-          drugName: p.drugName,
-          dosage: p.dosage,
-          status: p.status,
-          prescribedAt: p.prescribedAt,
-          patientName: p.patientName
-        })));
-      } finally {
-        setIsLoading(false);
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
+  const fetchData = async (name?: string) => {
+    if (!authUser?.id) return;
+    try {
+      setIsLoading(true);
+      let data;
+      if (name) {
+        // Fetch specific patient's active prescriptions
+        data = await listPrescriptionOrders({ patientName: name, size: 50 });
+      } else {
+        // Initial load: fetch doctor's recent orders to get the list of patient names
+        data = await listPrescriptionOrdersByDoctor(authUser.id, { size: 100 });
       }
+      setPrescriptions(data.content ?? []);
+    } catch (err) {
+      console.error("Failed to fetch prescriptions", err);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchData();
-  }, []);
+  }, [authUser?.id]);
+
+  useEffect(() => {
+    if (selectedPatientName) {
+      fetchData(selectedPatientName);
+    }
+  }, [selectedPatientName]);
+
+  const patientNames = useMemo(() => {
+    return Array.from(new Set(prescriptions.map((item) => item.patientName).filter(Boolean))).sort();
+  }, [prescriptions]);
+
+  const visiblePrescriptions = useMemo(() => {
+    if (!selectedPatientName) return [];
+    return prescriptions.filter((item) => item.patientName === selectedPatientName);
+  }, [prescriptions, selectedPatientName]);
 
   const filteredPrescriptions = useMemo(() => {
-    if (!query.trim()) return prescriptions;
+    if (!query.trim()) return visiblePrescriptions;
     const q = query.toLowerCase();
-    return prescriptions.filter((item) => [item.drugName, item.patientName, item.status, item.dosage].some((value) => value.toLowerCase().includes(q)));
-  }, [query, prescriptions]);
+    return visiblePrescriptions.filter((item) => [item.drugName, item.patientName, item.status, item.dosage].some((value) => value.toLowerCase().includes(q)));
+  }, [query, visiblePrescriptions]);
+
+  const startPrescriptionEdit = (item: any) => {
+    setEditingPrescriptionId(item.id);
+    setEditPrescriptionForm({
+      drugName: item.drugName,
+      dosage: item.dosage,
+      diagnosis: '', 
+      treatment: '',
+      notes: item.instructions || ''
+    });
+    setStatus(null);
+  };
+
+  const handlePrescriptionEdit = async () => {
+    if (!editingPrescriptionId) return;
+    try {
+      await updatePrescriptionOrder(editingPrescriptionId, {
+        drugName: editPrescriptionForm.drugName,
+        dosage: editPrescriptionForm.dosage,
+        instructions: editPrescriptionForm.notes
+      });
+      setPrescriptions((current) => current.map((item) => item.id === editingPrescriptionId ? {
+        ...item,
+        drugName: editPrescriptionForm.drugName,
+        dosage: editPrescriptionForm.dosage,
+        instructions: editPrescriptionForm.notes
+      } : item));
+      setEditingPrescriptionId(null);
+      setStatus('success');
+      setStatusMessage('Prescription order updated successfully.');
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Failed to update prescription order.'));
+    }
+  };
+
+  const handlePrescriptionDelete = async (id: string) => {
+    if (!confirm('Delete this prescription order? This removes the order from the pharmacy system.')) return;
+    try {
+      await deletePrescriptionOrder(id);
+      setPrescriptions((current) => current.filter((item) => item.id !== id));
+      setStatus('success');
+      setStatusMessage('Prescription order deleted successfully.');
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Failed to delete prescription order.'));
+    }
+  };
 
   const handleSendToPharmacy = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1222,33 +1710,31 @@ export function DoctorPrescriptionManagementPage() {
     
     try {
       setIsSubmitting(true);
+      const finalInstructions = [
+        `Frequency: ${newPrescriptionForm.frequency}`,
+        `Duration: ${newPrescriptionForm.duration} days`,
+        newPrescriptionForm.instructions
+      ].filter(Boolean).join('\n');
+
       await apiClient.post('/prescription-orders', {
         doctorId: authUser.id,
         doctorName: authUser.fullName,
         patientName: newPrescriptionForm.patientName,
         drugName: newPrescriptionForm.drugName,
         dosage: newPrescriptionForm.dosage,
-        instructions: newPrescriptionForm.instructions
+        instructions: finalInstructions
       });
       setNewPrescriptionForm({
         patientName: '',
         drugName: '',
-        dosage: '',
+        dosage: '5mg',
         frequency: 'Once daily',
         duration: '14',
         instructions: ''
       });
       alert('Prescription sent to pharmacy successfully!');
       // Refetch prescriptions
-      const data = await listPrescriptions({ size: 30 });
-      setPrescriptions((data.content ?? []).map((p) => ({
-        id: p.id,
-        drugName: p.drugName,
-        dosage: p.dosage,
-        status: p.status,
-        prescribedAt: p.prescribedAt,
-        patientName: p.patientName
-      })));
+      fetchData();
     } catch (err) {
       console.error('Failed to send prescription', err);
       alert('Failed to send prescription to pharmacy');
@@ -1263,6 +1749,13 @@ export function DoctorPrescriptionManagementPage() {
         title="Prescription Management"
         description="Precision pharmacology and patient safety center"
         actionLabel="Bulk Export"
+      />
+      <StatusAlert
+        status={status}
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss
+        autoDismissMs={3500}
       />
       
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -1304,13 +1797,17 @@ export function DoctorPrescriptionManagementPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-900">Dosage</label>
-                    <select className="mt-2 h-11 w-full rounded-2xl border border-border bg-white px-3 text-sm">
-                      <option>5mg</option>
-                      <option>10mg</option>
-                      <option>25mg</option>
-                      <option>50mg</option>
-                      <option>100mg</option>
-                      <option>500mg</option>
+                    <select 
+                      className="mt-2 h-11 w-full rounded-2xl border border-border bg-white px-3 text-sm"
+                      value={newPrescriptionForm.dosage}
+                      onChange={(e) => setNewPrescriptionForm({ ...newPrescriptionForm, dosage: e.target.value })}
+                    >
+                      <option value="5mg">5mg</option>
+                      <option value="10mg">10mg</option>
+                      <option value="25mg">25mg</option>
+                      <option value="50mg">50mg</option>
+                      <option value="100mg">100mg</option>
+                      <option value="500mg">500mg</option>
                     </select>
                   </div>
                 </div>
@@ -1379,10 +1876,28 @@ export function DoctorPrescriptionManagementPage() {
             <CardHeader className="flex-row items-center justify-between space-y-0 gap-4">
               <div>
                 <CardTitle>Active Prescriptions</CardTitle>
-                <CardDescription>Current medications for your patients</CardDescription>
+                <CardDescription>Select a patient to list their active prescriptions</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 flex flex-wrap gap-2">
+                {patientNames.length === 0 && !isLoading ? (
+                  <div className="text-sm text-muted-foreground">No patients with active prescriptions found.</div>
+                ) : patientNames.map((name) => (
+                  <Button
+                    key={name}
+                    type="button"
+                    variant={selectedPatientName === name ? 'default' : 'outline'}
+                    className="rounded-full"
+                    onClick={() => {
+                      setSelectedPatientName(selectedPatientName === name ? '' : name);
+                      setEditingPrescriptionId(null);
+                    }}
+                  >
+                    {name}
+                  </Button>
+                ))}
+              </div>
               <div className="flex gap-3 rounded-2xl border border-border bg-background p-3 mb-4 shadow-sm">
                 <Search className="h-5 w-5 text-muted-foreground" />
                 <Input
@@ -1411,6 +1926,12 @@ export function DoctorPrescriptionManagementPage() {
                           <Skeleton className="h-10 w-full" />
                         </TableCell>
                       </TableRow>
+                    ) : !selectedPatientName ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          Click a patient name above to list active prescriptions.
+                        </TableCell>
+                      </TableRow>
                     ) : filteredPrescriptions.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
@@ -1420,26 +1941,58 @@ export function DoctorPrescriptionManagementPage() {
                     ) : (
                       filteredPrescriptions.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.drugName}</TableCell>
+                          <TableCell className="font-medium">
+                            {editingPrescriptionId === item.id ? (
+                              <Input
+                                value={editPrescriptionForm.drugName}
+                                onChange={(event) => setEditPrescriptionForm({ ...editPrescriptionForm, drugName: event.target.value })}
+                                className="h-9"
+                              />
+                            ) : item.drugName}
+                          </TableCell>
                           <TableCell>{item.patientName}</TableCell>
-                          <TableCell>{item.dosage}</TableCell>
+                          <TableCell>
+                            {editingPrescriptionId === item.id ? (
+                              <Input
+                                value={editPrescriptionForm.dosage}
+                                onChange={(event) => setEditPrescriptionForm({ ...editPrescriptionForm, dosage: event.target.value })}
+                                className="h-9"
+                              />
+                            ) : item.dosage}
+                          </TableCell>
                           <TableCell>
                             <Badge
                               variant={
-                                item.status === 'ACTIVE'
+                                item.status === 'DISPENSED'
                                   ? 'success'
                                   : item.status === 'PENDING'
                                     ? 'warning'
-                                    : 'outline'
+                                    : item.status === 'REJECTED'
+                                      ? 'destructive'
+                                      : 'outline'
                               }
                             >
                               {item.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm" className="h-8 rounded-lg">
-                              <Search className="h-4 w-4" />
-                            </Button>
+                            {editingPrescriptionId === item.id ? (
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={handlePrescriptionEdit}>Save</Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingPrescriptionId(null)}>Cancel</Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => startPrescriptionEdit(item)}>
+                                  <Pencil className="h-4 w-4" />
+                                  Edit
+                                </Button>
+                                <Button variant="destructive" size="sm" className="h-8 rounded-lg" onClick={() => handlePrescriptionDelete(item.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </Button>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))

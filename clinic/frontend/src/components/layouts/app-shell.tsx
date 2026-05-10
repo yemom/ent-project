@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Activity, Bell, CalendarDays, ChevronRight, ClipboardList, FileText, LayoutDashboard, LogOut, Menu, MoonStar, PillBottle, Settings, ShieldCheck, Stethoscope, UserRound, UserRoundSearch, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ const navByRole = {
     { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Doctors', href: '/admin/doctors', icon: Stethoscope },
     { label: 'Patients', href: '/admin/patients', icon: UserRound },
+    { label: 'Pharmacy', href: '/admin/pharmacy', icon: PillBottle },
     { label: 'Appointments', href: '/admin/appointments', icon: CalendarDays },
     { label: 'Analytics', href: '/admin/analytics', icon: Activity },
     { label: 'Role Permissions', href: '/admin/roles', icon: ShieldCheck },
@@ -44,6 +45,12 @@ const navByRole = {
     { label: 'Profile', href: '/patient/profile', icon: UserRound },
     { label: 'Notifications', href: '/patient/notifications', icon: Bell },
     { label: 'Settings', href: '/patient/settings', icon: Settings }
+  ],
+  PHARMACIST: [
+    { label: 'Dashboard', href: '/pharmacist/dashboard', icon: LayoutDashboard },
+    { label: 'Orders', href: '/pharmacist/orders', icon: PillBottle },
+    { label: 'Profile', href: '/pharmacist/profile', icon: UserRound },
+    { label: 'Settings', href: '/pharmacist/settings', icon: Settings }
   ]
 } as const;
 
@@ -55,6 +62,7 @@ function roleLabel(role?: string | null) {
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,10 +72,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const visibleNav = useMemo(() => {
     if (user?.role === 'DOCTOR') return navByRole.DOCTOR;
     if (user?.role === 'PATIENT') return navByRole.PATIENT;
+    if (user?.role === 'PHARMACIST') return navByRole.PHARMACIST;
     return navByRole.ADMIN;
   }, [user?.role]);
 
-  const roleName = user?.role ?? (pathname.startsWith('/doctor') ? 'DOCTOR' : pathname.startsWith('/patient') ? 'PATIENT' : 'ADMIN');
+  const roleName = user?.role ?? (pathname.startsWith('/doctor') ? 'DOCTOR' : pathname.startsWith('/patient') ? 'PATIENT' : pathname.startsWith('/pharmacist') ? 'PHARMACIST' : 'ADMIN');
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') ?? '');
+  }, [searchParams]);
 
   const handleSignOut = () => {
     clearSession();
@@ -76,8 +89,14 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
   const handleSearchSubmit = () => {
     const query = searchQuery.trim();
-    if (!query) return;
-    router.push((`${pathname}?q=${encodeURIComponent(query)}` as never));
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (query) {
+      nextParams.set('q', query);
+    } else {
+      nextParams.delete('q');
+    }
+    const nextQuery = nextParams.toString();
+    router.push((nextQuery ? `${pathname}?${nextQuery}` : pathname) as never);
   };
 
   return (
@@ -115,13 +134,23 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               })}
             </nav>
             <div className="border-t border-border/60 p-4">
-              <Link
-                href={ROUTES.adminCreateAppointment}
-                className="inline-flex w-full items-center justify-start gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95"
-              >
-                <Activity className="h-4 w-4" />
-                New Appointment
-              </Link>
+              {user?.role === 'PHARMACIST' ? (
+                <Link
+                  href="/pharmacist/orders"
+                  className="inline-flex w-full items-center justify-start gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95"
+                >
+                  <PillBottle className="h-4 w-4" />
+                  View Orders
+                </Link>
+              ) : (
+                <Link
+                  href={ROUTES.adminCreateAppointment}
+                  className="inline-flex w-full items-center justify-start gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95"
+                >
+                  <Activity className="h-4 w-4" />
+                  New Appointment
+                </Link>
+              )}
               <Button className="mt-3 w-full justify-start rounded-2xl" variant="ghost" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
                 Sign out

@@ -20,3 +20,5 @@ export function hasSession(request: NextRequest) {
 export function getRole(request: NextRequest) {
   return request.cookies.get('clinic.role')?.value ?? null;
 }
+
+export { isProtectedPath as isProtected, getRequiredRole as requiredRole };

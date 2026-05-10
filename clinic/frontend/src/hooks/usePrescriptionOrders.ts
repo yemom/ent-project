@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   listPrescriptionOrders,
-  PrescriptionOrderItem,
-} from "@/services/api/prescription-orders";
+  PrescriptionOrderItem
+} from "@/features/prescriptions";
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
 
 interface UsePrescriptionOrdersOptions {
   status?: "PENDING" | "DISPENSED" | "REJECTED";
@@ -24,7 +25,7 @@ export function usePrescriptionOrders(options: UsePrescriptionOrdersOptions = {}
         const data = await listPrescriptionOrders({ status: options.status });
         setOrders(data.content || []);
       } catch (err: any) {
-        setError(err.message || "Failed to fetch prescription orders");
+        setError(getFriendlyErrorMessage(err, "We could not load prescription orders right now. Please try again."));
       } finally {
         setIsLoading(false);
       }

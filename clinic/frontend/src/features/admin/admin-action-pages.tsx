@@ -15,6 +15,7 @@ import { createAppointment } from '@/services/api/appointments';
 import { createDoctor, createPatient } from '@/services/api/admin';
 import { listUsers, listPatients } from '@/services/api/users';
 import { apiClient } from '@/services/api/client';
+import { getFriendlyErrorMessage } from '@/lib/error-handler';
 import type { UserRole } from '@/types/api';
 import type { ReactNode } from 'react';
 
@@ -178,7 +179,7 @@ export function InviteUserPage() {
                     role: 'PHARMACIST'
                   });
                   setStatus('Pharmacist created successfully.');
-                  setTimeout(() => router.push(ROUTES.adminUsers), 700);
+                  setTimeout(() => router.push(ROUTES.adminPharmacy), 700);
                   return;
                 }
 
@@ -471,7 +472,8 @@ export function CreateAppointmentPage() {
         const doctorData = await listUsers({ size: 50 });
         setDoctors(doctorData.content?.filter((u: any) => u.role === 'DOCTOR') || []);
       } catch (err) {
-        console.error('Failed to fetch users', err);
+        // Silent fail - component handles missing data gracefully
+        setStatus(getFriendlyErrorMessage(err, 'We could not load the search data right now. Please try again.'));
       }
     }
     fetch();
@@ -484,6 +486,9 @@ export function CreateAppointmentPage() {
     onSuccess: () => {
       setStatus('Appointment created successfully.');
       setTimeout(() => router.push(ROUTES.adminAppointments), 700);
+    },
+    onError: (err) => {
+      setStatus(getFriendlyErrorMessage(err, 'We could not create the appointment right now. Please review the details and try again.'));
     }
   });
 
@@ -500,7 +505,7 @@ export function CreateAppointmentPage() {
 
   const handleSubmit = (values: any) => {
     if (!selectedPatient || !values.doctorId) {
-      alert('Please select a patient and doctor');
+      setStatus('Please choose a patient and a doctor before creating the appointment.');
       return;
     }
     const dateTime = `${values.appointmentDate}T${values.appointmentTime}`;

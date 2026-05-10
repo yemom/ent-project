@@ -2,6 +2,7 @@ package com.clinic.controller;
 
 import com.clinic.config.ApiPaths;
 import com.clinic.dto.request.CreatePrescriptionOrderRequest;
+import com.clinic.dto.request.UpdatePrescriptionOrderRequest;
 import com.clinic.dto.request.UpdatePrescriptionOrderStatusRequest;
 import com.clinic.dto.response.PageResponse;
 import com.clinic.dto.response.PrescriptionOrderResponse;
@@ -84,8 +85,18 @@ public class PrescriptionOrderController {
         return ResponseEntity.ok(prescriptionOrderService.updateStatus(id, request));
     }
 
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
+    public ResponseEntity<PrescriptionOrderResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdatePrescriptionOrderRequest request
+    ) {
+        log.info("Update prescription order request for id={}", id);
+        return ResponseEntity.ok(prescriptionOrderService.update(id, request));
+    }
+
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('PHARMACIST')")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         prescriptionOrderService.delete(id);
         return ResponseEntity.noContent().build();

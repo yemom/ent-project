@@ -1,6 +1,7 @@
 package com.clinic.service;
 
 import com.clinic.dto.request.CreatePrescriptionOrderRequest;
+import com.clinic.dto.request.UpdatePrescriptionOrderRequest;
 import com.clinic.dto.request.UpdatePrescriptionOrderStatusRequest;
 import com.clinic.dto.response.PrescriptionOrderResponse;
 import com.clinic.entity.PrescriptionOrderStatus;
@@ -20,6 +21,8 @@ public interface PrescriptionOrderService {
     Page<PrescriptionOrderResponse> getByStatus(PrescriptionOrderStatus status, Pageable pageable);
 
     Page<PrescriptionOrderResponse> getByDoctorId(UUID doctorId, Pageable pageable);
+
+    PrescriptionOrderResponse update(UUID id, UpdatePrescriptionOrderRequest request);
 
     PrescriptionOrderResponse updateStatus(UUID id, UpdatePrescriptionOrderStatusRequest request);
 

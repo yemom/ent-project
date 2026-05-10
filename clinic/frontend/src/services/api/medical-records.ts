@@ -32,3 +32,12 @@ export async function createMedicalRecord(payload: Record<string, unknown>) {
   const { data } = await apiClient.post<MedicalRecordItem>('/medical-records', payload);
   return data;
 }
+
+export async function updateMedicalRecord(id: string, payload: Record<string, unknown>) {
+  const { data } = await apiClient.put<MedicalRecordItem>(`/medical-records/${id}`, payload);
+  return data;
+}
+
+export async function deleteMedicalRecord(id: string) {
+  await apiClient.delete(`/medical-records/${id}`);
+}

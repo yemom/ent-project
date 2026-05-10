@@ -26,3 +26,10 @@ export const ROUTES = {
   patientDashboard: '/patient',
   pharmacistDashboard: '/pharmacist/dashboard'
 } as const;
+
+export default {
+  APP_NAME,
+  APP_TAGLINE,
+  ROLE_LABELS,
+  ROUTES
+};

@@ -1,6 +1,7 @@
 package com.clinic.service.impl;
 
 import com.clinic.dto.request.CreatePrescriptionOrderRequest;
+import com.clinic.dto.request.UpdatePrescriptionOrderRequest;
 import com.clinic.dto.request.UpdatePrescriptionOrderStatusRequest;
 import com.clinic.dto.response.PrescriptionOrderResponse;
 import com.clinic.entity.PrescriptionOrder;
@@ -64,6 +65,40 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
     @Transactional(readOnly = true)
     public Page<PrescriptionOrderResponse> getByDoctorId(UUID doctorId, Pageable pageable) {
         return prescriptionOrderRepository.findByDoctorId(doctorId, pageable).map(mapper::toResponse);
+    }
+
+    @Override
+    public PrescriptionOrderResponse update(UUID id, UpdatePrescriptionOrderRequest request) {
+        PrescriptionOrder order = getEntityById(id);
+
+        if (request.patientName() != null) {
+            if (request.patientName().isBlank()) {
+                throw new IllegalArgumentException("Patient name must not be blank");
+            }
+            order.setPatientName(request.patientName().trim());
+        }
+
+        if (request.drugName() != null) {
+            if (request.drugName().isBlank()) {
+                throw new IllegalArgumentException("Drug name must not be blank");
+            }
+            order.setDrugName(request.drugName().trim());
+        }
+
+        if (request.dosage() != null) {
+            if (request.dosage().isBlank()) {
+                throw new IllegalArgumentException("Dosage must not be blank");
+            }
+            order.setDosage(request.dosage().trim());
+        }
+
+        if (request.instructions() != null) {
+            order.setInstructions(request.instructions().trim());
+        }
+
+        PrescriptionOrder updated = prescriptionOrderRepository.save(order);
+        log.info("Updated prescription order id={}", id);
+        return mapper.toResponse(updated);
     }
 
     @Override

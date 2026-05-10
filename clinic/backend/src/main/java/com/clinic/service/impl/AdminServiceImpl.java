@@ -1,6 +1,7 @@
 package com.clinic.service.impl;
 
 import com.clinic.dto.request.CreateUserRequest;
+import com.clinic.dto.response.PageResponse;
 import com.clinic.dto.response.UserSummaryResponse;
 import com.clinic.entity.*;
 import com.clinic.exception.BadRequestException;
@@ -8,6 +9,7 @@ import com.clinic.mapper.UserMapper;
 import com.clinic.repository.UserRepository;
 import com.clinic.service.AdminService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,12 @@ public class AdminServiceImpl implements AdminService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<UserSummaryResponse> listUsers(Pageable pageable) {
+        return PageResponse.of(userRepository.findAll(pageable).map(userMapper::toSummaryResponse));
     }
 
     @Override

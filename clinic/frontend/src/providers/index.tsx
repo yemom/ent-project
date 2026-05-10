@@ -1,32 +1,20 @@
-'use client';
+"use client";
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 import { useState } from 'react';
 import { AuthHydrator } from '@/store/auth-store';
+import { QueryProvider } from './query-provider';
 
 export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            refetchOnWindowFocus: false,
-            retry: 1
-          }
-        }
-      })
-  );
-
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <QueryClientProvider client={queryClient}>
+      <QueryProvider>
         <AuthHydrator />
         {children}
         <Toaster position="top-right" richColors closeButton />
-      </QueryClientProvider>
+      </QueryProvider>
     </ThemeProvider>
   );
 }

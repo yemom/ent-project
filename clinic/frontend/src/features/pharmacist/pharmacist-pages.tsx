@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { AlertCircle, Check, X, Clock, Package } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { AlertCircle, ArrowRight, Check, Clock, Package, SlidersHorizontal, Zap } from "lucide-react";
 import { apiClient } from "@/services/api/client";
+import { StatusAlert, type StatusType } from "@/components/shared/status-alert";
 import {
   Card,
   CardContent,
@@ -24,7 +26,56 @@ import {
 import { Input } from "@/components/ui/input";
 import { usePrescriptionOrders } from "@/hooks/usePrescriptionOrders";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { useAuthStore } from "@/store/auth-store";
+
+function formatQueueAge(value?: string) {
+  if (!value) return "Received recently";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Received recently";
+  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+  if (minutes < 1) return "Received just now";
+  if (minutes < 60) return `Received ${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `Received ${hours}h ago`;
+  return `Received ${Math.round(hours / 24)}d ago`;
+}
+
+function getQueueStyle(order: { drugName: string; instructions?: string; orderedAt?: string }, index: number) {
+  const text = `${order.drugName} ${order.instructions ?? ""}`.toLowerCase();
+  const ageMinutes = order.orderedAt ? Math.max(0, Math.round((Date.now() - new Date(order.orderedAt).getTime()) / 60000)) : 0;
+  if (index === 0 || text.includes("stat") || text.includes("urgent") || ageMinutes > 90) {
+    return {
+      label: "STAT",
+      action: "Process Now",
+      icon: Zap,
+      border: "border-red-400",
+      iconWrap: "bg-red-100 text-red-600",
+      accent: "text-teal-700",
+      tags: ["IMMEDIATE", "HIGH RISK"]
+    };
+  }
+  if (index === 1 || text.includes("antibiotic") || text.includes("amoxicillin") || ageMinutes > 45) {
+    return {
+      label: "Urgent",
+      action: "Next in Queue",
+      icon: AlertCircle,
+      border: "border-orange-300",
+      iconWrap: "bg-orange-100 text-orange-700",
+      accent: "text-teal-700",
+      tags: ["WITHIN 1HR", "ANTIBIOTIC"]
+    };
+  }
+  return {
+    label: "Routine",
+    action: "Review Order",
+    icon: Package,
+    border: "border-teal-300",
+    iconWrap: "bg-teal-100 text-teal-700",
+    accent: "text-teal-700",
+    tags: ["STANDARD", "REFILL"]
+  };
+}
 
 // ============================================================================
 // PharmacistDashboardPage
@@ -32,7 +83,7 @@ import { useAuthStore } from "@/store/auth-store";
 // Main landing page for pharmacists showing stats and recent orders.
 // ============================================================================
 export function PharmacistDashboardPage() {
-  const { orders, isLoading } = usePrescriptionOrders();
+  const { orders, isLoading, error } = usePrescriptionOrders();
 
   const stats = useMemo(() => {
     return {
@@ -46,11 +97,17 @@ export function PharmacistDashboardPage() {
     return orders.slice(0, 5);
   }, [orders]);
 
+  const activeQueue = useMemo(() => {
+    return orders
+      .filter((order) => order.status === "PENDING")
+      .sort((left, right) => new Date(left.orderedAt).getTime() - new Date(right.orderedAt).getTime());
+  }, [orders]);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Pharmacy Dashboard"
-        description="Manage prescription orders and track pharmacy operations."
+        description={`Active queue: ${stats.pending} prescriptions pending fulfillment`}
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -88,48 +145,78 @@ export function PharmacistDashboardPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-          <CardDescription>Latest prescription orders from doctors</CardDescription>
+      <Card className="border-0 shadow-none">
+        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 px-0">
+          <div>
+            <CardTitle>Active Queue</CardTitle>
+            <CardDescription>{stats.pending} prescriptions pending fulfillment</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" className="rounded-md">
+              <SlidersHorizontal className="h-4 w-4" />
+              Filter
+            </Button>
+            <Button variant="secondary" size="sm" className="rounded-md">
+              <SlidersHorizontal className="h-4 w-4" />
+              Priority
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 px-0">
           {isLoading ? (
             <>
-              <Skeleton className="h-16 w-full rounded-2xl" />
-              <Skeleton className="h-16 w-full rounded-2xl" />
-              <Skeleton className="h-16 w-full rounded-2xl" />
+              <Skeleton className="h-24 w-full rounded-lg" />
+              <Skeleton className="h-24 w-full rounded-lg" />
+              <Skeleton className="h-24 w-full rounded-lg" />
             </>
-          ) : recentOrders.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No recent orders.</div>
+          ) : error ? (
+            <div className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">{error}</div>
+          ) : activeQueue.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No pending prescriptions in the active queue.</div>
           ) : (
-            recentOrders.map((order) => (
+            activeQueue.slice(0, 3).map((order, index) => {
+              const style = getQueueStyle(order, index);
+              const Icon = style.icon;
+              return (
               <div
                 key={order.id}
-                className="flex items-center justify-between rounded-2xl bg-muted/50 p-4"
+                className={`flex items-center justify-between gap-4 rounded-lg border-2 ${style.border} bg-white p-4`}
               >
-                <div>
-                  <p className="font-semibold">{order.drugName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Patient: {order.patientName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Ordered: {new Date(order.orderedAt).toLocaleString()}
-                  </p>
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${style.iconWrap}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-700">
+                      {style.label}: {order.drugName} {order.dosage}
+                    </p>
+                    <p className="text-sm font-medium text-slate-600">
+                      Patient: {order.patientName} <span className="text-muted-foreground">• Dr. {order.doctorName}</span>
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {style.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="rounded-sm text-[10px] font-bold">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <Badge
-                  variant={
-                    order.status === "PENDING"
-                      ? "warning"
-                      : order.status === "DISPENSED"
-                      ? "success"
-                      : "destructive"
-                  }
-                >
-                  {order.status}
-                </Badge>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs font-semibold text-muted-foreground">{formatQueueAge(order.orderedAt)}</p>
+                  <Button
+                    variant="ghost"
+                    className={`mt-2 px-0 font-bold ${style.accent}`}
+                    onClick={() => {
+                      window.location.href = "/pharmacist/orders";
+                    }}
+                  >
+                    {style.action}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            ))
+            );})
           )}
         </CardContent>
       </Card>
@@ -143,17 +230,24 @@ export function PharmacistDashboardPage() {
 // Displays all prescription orders with filtering and status updates.
 // ============================================================================
 export function PharmacistOrdersPage() {
+  const urlQuery = useSearchParams().get('q') ?? '';
   const [filterStatus, setFilterStatus] = useState<
     "ALL" | "PENDING" | "DISPENSED" | "REJECTED"
   >("ALL");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(urlQuery);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusType>(null);
+  const [statusMessage, setStatusMessage] = useState('');
 
   const statusFilter =
     filterStatus === "ALL"
       ? undefined
       : (filterStatus as "PENDING" | "DISPENSED" | "REJECTED");
   const { orders, isLoading } = usePrescriptionOrders({ status: statusFilter });
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
 
   const filteredOrders = useMemo(() => {
     if (!query.trim()) return orders;
@@ -177,11 +271,15 @@ export function PharmacistOrdersPage() {
       await apiClient.patch(`/prescription-orders/${orderId}/status`, {
         status: newStatus,
       });
+      setStatus('success');
+      setStatusMessage(`Order marked as ${newStatus.toLowerCase()} successfully!`);
       // Refresh the page or update state
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (err) {
-      console.error("Failed to update order status", err);
-      alert("Failed to update order status. Please try again.");
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'We could not update the order status right now. Please try again.'));
     } finally {
       setUpdatingId(null);
     }
@@ -192,6 +290,14 @@ export function PharmacistOrdersPage() {
       <PageHeader
         title="Prescription Orders"
         description="Review and fulfill prescription orders from doctors."
+      />
+
+      <StatusAlert 
+        status={status} 
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss={true}
+        autoDismissMs={3500}
       />
 
       <div className="flex gap-2 flex-wrap">
