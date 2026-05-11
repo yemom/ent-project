@@ -24,7 +24,9 @@ CREATE TABLE users (
     qualifications TEXT,
     consultation_fee DECIMAL(10, 2),
     bio TEXT,
-    available BOOLEAN
+    available BOOLEAN,
+    employee_number VARCHAR(50) UNIQUE,
+    pharmacy_location VARCHAR(100)
 );
 
 CREATE TABLE appointments (
@@ -83,4 +85,21 @@ CREATE TABLE token_blacklist (
     token VARCHAR(2048) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
     blacklisted_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE prescription_orders (
+    id UUID PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    deleted BOOLEAN NOT NULL,
+    deleted_at TIMESTAMP,
+    doctor_id UUID NOT NULL,
+    doctor_name VARCHAR(100) NOT NULL,
+    patient_name VARCHAR(100) NOT NULL,
+    drug_name VARCHAR(200) NOT NULL,
+    dosage VARCHAR(100) NOT NULL,
+    instructions TEXT,
+    status VARCHAR(20) NOT NULL,
+    ordered_at TIMESTAMP NOT NULL,
+    dispensed_at TIMESTAMP
 );

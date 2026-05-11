@@ -33,11 +33,12 @@ export interface UpdatePrescriptionOrderPayload {
   instructions?: string;
 }
 
-export async function listPrescriptionOrders(params?: { page?: number; size?: number; status?: 'PENDING' | 'DISPENSED' | 'REJECTED' }) {
+export async function listPrescriptionOrders(params?: { page?: number; size?: number; status?: 'PENDING' | 'DISPENSED' | 'REJECTED'; patientName?: string }) {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   if (params?.size) query.append('size', params.size.toString());
   if (params?.status) query.append('status', params.status);
+  if (params?.patientName) query.append('patientName', params.patientName);
 
   const response = await apiClient.get(`/prescription-orders${query.toString() ? `?${query.toString()}` : ''}`);
   return response.data;
