@@ -63,31 +63,31 @@ public final class TestFixtures {
     }
 
     public static AppointmentCreateRequest appointmentCreateRequest(UUID patientId, UUID doctorId) {
-        return new AppointmentCreateRequest(patientId, doctorId, LocalDateTime.now().plusDays(1), 30, "SCHEDULED", "Checkup", "Bring reports");
+        return new AppointmentCreateRequest(patientId.toString(), doctorId.toString(), LocalDateTime.now().plusDays(1), 30, "SCHEDULED", "Checkup", "Bring reports");
     }
 
     public static AppointmentUpdateRequest appointmentUpdateRequest(UUID patientId, UUID doctorId) {
-        return new AppointmentUpdateRequest(patientId, doctorId, LocalDateTime.now().plusDays(2), 45, AppointmentStatus.CONFIRMED, "Follow-up", "Updated notes", true, LocalDateTime.now(), null, null, null);
+        return new AppointmentUpdateRequest(patientId.toString(), doctorId.toString(), LocalDateTime.now().plusDays(2), 45, AppointmentStatus.CONFIRMED, "Follow-up", "Updated notes", true, LocalDateTime.now(), null, null, null);
     }
 
     public static AppointmentSearchRequest appointmentSearchRequest(UUID patientId, UUID doctorId) {
-        return new AppointmentSearchRequest(patientId, doctorId, AppointmentStatus.SCHEDULED, LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1), "check");
+        return new AppointmentSearchRequest(patientId.toString(), doctorId.toString(), AppointmentStatus.SCHEDULED, LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1), "check");
     }
 
     public static MedicalRecordCreateRequest medicalRecordCreateRequest(UUID patientId, UUID doctorId, UUID appointmentId) {
-        return new MedicalRecordCreateRequest(patientId, doctorId, appointmentId, "Diagnosis", "Treatment", "Prescription", "Tests", "BP 120/80", true, LocalDate.now().plusDays(7), "Notes", LocalDate.now(), "CONSULTATION", true);
+        return new MedicalRecordCreateRequest(patientId.toString(), doctorId.toString(), appointmentId.toString(), "Diagnosis", "Treatment", "Prescription", "Tests", "BP 120/80", true, LocalDate.now().plusDays(7), "Notes", LocalDate.now(), "CONSULTATION", true);
     }
 
     public static MedicalRecordUpdateRequest medicalRecordUpdateRequest(UUID patientId, UUID doctorId, UUID appointmentId) {
-        return new MedicalRecordUpdateRequest(patientId, doctorId, appointmentId, "Updated Diagnosis", "Updated Treatment", "Updated Prescription", "Updated Tests", "BP 110/70", false, null, "Updated Notes", LocalDate.now(), "FOLLOW_UP", false);
+        return new MedicalRecordUpdateRequest(patientId.toString(), doctorId.toString(), appointmentId.toString(), "Updated Diagnosis", "Updated Treatment", "Updated Prescription", "Updated Tests", "BP 110/70", false, null, "Updated Notes", LocalDate.now(), "FOLLOW_UP", false);
     }
 
     public static MedicalRecordSearchRequest medicalRecordSearchRequest(UUID patientId, UUID doctorId, UUID appointmentId) {
-        return new MedicalRecordSearchRequest(patientId, doctorId, appointmentId, LocalDate.now().minusDays(1), LocalDate.now().plusDays(1), true, "diag");
+        return new MedicalRecordSearchRequest(patientId.toString(), doctorId.toString(), appointmentId.toString(), LocalDate.now().minusDays(1), LocalDate.now().plusDays(1), true, "diag");
     }
 
     public static UserSummaryResponse userSummary(UUID id, String name, String email, UserRole role) {
-        return new UserSummaryResponse(id, name, email, role);
+        return new UserSummaryResponse(id.toString(), name, email, role);
     }
 
     public static AuthResponse authResponse(String token) {
@@ -95,24 +95,24 @@ public final class TestFixtures {
     }
 
     public static PatientResponse patientResponse(UUID id) {
-        return new PatientResponse(id, "patient@example.com", "John Patient", "+15550001", UserRole.PATIENT, LocalDate.of(1990, 1, 1), Gender.MALE, "Asthma", "O+", "Peanuts", "Jane Patient", "+15550002", true, LocalDateTime.now(), LocalDateTime.now());
+        return new PatientResponse(id.toString(), "patient@example.com", "John Patient", "+15550001", UserRole.PATIENT, LocalDate.of(1990, 1, 1), Gender.MALE, "Asthma", "O+", "Peanuts", "Jane Patient", "+15550002", true, LocalDateTime.now(), LocalDateTime.now());
     }
 
     public static DoctorResponse doctorResponse(UUID id) {
-        return new DoctorResponse(id, "doctor@example.com", "Dr Smith", "+15550005", UserRole.DOCTOR, "Cardiology", "LIC-123", 12, "MBBS, MD", BigDecimal.valueOf(100.0), "Experienced cardiologist", true, true, LocalDateTime.now(), LocalDateTime.now());
+        return new DoctorResponse(id.toString(), "doctor@example.com", "Dr Smith", "+15550005", UserRole.DOCTOR, "Cardiology", "LIC-123", 12, "MBBS, MD", BigDecimal.valueOf(100.0), "Experienced cardiologist", true, true, LocalDateTime.now(), LocalDateTime.now());
     }
 
     public static AppointmentResponse appointmentResponse(UUID id, UUID patientId, UUID doctorId) {
-        return new AppointmentResponse(id, userSummary(patientId, "John Patient", "patient@example.com", UserRole.PATIENT), userSummary(doctorId, "Dr Smith", "doctor@example.com", UserRole.DOCTOR), LocalDateTime.now().plusDays(1), 30, AppointmentStatus.SCHEDULED, "Checkup", "Bring reports", false, null, null, null, null, LocalDateTime.now(), LocalDateTime.now());
+        return new AppointmentResponse(id.toString(), userSummary(patientId, "John Patient", "patient@example.com", UserRole.PATIENT), userSummary(doctorId, "Dr Smith", "doctor@example.com", UserRole.DOCTOR), LocalDateTime.now().plusDays(1), 30, AppointmentStatus.SCHEDULED, "Checkup", "Bring reports", false, null, null, null, null, LocalDateTime.now(), LocalDateTime.now());
     }
 
     public static MedicalRecordResponse medicalRecordResponse(UUID id, UUID patientId, UUID doctorId, UUID appointmentId) {
-        return new MedicalRecordResponse(id, userSummary(patientId, "John Patient", "patient@example.com", UserRole.PATIENT), userSummary(doctorId, "Dr Smith", "doctor@example.com", UserRole.DOCTOR), new AppointmentSummaryResponse(appointmentId, LocalDateTime.now().plusDays(1), 30, AppointmentStatus.SCHEDULED, "Checkup"), "Diagnosis", "Treatment", "Prescription", "Tests", "BP 120/80", true, LocalDate.now().plusDays(7), "Notes", LocalDate.now(), "CONSULTATION", true, LocalDateTime.now(), LocalDateTime.now());
+        return new MedicalRecordResponse(id.toString(), userSummary(patientId, "John Patient", "patient@example.com", UserRole.PATIENT), userSummary(doctorId, "Dr Smith", "doctor@example.com", UserRole.DOCTOR), new AppointmentSummaryResponse(appointmentId.toString(), LocalDateTime.now().plusDays(1), 30, AppointmentStatus.SCHEDULED, "Checkup"), "Diagnosis", "Treatment", "Prescription", "Tests", "BP 120/80", true, LocalDate.now().plusDays(7), "Notes", LocalDate.now(), "CONSULTATION", true, LocalDateTime.now(), LocalDateTime.now());
     }
 
     public static Patient patientEntity(UUID id) {
         return Patient.builder()
-                .id(id)
+                .id(id.toString())
                 .email("patient@example.com")
                 .password("encoded")
                 .fullName("John Patient")
@@ -131,7 +131,7 @@ public final class TestFixtures {
 
     public static Doctor doctorEntity(UUID id) {
         return Doctor.builder()
-                .id(id)
+                .id(id.toString())
                 .email("doctor@example.com")
                 .password("encoded")
                 .fullName("Dr Smith")

@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -45,7 +44,7 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public PrescriptionOrderResponse getById(UUID id) {
+    public PrescriptionOrderResponse getById(String id) {
         return mapper.toResponse(getEntityById(id));
     }
 
@@ -63,12 +62,12 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<PrescriptionOrderResponse> getByDoctorId(UUID doctorId, Pageable pageable) {
+    public Page<PrescriptionOrderResponse> getByDoctorId(String doctorId, Pageable pageable) {
         return prescriptionOrderRepository.findByDoctorId(doctorId, pageable).map(mapper::toResponse);
     }
 
     @Override
-    public PrescriptionOrderResponse update(UUID id, UpdatePrescriptionOrderRequest request) {
+    public PrescriptionOrderResponse update(String id, UpdatePrescriptionOrderRequest request) {
         PrescriptionOrder order = getEntityById(id);
 
         if (request.patientName() != null) {
@@ -102,7 +101,7 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
     }
 
     @Override
-    public PrescriptionOrderResponse updateStatus(UUID id, UpdatePrescriptionOrderStatusRequest request) {
+    public PrescriptionOrderResponse updateStatus(String id, UpdatePrescriptionOrderStatusRequest request) {
         PrescriptionOrder order = getEntityById(id);
         order.setStatus(request.status());
         if (request.status() == PrescriptionOrderStatus.DISPENSED) {
@@ -114,13 +113,13 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
     }
 
     @Override
-    public void delete(UUID id) {
+    public void delete(String id) {
         PrescriptionOrder order = getEntityById(id);
         prescriptionOrderRepository.delete(order);
         log.info("Deleted prescription order id={}", id);
     }
 
-    private PrescriptionOrder getEntityById(UUID id) {
+    private PrescriptionOrder getEntityById(String id) {
         return prescriptionOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Prescription order not found with id=" + id));
     }

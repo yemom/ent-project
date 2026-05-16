@@ -18,9 +18,14 @@ class AppointmentRepositoryTest {
     @Autowired
     private AppointmentRepository appointmentRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Test
     void saveAndFind() {
-        Appointment appt = appointmentEntity(UUID.randomUUID(), patientEntity(UUID.randomUUID()), doctorEntity(UUID.randomUUID()));
+        var patient = userRepository.save(patientEntity(UUID.randomUUID()));
+        var doctor = userRepository.save(doctorEntity(UUID.randomUUID()));
+        Appointment appt = appointmentEntity(UUID.randomUUID(), patient, doctor);
         appointmentRepository.save(appt);
 
         assertTrue(appointmentRepository.findById(appt.getId()).isPresent());

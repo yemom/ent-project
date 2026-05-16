@@ -26,7 +26,7 @@ CREATE SEQUENCE IF NOT EXISTS medical_records_id_seq START 1;
 -- =====================================================
 
 CREATE TABLE users (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id varchar(36) PRIMARY KEY,
     user_type VARCHAR(20) NOT NULL DEFAULT 'PATIENT', -- Discriminator column
 
     -- Common fields for all users
@@ -77,11 +77,11 @@ CREATE INDEX idx_active ON users(active);
 -- =====================================================
 
 CREATE TABLE appointments (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id varchar(36) PRIMARY KEY,
 
     -- Foreign Keys
-    patient_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    doctor_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    patient_id varchar(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    doctor_id varchar(36) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
 
     -- Appointment details
     appointment_date TIMESTAMP NOT NULL,
@@ -121,12 +121,12 @@ CREATE INDEX idx_appointment_date_status ON appointments(appointment_date, statu
 -- =====================================================
 
 CREATE TABLE medical_records (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id varchar(36) PRIMARY KEY,
 
     -- Foreign Keys
-    patient_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    doctor_id uuid NOT NULL REFERENCES users(id) ON DELETE SET NULL,
-    appointment_id uuid REFERENCES appointments(id) ON DELETE SET NULL,
+    patient_id varchar(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    doctor_id varchar(36) NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    appointment_id varchar(36) REFERENCES appointments(id) ON DELETE SET NULL,
 
     -- Medical information
     diagnosis TEXT,
@@ -211,8 +211,9 @@ COMMENT ON COLUMN medical_records.is_confidential IS 'Flag to indicate if the re
 
 -- Create default ADMIN user (password should be hashed in production)
 INSERT INTO users (
-    user_type, email, password, full_name, phone, role, active, created_at, updated_at
+    id, user_type, email, password, full_name, phone, role, active, created_at, updated_at
 ) VALUES (
+    '550e8400-e29b-41d4-a716-446655440000',
     'ADMIN',
     'admin@clinice.com',
     '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lm', -- password: "admin123"

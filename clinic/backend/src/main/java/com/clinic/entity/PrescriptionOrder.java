@@ -12,7 +12,6 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * PrescriptionOrder entity representing a drug order sent from doctor to pharmacy.
@@ -37,7 +36,7 @@ public class PrescriptionOrder extends BaseEntity {
 
     @NotNull(message = "Doctor ID is required")
     @Column(name = "doctor_id", nullable = false)
-    private UUID doctorId;
+    private String doctorId;
 
     @NotBlank(message = "Doctor name is required")
     @Column(name = "doctor_name", nullable = false, length = 100)

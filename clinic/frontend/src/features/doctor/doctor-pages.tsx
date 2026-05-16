@@ -33,10 +33,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useAppointments } from "@/hooks/useAppointments";
+import { LabOrderForm } from '@/features/laboratory/components/lab-order-form';
 import { createAppointment } from "@/services/api/appointments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMedicalRecords, searchMedicalRecords, createMedicalRecord, updateMedicalRecord, deleteMedicalRecord } from "@/services/api/medical-records";
 import { listPatients, updatePatient } from "@/services/api/users";
+import { useLabOrders } from '@/features/laboratory/hooks/use-lab-orders';
+import { LabOrderList } from '@/features/laboratory/components/lab-order-list';
 import { 
   listPrescriptionOrdersByDoctor, 
   listPrescriptionOrders,
@@ -79,6 +82,8 @@ export function DoctorDashboardPage() {
             <Calendar className="h-8 w-8 text-primary" />
           </CardContent>
         </Card>
+
+        
 
         <Card>
           <CardHeader>
@@ -155,6 +160,11 @@ export function DoctorDashboardPage() {
   );
 }
 
+function PatientLabOrders({ patientId }: { patientId: string }) {
+  const { orders } = useLabOrders({ patientId });
+  return <LabOrderList orders={orders} />;
+}
+
 // ============================================================================
 // DoctorAppointmentsPage
 // ============================================================================
@@ -174,6 +184,19 @@ export function DoctorAppointmentsPage() {
       [item.patient.fullName, item.time, item.status, item.type].some((value) => value.toLowerCase().includes(q))
     );
   }, [appointments, query]);
+
+  const [labModal, setLabModal] = useState<{ open: boolean; appointmentId?: string; patientId?: string; doctorId?: string } | null>(null);
+
+  useEffect(() => {
+    const handler = () => {
+      const data = (window as any).__labOrderModal;
+      if (data && data.open) {
+        setLabModal({ open: true, appointmentId: data.appointmentId, patientId: data.patientId, doctorId: data.doctorId });
+      }
+    };
+    window.addEventListener('labOrderOpen', handler);
+    return () => window.removeEventListener('labOrderOpen', handler);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -263,20 +286,45 @@ export function DoctorAppointmentsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            window.location.href = `/doctor/records/new?appointmentId=${item.id}`;
-                          }}
-                        >
-                          Open Record
-                        </Button>
+                        <div className="flex items-center gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              window.location.href = `/doctor/records/new?appointmentId=${item.id}`;
+                            }}
+                          >
+                            Open Record
+                          </Button>
+                          <Button size="sm" onClick={() => {
+                            // open inline modal
+                            (window as any).__labOrderModal = { open: true, appointmentId: item.id, patientId: item.patient.id, doctorId: item.doctor.id };
+                            window.dispatchEvent(new Event('labOrderOpen'));
+                          }}>
+                            Send to Lab
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+            )}
+            {labModal?.open && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                <div className="w-full max-w-2xl rounded bg-white p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">Create Lab Order</h3>
+                    <button onClick={() => setLabModal(null)} className="text-sm text-muted-foreground">Close</button>
+                  </div>
+                  <LabOrderForm
+                    patientId={labModal.patientId ?? ''}
+                    doctorId={labModal.doctorId ?? ''}
+                    appointmentId={labModal.appointmentId}
+                    onSuccess={() => { setLabModal(null); window.location.reload(); }}
+                  />
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

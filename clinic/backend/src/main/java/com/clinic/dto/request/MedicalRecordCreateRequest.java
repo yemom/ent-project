@@ -3,14 +3,13 @@ package com.clinic.dto.request;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 public record MedicalRecordCreateRequest(
         @NotNull(message = "Patient ID is required")
-        UUID patientId,
+        String patientId,
 
-        UUID doctorId,
-        UUID appointmentId,
+        String doctorId,
+        String appointmentId,
 
         String diagnosis,
         String treatment,

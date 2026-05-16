@@ -19,7 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_appointments_deleted ON appointments(deleted);
 CREATE INDEX IF NOT EXISTS idx_medical_records_deleted ON medical_records(deleted);
 
 CREATE TABLE IF NOT EXISTS token_blacklist (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id varchar(36) PRIMARY KEY,
     token VARCHAR(2048) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
     blacklisted_at TIMESTAMP NOT NULL,

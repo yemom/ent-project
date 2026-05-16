@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -56,7 +55,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     @Override
-    public DoctorResponse update(UUID id, DoctorUpdateRequest request) {
+    public DoctorResponse update(String id, DoctorUpdateRequest request) {
         Doctor doctor = getEntityById(id);
         doctorMapper.updateEntity(doctor, request);
         return doctorMapper.toResponse(doctorRepository.save(doctor));
@@ -64,7 +63,7 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     @Transactional(readOnly = true)
-    public DoctorResponse getById(UUID id) {
+    public DoctorResponse getById(String id) {
         return doctorMapper.toResponse(getEntityById(id));
     }
 
@@ -100,11 +99,11 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     @Override
-    public void delete(UUID id) {
+    public void delete(String id) {
         doctorRepository.delete(getEntityById(id));
     }
 
-    private Doctor getEntityById(UUID id) {
+    private Doctor getEntityById(String id) {
         return doctorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + id));
     }

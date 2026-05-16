@@ -28,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @RestController
 @RequestMapping(ApiPaths.APPOINTMENTS)
@@ -48,7 +47,7 @@ public class AppointmentController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
-    public ResponseEntity<AppointmentResponse> getById(@PathVariable UUID id) {
+    public ResponseEntity<AppointmentResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(appointmentService.getById(id));
     }
 
@@ -64,8 +63,8 @@ public class AppointmentController {
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
     public ResponseEntity<PageResponse<AppointmentResponse>> search(
-            @RequestParam(required = false) UUID patientId,
-            @RequestParam(required = false) UUID doctorId,
+            @RequestParam(required = false) String patientId,
+            @RequestParam(required = false) String doctorId,
             @RequestParam(required = false) AppointmentStatus status,
             @RequestParam(required = false) LocalDateTime from,
             @RequestParam(required = false) LocalDateTime to,
@@ -79,13 +78,13 @@ public class AppointmentController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
-    public ResponseEntity<AppointmentResponse> update(@PathVariable UUID id, @Valid @RequestBody AppointmentUpdateRequest request) {
+    public ResponseEntity<AppointmentResponse> update(@PathVariable String id, @Valid @RequestBody AppointmentUpdateRequest request) {
         return ResponseEntity.ok(appointmentService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id, @RequestParam(required = false) String reason) {
+    public ResponseEntity<Void> delete(@PathVariable String id, @RequestParam(required = false) String reason) {
         if (reason != null && !reason.isBlank()) {
             appointmentService.cancel(id, reason);
         } else {

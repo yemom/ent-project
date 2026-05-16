@@ -25,8 +25,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping(ApiPaths.PATIENTS)
 public class PatientController {
@@ -45,7 +43,7 @@ public class PatientController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
-    public ResponseEntity<PatientResponse> getById(@PathVariable UUID id) {
+    public ResponseEntity<PatientResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(patientService.getById(id));
     }
 
@@ -73,13 +71,13 @@ public class PatientController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','PATIENT')")
-    public ResponseEntity<PatientResponse> update(@PathVariable UUID id, @Valid @RequestBody PatientUpdateRequest request) {
+    public ResponseEntity<PatientResponse> update(@PathVariable String id, @Valid @RequestBody PatientUpdateRequest request) {
         return ResponseEntity.ok(patientService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         patientService.delete(id);
         return ResponseEntity.noContent().build();
     }

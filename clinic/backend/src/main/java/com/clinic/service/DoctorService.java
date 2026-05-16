@@ -6,19 +6,17 @@ import com.clinic.dto.response.DoctorResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.UUID;
-
 public interface DoctorService {
 
     DoctorResponse create(DoctorCreateRequest request);
 
-    DoctorResponse update(UUID id, DoctorUpdateRequest request);
+    DoctorResponse update(String id, DoctorUpdateRequest request);
 
-    DoctorResponse getById(UUID id);
+    DoctorResponse getById(String id);
 
     Page<DoctorResponse> getAll(Pageable pageable);
 
     Page<DoctorResponse> search(String fullName, String email, String specialization, Boolean active, Boolean available, Pageable pageable);
 
-    void delete(UUID id);
+    void delete(String id);
 }

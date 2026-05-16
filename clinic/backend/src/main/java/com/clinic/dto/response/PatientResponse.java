@@ -5,10 +5,9 @@ import com.clinic.entity.UserRole;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 public record PatientResponse(
-        UUID id,
+        String id,
         String email,
         String fullName,
         String phone,

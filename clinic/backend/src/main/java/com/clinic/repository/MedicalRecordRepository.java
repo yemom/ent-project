@@ -8,16 +8,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Repository
-public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, UUID>, JpaSpecificationExecutor<MedicalRecord> {
+public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, String>, JpaSpecificationExecutor<MedicalRecord> {
 
-    Page<MedicalRecord> findByPatientId(UUID patientId, Pageable pageable);
+    Page<MedicalRecord> findByPatientId(String patientId, Pageable pageable);
 
-    Page<MedicalRecord> findByDoctorId(UUID doctorId, Pageable pageable);
+    Page<MedicalRecord> findByDoctorId(String doctorId, Pageable pageable);
 
-    Page<MedicalRecord> findByAppointmentId(UUID appointmentId, Pageable pageable);
+    Page<MedicalRecord> findByAppointmentId(String appointmentId, Pageable pageable);
 
     Page<MedicalRecord> findByRecordDateBetween(LocalDate from, LocalDate to, Pageable pageable);
 }

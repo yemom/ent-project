@@ -7,7 +7,8 @@ public enum UserRole {
     ADMIN("ADMIN"),
     DOCTOR("DOCTOR"),
     PATIENT("PATIENT"),
-    PHARMACIST("PHARMACIST");
+    PHARMACIST("PHARMACIST"),
+    LABORATORY("LABORATORY");
 
     private final String value;
 

@@ -8,6 +8,13 @@ export const ROLE_LABELS = {
   PHARMACIST: 'Pharmacist'
 } as const;
 
+export const ROLES = {
+  ADMIN: 'admin',
+  DOCTOR: 'doctor',
+  PATIENT: 'patient',
+  PHARMACIST: 'pharmacist',
+  LABORATORY: 'laboratory'
+} as const;
 export const ROUTES = {
   login: '/login',
   register: '/register',
@@ -27,6 +34,27 @@ export const ROUTES = {
   pharmacistDashboard: '/pharmacist/dashboard'
 } as const;
 
+export const LAB_TEST_TYPES = [
+  'CBC',
+  'Blood Glucose',
+  'Urinalysis',
+  'Liver Function',
+  'Kidney Function',
+  'Thyroid Panel',
+  'Lipid Panel',
+  'HbA1c',
+  'Culture & Sensitivity',
+  'Pregnancy Test',
+  'COVID-19 PCR',
+  'Malaria Test',
+  'Hepatitis Panel',
+  'Electrolytes',
+  'Coagulation Panel'
+] as const;
+
+export const LAB_ORDER_STATUS = ['pending', 'in_progress', 'completed', 'cancelled'] as const;
+export const LAB_URGENCY = ['routine', 'urgent', 'critical'] as const;
+export const LAB_RESULT_STATUS = ['draft', 'final'] as const;
 export default {
   APP_NAME,
   APP_TAGLINE,

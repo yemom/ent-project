@@ -47,7 +47,7 @@ class DoctorServiceImplTest {
 
     @Test
     void updateThrowsWhenNotFound() {
-        UUID id = UUID.randomUUID();
+        String id = UUID.randomUUID().toString();
         when(doctorRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> doctorService.update(id, doctorUpdateRequest()));

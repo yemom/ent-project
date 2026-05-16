@@ -98,8 +98,8 @@ class MedicalRecordControllerTest {
         UUID patientId = UUID.randomUUID();
         UUID doctorId = UUID.randomUUID();
         UUID appointmentId = UUID.randomUUID();
-        UUID id = UUID.randomUUID();
-        when(medicalRecordService.update(eq(id), any())).thenReturn(medicalRecordResponse(id, patientId, doctorId, appointmentId));
+        String id = UUID.randomUUID().toString();
+        when(medicalRecordService.update(eq(id), any())).thenReturn(medicalRecordResponse(UUID.fromString(id), patientId, doctorId, appointmentId));
 
         mockMvc.perform(put("/api/v1/medical-records/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -111,7 +111,7 @@ class MedicalRecordControllerTest {
 
     @Test
     void deleteReturnsNoContent() throws Exception {
-        UUID id = UUID.randomUUID();
+        String id = UUID.randomUUID().toString();
 
         mockMvc.perform(delete("/api/v1/medical-records/{id}", id))
                 .andExpect(status().isNoContent());

@@ -3,11 +3,10 @@ package com.clinic.dto.request;
 import com.clinic.entity.AppointmentStatus;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 public record AppointmentUpdateRequest(
-        UUID patientId,
-        UUID doctorId,
+        String patientId,
+        String doctorId,
         LocalDateTime appointmentDate,
         Integer duration,
         AppointmentStatus status,

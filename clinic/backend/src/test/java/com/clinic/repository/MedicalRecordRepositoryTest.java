@@ -18,9 +18,14 @@ class MedicalRecordRepositoryTest {
     @Autowired
     private MedicalRecordRepository medicalRecordRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Test
     void saveAndFindById() {
-        MedicalRecord record = medicalRecordEntity(UUID.randomUUID(), patientEntity(UUID.randomUUID()), doctorEntity(UUID.randomUUID()), null);
+        var patient = userRepository.save(patientEntity(UUID.randomUUID()));
+        var doctor = userRepository.save(doctorEntity(UUID.randomUUID()));
+        MedicalRecord record = medicalRecordEntity(UUID.randomUUID(), patient, doctor, null);
         MedicalRecord saved = medicalRecordRepository.save(record);
 
         assertTrue(medicalRecordRepository.findById(saved.getId()).isPresent());

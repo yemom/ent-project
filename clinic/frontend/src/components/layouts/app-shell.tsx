@@ -52,6 +52,13 @@ const navByRole = {
     { label: 'Profile', href: '/pharmacist/profile', icon: UserRound },
     { label: 'Settings', href: '/pharmacist/settings', icon: Settings }
   ]
+  ,
+  LABORATORY: [
+    { label: 'Dashboard', href: '/laboratory', icon: LayoutDashboard },
+    { label: 'Orders', href: '/laboratory/orders', icon: ClipboardList },
+    { label: 'Results', href: '/laboratory/results', icon: FileText },
+    { label: 'Profile', href: '/laboratory/profile', icon: UserRound }
+  ]
 } as const;
 
 function roleLabel(role?: string | null) {
@@ -71,12 +78,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
   const visibleNav = useMemo(() => {
     if (user?.role === 'DOCTOR') return navByRole.DOCTOR;
+    if (user?.role === 'LABORATORY') return navByRole.LABORATORY;
     if (user?.role === 'PATIENT') return navByRole.PATIENT;
     if (user?.role === 'PHARMACIST') return navByRole.PHARMACIST;
     return navByRole.ADMIN;
   }, [user?.role]);
 
-  const roleName = user?.role ?? (pathname.startsWith('/doctor') ? 'DOCTOR' : pathname.startsWith('/patient') ? 'PATIENT' : pathname.startsWith('/pharmacist') ? 'PHARMACIST' : 'ADMIN');
+  const roleName = user?.role ?? (pathname.startsWith('/doctor') ? 'DOCTOR' : pathname.startsWith('/patient') ? 'PATIENT' : pathname.startsWith('/pharmacist') ? 'PHARMACIST' : pathname.startsWith('/laboratory') ? 'LABORATORY' : 'ADMIN');
 
   useEffect(() => {
     setSearchQuery(searchParams.get('q') ?? '');

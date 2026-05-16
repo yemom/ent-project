@@ -3,10 +3,8 @@ package com.clinic.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.util.UUID;
-
 public record CreatePrescriptionOrderRequest(
-        @NotNull(message = "Doctor ID is required") UUID doctorId,
+        @NotNull(message = "Doctor ID is required") String doctorId,
 
         @NotBlank(message = "Doctor name is required") String doctorName,
 

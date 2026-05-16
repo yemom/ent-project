@@ -6,10 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface TokenBlacklistRepository extends JpaRepository<TokenBlacklist, UUID> {
+public interface TokenBlacklistRepository extends JpaRepository<TokenBlacklist, String> {
 
     boolean existsByToken(String token);
 

@@ -6,10 +6,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface PatientRepository extends JpaRepository<Patient, UUID>, JpaSpecificationExecutor<Patient> {
+public interface PatientRepository extends JpaRepository<Patient, String>, JpaSpecificationExecutor<Patient> {
 
     Optional<Patient> findByEmail(String email);
 

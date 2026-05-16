@@ -96,6 +96,7 @@ public class SecurityConfig {
                    "http://127.0.0.1:3001",
                    "http://127.0.0.1:3002",
                    "http://127.0.0.1:3003",
+                   "http://192.168.137.1:3000",
                    "http://192.168.137.1:3001"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

@@ -50,12 +50,15 @@ class MedicalRecordServiceImplTest {
         UUID patientId = UUID.randomUUID();
         UUID doctorId = UUID.randomUUID();
         UUID appointmentId = UUID.randomUUID();
+        String patientIdValue = patientId.toString();
+        String doctorIdValue = doctorId.toString();
+        String appointmentIdValue = appointmentId.toString();
         Patient patient = patientEntity(patientId);
         Doctor doctor = doctorEntity(doctorId);
         Appointment appointment = appointmentEntity(appointmentId, patient, doctor);
-        when(patientRepository.findById(patientId)).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctorId)).thenReturn(Optional.of(doctor));
-        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
+        when(patientRepository.findById(patientIdValue)).thenReturn(Optional.of(patient));
+        when(doctorRepository.findById(doctorIdValue)).thenReturn(Optional.of(doctor));
+        when(appointmentRepository.findById(appointmentIdValue)).thenReturn(Optional.of(appointment));
         when(medicalRecordRepository.save(any(MedicalRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = medicalRecordService.create(medicalRecordCreateRequest(patientId, doctorId, appointmentId));
@@ -70,17 +73,21 @@ class MedicalRecordServiceImplTest {
         UUID doctorId = UUID.randomUUID();
         UUID appointmentId = UUID.randomUUID();
         UUID recordId = UUID.randomUUID();
+        String patientIdValue = patientId.toString();
+        String doctorIdValue = doctorId.toString();
+        String appointmentIdValue = appointmentId.toString();
+        String recordIdValue = recordId.toString();
         Patient patient = patientEntity(patientId);
         Doctor doctor = doctorEntity(doctorId);
         Appointment appointment = appointmentEntity(appointmentId, patient, doctor);
-        MedicalRecord record = medicalRecordEntity(recordId, patient, doctor, appointment);
-        when(medicalRecordRepository.findById(recordId)).thenReturn(Optional.of(record));
-        when(patientRepository.findById(patientId)).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctorId)).thenReturn(Optional.of(doctor));
-        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
+        MedicalRecord record = medicalRecordEntity(UUID.fromString(recordIdValue), patient, doctor, appointment);
+        when(medicalRecordRepository.findById(recordIdValue)).thenReturn(Optional.of(record));
+        when(patientRepository.findById(patientIdValue)).thenReturn(Optional.of(patient));
+        when(doctorRepository.findById(doctorIdValue)).thenReturn(Optional.of(doctor));
+        when(appointmentRepository.findById(appointmentIdValue)).thenReturn(Optional.of(appointment));
         when(medicalRecordRepository.save(any(MedicalRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = medicalRecordService.update(recordId, medicalRecordUpdateRequest(patientId, doctorId, appointmentId));
+        var response = medicalRecordService.update(recordIdValue, medicalRecordUpdateRequest(patientId, doctorId, appointmentId));
 
         assertEquals("Updated Diagnosis", response.diagnosis());
         assertFalse(response.confidential());
@@ -101,8 +108,8 @@ class MedicalRecordServiceImplTest {
 
     @Test
     void deleteRemovesMedicalRecord() {
-        UUID id = UUID.randomUUID();
-        MedicalRecord record = medicalRecordEntity(id, patientEntity(UUID.randomUUID()), doctorEntity(UUID.randomUUID()), null);
+        String id = UUID.randomUUID().toString();
+        MedicalRecord record = medicalRecordEntity(UUID.fromString(id), patientEntity(UUID.randomUUID()), doctorEntity(UUID.randomUUID()), null);
         when(medicalRecordRepository.findById(id)).thenReturn(Optional.of(record));
 
         medicalRecordService.delete(id);

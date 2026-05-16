@@ -119,13 +119,13 @@ CREATE TRIGGER validate_medical_record_before_insert_update
 -- =====================================================
 
 CREATE TABLE audit_logs (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id varchar(36) PRIMARY KEY,
     table_name VARCHAR(100) NOT NULL,
     operation VARCHAR(10) NOT NULL, -- INSERT, UPDATE, DELETE
-    record_id uuid NOT NULL,
+    record_id varchar(36) NOT NULL,
     old_values JSONB,
     new_values JSONB,
-    changed_by uuid, -- User ID who made the change
+    changed_by varchar(36), -- User ID who made the change
     changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT check_operation CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE'))

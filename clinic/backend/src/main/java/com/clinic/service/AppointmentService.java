@@ -6,21 +6,19 @@ import com.clinic.dto.request.AppointmentUpdateRequest;
 import com.clinic.dto.response.AppointmentResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.UUID;
-
 public interface AppointmentService {
 
     AppointmentResponse create(AppointmentCreateRequest request);
 
-    AppointmentResponse update(UUID id, AppointmentUpdateRequest request);
+    AppointmentResponse update(String id, AppointmentUpdateRequest request);
 
-    AppointmentResponse getById(UUID id);
+    AppointmentResponse getById(String id);
 
     Page<AppointmentResponse> getAll(Pageable pageable);
 
     Page<AppointmentResponse> search(AppointmentSearchRequest request, Pageable pageable);
 
-    AppointmentResponse cancel(UUID id, String cancellationReason);
+    AppointmentResponse cancel(String id, String cancellationReason);
 
-    void delete(UUID id);
+    void delete(String id);
 }

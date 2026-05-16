@@ -93,8 +93,8 @@ class AppointmentControllerTest {
     void updateReturnsOk() throws Exception {
         UUID patientId = UUID.randomUUID();
         UUID doctorId = UUID.randomUUID();
-        UUID id = UUID.randomUUID();
-        when(appointmentService.update(eq(id), any())).thenReturn(appointmentResponse(id, patientId, doctorId));
+        String id = UUID.randomUUID().toString();
+        when(appointmentService.update(eq(id), any())).thenReturn(appointmentResponse(UUID.fromString(id), patientId, doctorId));
 
         mockMvc.perform(put("/api/v1/appointments/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -106,7 +106,7 @@ class AppointmentControllerTest {
 
     @Test
     void deleteReturnsNoContent() throws Exception {
-        UUID id = UUID.randomUUID();
+        String id = UUID.randomUUID().toString();
 
         mockMvc.perform(delete("/api/v1/appointments/{id}", id).param("reason", "Not needed"))
                 .andExpect(status().isNoContent());

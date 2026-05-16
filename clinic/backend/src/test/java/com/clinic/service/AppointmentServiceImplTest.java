@@ -40,10 +40,12 @@ class AppointmentServiceImplTest {
     void createPersistsAppointment() {
         UUID patientId = UUID.randomUUID();
         UUID doctorId = UUID.randomUUID();
+        String patientIdValue = patientId.toString();
+        String doctorIdValue = doctorId.toString();
         Patient patient = patientEntity(patientId);
         Doctor doctor = doctorEntity(doctorId);
-        when(patientRepository.findById(patientId)).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctorId)).thenReturn(Optional.of(doctor));
+        when(patientRepository.findById(patientIdValue)).thenReturn(Optional.of(patient));
+        when(doctorRepository.findById(doctorIdValue)).thenReturn(Optional.of(doctor));
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = appointmentService.create(appointmentCreateRequest(patientId, doctorId));
@@ -53,8 +55,8 @@ class AppointmentServiceImplTest {
 
     @Test
     void findByIdReturnsAppointment() {
-        UUID id = UUID.randomUUID();
-        when(appointmentRepository.findById(id)).thenReturn(Optional.of(appointmentEntity(id, patientEntity(UUID.randomUUID()), doctorEntity(UUID.randomUUID()))));
+        String id = UUID.randomUUID().toString();
+        when(appointmentRepository.findById(id)).thenReturn(Optional.of(appointmentEntity(UUID.fromString(id), patientEntity(UUID.randomUUID()), doctorEntity(UUID.randomUUID()))));
 
         var response = appointmentService.getById(id);
 

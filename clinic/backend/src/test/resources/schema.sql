@@ -1,5 +1,5 @@
 CREATE TABLE users (
-    id UUID PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     deleted BOOLEAN NOT NULL,
@@ -30,13 +30,13 @@ CREATE TABLE users (
 );
 
 CREATE TABLE appointments (
-    id UUID PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     deleted BOOLEAN NOT NULL,
     deleted_at TIMESTAMP,
-    patient_id UUID NOT NULL,
-    doctor_id UUID NOT NULL,
+    patient_id VARCHAR(36) NOT NULL,
+    doctor_id VARCHAR(36) NOT NULL,
     appointment_date TIMESTAMP NOT NULL,
     duration INTEGER NOT NULL,
     status VARCHAR(20) NOT NULL,
@@ -52,14 +52,14 @@ CREATE TABLE appointments (
 );
 
 CREATE TABLE medical_records (
-    id UUID PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     deleted BOOLEAN NOT NULL,
     deleted_at TIMESTAMP,
-    patient_id UUID NOT NULL,
-    doctor_id UUID NOT NULL,
-    appointment_id UUID,
+    patient_id VARCHAR(36) NOT NULL,
+    doctor_id VARCHAR(36) NOT NULL,
+    appointment_id VARCHAR(36),
     diagnosis TEXT,
     treatment TEXT,
     prescription TEXT,
@@ -77,7 +77,7 @@ CREATE TABLE medical_records (
 );
 
 CREATE TABLE token_blacklist (
-    id UUID PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     deleted BOOLEAN NOT NULL,
@@ -88,12 +88,12 @@ CREATE TABLE token_blacklist (
 );
 
 CREATE TABLE prescription_orders (
-    id UUID PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     deleted BOOLEAN NOT NULL,
     deleted_at TIMESTAMP,
-    doctor_id UUID NOT NULL,
+    doctor_id VARCHAR(36) NOT NULL,
     doctor_name VARCHAR(100) NOT NULL,
     patient_name VARCHAR(100) NOT NULL,
     drug_name VARCHAR(200) NOT NULL,
@@ -102,4 +102,52 @@ CREATE TABLE prescription_orders (
     status VARCHAR(20) NOT NULL,
     ordered_at TIMESTAMP NOT NULL,
     dispensed_at TIMESTAMP
+);
+
+CREATE TABLE lab_orders (
+    id VARCHAR(36) PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    deleted BOOLEAN NOT NULL,
+    deleted_at TIMESTAMP,
+    patient_id VARCHAR(36) NOT NULL,
+    doctor_id VARCHAR(36) NOT NULL,
+    appointment_id VARCHAR(36),
+    urgency VARCHAR(20) NOT NULL,
+    clinical_notes TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE lab_order_tests (
+    lab_order_id VARCHAR(36) NOT NULL,
+    test_name VARCHAR(100) NOT NULL,
+    PRIMARY KEY (lab_order_id, test_name)
+);
+
+CREATE TABLE lab_results (
+    id VARCHAR(36) PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    deleted BOOLEAN NOT NULL,
+    deleted_at TIMESTAMP,
+    lab_order_id VARCHAR(36) NOT NULL,
+    lab_technician_id VARCHAR(36) NOT NULL,
+    findings TEXT NOT NULL,
+    file_url VARCHAR(500),
+    status VARCHAR(20) NOT NULL,
+    submitted_at TIMESTAMP
+);
+
+CREATE TABLE lab_notifications (
+    id VARCHAR(36) PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    deleted BOOLEAN NOT NULL,
+    deleted_at TIMESTAMP,
+    user_id VARCHAR(36) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    lab_order_id VARCHAR(36),
+    lab_result_id VARCHAR(36),
+    is_read BOOLEAN NOT NULL
 );

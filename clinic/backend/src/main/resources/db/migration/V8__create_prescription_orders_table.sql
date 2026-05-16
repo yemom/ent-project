@@ -1,8 +1,8 @@
 -- V8: Create prescription_orders table
 
 CREATE TABLE prescription_orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    doctor_id UUID NOT NULL,
+    id varchar(36) PRIMARY KEY,
+    doctor_id varchar(36) NOT NULL,
     doctor_name VARCHAR(100) NOT NULL,
     patient_name VARCHAR(100) NOT NULL,
     drug_name VARCHAR(200) NOT NULL,

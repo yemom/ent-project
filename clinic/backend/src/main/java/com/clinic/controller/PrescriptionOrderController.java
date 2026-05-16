@@ -20,8 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping(ApiPaths.PRESCRIPTION_ORDERS)
 @Slf4j
@@ -42,7 +40,7 @@ public class PrescriptionOrderController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
-    public ResponseEntity<PrescriptionOrderResponse> getById(@PathVariable UUID id) {
+    public ResponseEntity<PrescriptionOrderResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(prescriptionOrderService.getById(id));
     }
 
@@ -68,7 +66,7 @@ public class PrescriptionOrderController {
     @GetMapping("/filter/by-doctor/{doctorId}")
     @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
     public ResponseEntity<PageResponse<PrescriptionOrderResponse>> getByDoctorId(
-            @PathVariable UUID doctorId,
+            @PathVariable String doctorId,
             @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
     ) {
         Page<PrescriptionOrderResponse> page = prescriptionOrderService.getByDoctorId(doctorId, pageable);
@@ -78,7 +76,7 @@ public class PrescriptionOrderController {
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('PHARMACIST')")
     public ResponseEntity<PrescriptionOrderResponse> updateStatus(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @Valid @RequestBody UpdatePrescriptionOrderStatusRequest request
     ) {
         log.info("Update prescription order status request for id={} status={}", id, request.status());
@@ -88,7 +86,7 @@ public class PrescriptionOrderController {
     @PatchMapping("/{id}")
     @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
     public ResponseEntity<PrescriptionOrderResponse> update(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @Valid @RequestBody UpdatePrescriptionOrderRequest request
     ) {
         log.info("Update prescription order request for id={}", id);
@@ -97,7 +95,7 @@ public class PrescriptionOrderController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         prescriptionOrderService.delete(id);
         return ResponseEntity.noContent().build();
     }

@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 @RestController
 @RequestMapping(ApiPaths.MEDICAL_RECORDS)
@@ -47,7 +46,7 @@ public class MedicalRecordController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
-    public ResponseEntity<MedicalRecordResponse> getById(@PathVariable UUID id) {
+    public ResponseEntity<MedicalRecordResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(medicalRecordService.getById(id));
     }
 
@@ -63,9 +62,9 @@ public class MedicalRecordController {
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
     public ResponseEntity<PageResponse<MedicalRecordResponse>> search(
-            @RequestParam(required = false) UUID patientId,
-            @RequestParam(required = false) UUID doctorId,
-            @RequestParam(required = false) UUID appointmentId,
+            @RequestParam(required = false) String patientId,
+            @RequestParam(required = false) String doctorId,
+            @RequestParam(required = false) String appointmentId,
             @RequestParam(required = false) LocalDate fromDate,
             @RequestParam(required = false) LocalDate toDate,
             @RequestParam(required = false) Boolean confidential,
@@ -87,13 +86,13 @@ public class MedicalRecordController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
-    public ResponseEntity<MedicalRecordResponse> update(@PathVariable UUID id, @Valid @RequestBody MedicalRecordUpdateRequest request) {
+    public ResponseEntity<MedicalRecordResponse> update(@PathVariable String id, @Valid @RequestBody MedicalRecordUpdateRequest request) {
         return ResponseEntity.ok(medicalRecordService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         medicalRecordService.delete(id);
         return ResponseEntity.noContent().build();
     }

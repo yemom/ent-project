@@ -4,13 +4,12 @@ import com.clinic.entity.PrescriptionOrderStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 public record PrescriptionOrderResponse(
-        UUID id,
+        String id,
 
         @JsonProperty("doctorId")
-        UUID doctorId,
+        String doctorId,
 
         @JsonProperty("doctorName")
         String doctorName,

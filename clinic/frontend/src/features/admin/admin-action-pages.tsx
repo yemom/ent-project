@@ -241,6 +241,7 @@ export function InviteUserPage() {
                     { value: 'DOCTOR', label: 'Doctor', description: 'Full clinical access, prescribing authority, and diagnosis.' },
                     { value: 'PATIENT', label: 'Patient', description: 'Portal access for visits, records, and prescriptions.' },
                     { value: 'PHARMACIST', label: 'Pharmacist', description: 'Pharmacy access, order fulfillment, and inventory.' },
+                    { value: 'LABORATORY', label: 'Laboratory', description: 'Access to lab orders, results entry, and processing.' },
                     { value: 'ADMIN', label: 'Admin', description: 'Billing access, scheduling, and system configuration.' }
                   ].map((item) => (
                     <button

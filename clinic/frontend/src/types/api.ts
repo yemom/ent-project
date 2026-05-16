@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'DOCTOR' | 'PATIENT' | 'PHARMACIST';
+export type UserRole = 'ADMIN' | 'DOCTOR' | 'PATIENT' | 'PHARMACIST' | 'LABORATORY';
 
 // Appointment
 export interface Appointment {

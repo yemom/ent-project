@@ -86,8 +86,8 @@ class PatientControllerTest {
 
     @Test
     void updateReturnsOk() throws Exception {
-        UUID id = UUID.randomUUID();
-        when(patientService.update(eq(id), any())).thenReturn(patientResponse(id));
+        String id = UUID.randomUUID().toString();
+        when(patientService.update(eq(id), any())).thenReturn(patientResponse(UUID.fromString(id)));
 
         mockMvc.perform(put("/api/v1/patients/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,7 +99,7 @@ class PatientControllerTest {
 
     @Test
     void deleteReturnsNoContent() throws Exception {
-        UUID id = UUID.randomUUID();
+        String id = UUID.randomUUID().toString();
 
         mockMvc.perform(delete("/api/v1/patients/{id}", id))
                 .andExpect(status().isNoContent());

@@ -1,12 +1,11 @@
 package com.clinic.dto.request;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 public record MedicalRecordUpdateRequest(
-        UUID patientId,
-        UUID doctorId,
-        UUID appointmentId,
+        String patientId,
+        String doctorId,
+        String appointmentId,
         String diagnosis,
         String treatment,
         String prescription,

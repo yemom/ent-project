@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -63,7 +62,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     }
 
     @Override
-    public MedicalRecordResponse update(UUID id, MedicalRecordUpdateRequest request) {
+    public MedicalRecordResponse update(String id, MedicalRecordUpdateRequest request) {
         MedicalRecord record = getEntityById(id);
         Patient patient = request.patientId() != null ? getPatient(request.patientId()) : null;
         Doctor doctor = request.doctorId() != null ? getDoctor(request.doctorId()) : null;
@@ -74,7 +73,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
     @Override
     @Transactional(readOnly = true)
-    public MedicalRecordResponse getById(UUID id) {
+    public MedicalRecordResponse getById(String id) {
         return medicalRecordMapper.toResponse(getEntityById(id));
     }
 
@@ -122,26 +121,26 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     }
 
     @Override
-    public void delete(UUID id) {
+    public void delete(String id) {
         medicalRecordRepository.delete(getEntityById(id));
     }
 
-    private MedicalRecord getEntityById(UUID id) {
+    private MedicalRecord getEntityById(String id) {
         return medicalRecordRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Medical record not found: " + id));
     }
 
-    private Patient getPatient(UUID id) {
+    private Patient getPatient(String id) {
         return patientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient not found: " + id));
     }
 
-    private Doctor getDoctor(UUID id) {
+    private Doctor getDoctor(String id) {
         return doctorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + id));
     }
 
-    private Appointment getAppointment(UUID id) {
+    private Appointment getAppointment(String id) {
         return appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found: " + id));
     }

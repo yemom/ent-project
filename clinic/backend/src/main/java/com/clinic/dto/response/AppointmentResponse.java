@@ -3,10 +3,9 @@ package com.clinic.dto.response;
 import com.clinic.entity.AppointmentStatus;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 public record AppointmentResponse(
-        UUID id,
+        String id,
         UserSummaryResponse patient,
         UserSummaryResponse doctor,
         LocalDateTime appointmentDate,
