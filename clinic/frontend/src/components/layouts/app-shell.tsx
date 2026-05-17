@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Activity, Bell, CalendarDays, ChevronRight, ClipboardList, FileText, LayoutDashboard, LogOut, Menu, MoonStar, PillBottle, Settings, ShieldCheck, Stethoscope, UserRound, UserRoundSearch, Users } from 'lucide-react';
+import { Activity, Bell, CalendarDays, ChevronRight, ClipboardList, FileText, LayoutDashboard, LogOut, Menu, MoonStar, PillBottle, Settings, ShieldCheck, Stethoscope, UserRound, UserRoundSearch, Users, Beaker, Clock } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ const navByRole = {
     { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Doctors', href: '/admin/doctors', icon: Stethoscope },
     { label: 'Patients', href: '/admin/patients', icon: UserRound },
+    { label: 'Laboratories', href: '/admin/laboratories', icon: Beaker },
+    { label: 'Doctor Availability', href: '/admin/doctor-availability', icon: Clock },
     { label: 'Pharmacy', href: '/admin/pharmacy', icon: PillBottle },
     { label: 'Appointments', href: '/admin/appointments', icon: CalendarDays },
     { label: 'Analytics', href: '/admin/analytics', icon: Activity },
@@ -31,6 +33,7 @@ const navByRole = {
     { label: 'Appointments', href: '/doctor/appointments', icon: CalendarDays },
     { label: 'Patient History', href: '/doctor/patients', icon: UserRoundSearch },
     { label: 'Records', href: '/doctor/records/new', icon: ClipboardList },
+    { label: 'Lab Investigations', href: '/doctor/laboratory', icon: Beaker },
     { label: 'Prescriptions', href: '/doctor/prescriptions/new', icon: PillBottle },
     { label: 'Availability', href: '/doctor/availability', icon: Activity },
     { label: 'Schedule', href: '/doctor/schedule', icon: CalendarDays },
@@ -123,7 +126,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </div>
             <nav className="flex-1 space-y-1 px-4 py-5">
               {visibleNav.map((item) => {
-                const active = pathname.startsWith(item.href);
+                const active = item.href === '/doctor' || item.href === '/admin' || item.href === '/patient'
+                  ? pathname === item.href
+                  : pathname.startsWith(item.href);
                 const Icon = item.icon;
                 return (
                   <Link

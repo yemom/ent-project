@@ -151,3 +151,37 @@ CREATE TABLE lab_notifications (
     lab_result_id VARCHAR(36),
     is_read BOOLEAN NOT NULL
 );
+
+CREATE TABLE laboratories (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(500) NOT NULL,
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    status VARCHAR(20) NOT NULL,
+    operating_hours_start VARCHAR(10),
+    operating_hours_end VARCHAR(10),
+    equipment TEXT,
+    capacity INT,
+    description TEXT,
+    deleted BOOLEAN NOT NULL,
+    deleted_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE doctor_availability (
+    id VARCHAR(36) PRIMARY KEY,
+    doctor_id VARCHAR(36) NOT NULL REFERENCES users(id),
+    laboratory_id VARCHAR(36) NOT NULL REFERENCES laboratories(id),
+    day_of_week VARCHAR(10) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    is_available BOOLEAN NOT NULL,
+    max_patients INT,
+    notes TEXT,
+    deleted BOOLEAN NOT NULL,
+    deleted_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);

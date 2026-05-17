@@ -11,7 +11,7 @@ export default async function Page({ params }: Props) {
 
   return (
     <div>
-      <LabResultView result={result} />
+      <LabResultView result={result ?? undefined} />
     </div>
   );
 }

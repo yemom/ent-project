@@ -8,7 +8,9 @@ import java.util.List;
 public record LabOrderResponse(
         String id,
         String patientId,
+        String patientName,
         String doctorId,
+        String doctorName,
         String appointmentId,
         List<String> tests,
         LabUrgency urgency,

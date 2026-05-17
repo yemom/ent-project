@@ -84,7 +84,26 @@ public class AdminServiceImpl implements AdminService {
                         .employeeNumber("PH-" + System.currentTimeMillis())
                         .build();
                 break;
+            case LABORATORY:
+                user = LaboratoryStaff.builder()
+                        .email(request.email())
+                        .password(encodedPassword)
+                        .fullName(request.fullName())
+                        .phone(request.phone())
+                        .role(UserRole.LABORATORY)
+                        .active(true)
+                        .build();
+                break;
             case ADMIN:
+                user = AdminUser.builder()
+                        .email(request.email())
+                        .password(encodedPassword)
+                        .fullName(request.fullName())
+                        .phone(request.phone())
+                        .role(UserRole.ADMIN)
+                        .active(true)
+                        .build();
+                break;
             default:
                 throw new BadRequestException("Cannot create user with role: " + request.role());
         }

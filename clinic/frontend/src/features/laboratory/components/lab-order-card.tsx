@@ -31,8 +31,9 @@ export function LabOrderCard({ order }: Props) {
         <div className="flex items-center gap-3">
           <div className={`w-2 h-8 rounded-l ${order.urgency === 'critical' ? 'bg-red-500' : order.urgency === 'urgent' ? 'bg-amber-400' : 'bg-gray-300'}`} />
           <div>
-            <div className="text-sm font-medium">Patient: {order.patientId}</div>
-            <div className="text-xs text-muted-foreground">{order.tests.join(', ')}</div>
+            <div className="text-sm font-semibold text-slate-900">Patient: {order.patientName || order.patientId}</div>
+            <div className="text-xs text-slate-500 font-medium">Ordered by: {order.doctorName || 'Dr. Practitioner'}</div>
+            <div className="text-xs text-slate-400 mt-0.5">{order.tests.join(' • ')}</div>
           </div>
         </div>
         <div className="mt-2 flex items-center gap-2">

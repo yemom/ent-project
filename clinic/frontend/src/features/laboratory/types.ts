@@ -5,7 +5,9 @@ export type LabUrgency = 'routine' | 'urgent' | 'critical';
 export interface LabOrder {
   id: string;
   patientId: string;
+  patientName?: string;
   doctorId: string;
+  doctorName?: string;
   appointmentId?: string | null;
   tests: string[];
   urgency: LabUrgency;

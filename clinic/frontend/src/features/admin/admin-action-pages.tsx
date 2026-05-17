@@ -183,7 +183,20 @@ export function InviteUserPage() {
                   return;
                 }
 
-                setStatus('Admin accounts are not supported from this screen yet. Choose Doctor, Patient, or Pharmacist.');
+                if (values.role === 'LABORATORY') {
+                  await apiClient.post('/admin/users', {
+                    fullName,
+                    email: values.email,
+                    password: values.password,
+                    phone: values.phone,
+                    role: 'LABORATORY'
+                  });
+                  setStatus('Laboratory user created successfully.');
+                  setTimeout(() => router.push(ROUTES.adminLaboratories), 700);
+                  return;
+                }
+
+                setStatus('Admin accounts are not supported from this screen yet. Choose Doctor, Patient, Pharmacist, or Laboratory.');
               })}
             >
               <div className="grid gap-4 md:grid-cols-2">
@@ -396,6 +409,9 @@ export function ImportPatientsPage() {
     onSuccess: () => {
       setStatus('Patient imported successfully.');
       setTimeout(() => router.push(ROUTES.adminPatients), 700);
+    },
+    onError: (err) => {
+      setStatus(getFriendlyErrorMessage(err, 'Could not import patient. Please check the inputs.'));
     }
   });
 
@@ -418,7 +434,7 @@ export function ImportPatientsPage() {
               patientMutation.mutate({
                 ...values,
                 dateOfBirth: values.dateOfBirth || undefined,
-                gender: values.gender || undefined
+                gender: values.gender ? values.gender.toUpperCase().trim() : undefined
               })
             )}
           >

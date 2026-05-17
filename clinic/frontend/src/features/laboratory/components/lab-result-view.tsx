@@ -16,8 +16,8 @@ export function LabResultView({ order, result }: Props) {
   return (
     <div className="space-y-4">
       <div className="p-4 border rounded">
-        <div className="text-sm font-medium">Patient: {order?.patientId}</div>
-        <div className="text-xs text-muted-foreground">Tests: {order?.tests.join(', ')}</div>
+        <div className="text-sm font-semibold text-slate-900">Patient: {order?.patientName || order?.patientId}</div>
+        <div className="text-xs text-slate-500 font-medium">Tests: {order?.tests.join(', ')}</div>
         <div className="text-xs">Submitted: {r?.submittedAt ?? r?.updatedAt}</div>
       </div>
 

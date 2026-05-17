@@ -1,5 +1,5 @@
 'use client';
-import { Building2, CalendarCheck, CheckCircle2, Filter, KeyRound, PillBottle, Search, Shield, ShieldCheck, Sparkles, UserPlus, Users, XCircle } from 'lucide-react';
+import { Building2, CalendarCheck, CheckCircle2, Filter, KeyRound, PillBottle, Search, Shield, ShieldCheck, Sparkles, UserPlus, Users, XCircle, Beaker, Clock } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { ROUTES } from '@/lib/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import {
 import { listUsers, listDoctors, listPatients } from '@/services/api/users';
 import { listAppointments } from '@/services/api/appointments';
 import { listPrescriptionOrders, updatePrescriptionOrderStatus } from '@/features/prescriptions';
+import { listLaboratories, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, createDoctorAvailability, updateDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function formatAppointmentTime(value?: string) {
@@ -1404,6 +1405,625 @@ export function AdminRolesPage() {
           <CardContent>Book visits, review records, and track prescriptions.</CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// AdminLaboratoriesPage
+// 
+// Manages laboratory facilities and their operational details.
+// Fetches and displays laboratories with ability to add, edit, and delete.
+// ============================================================================
+export function AdminLaboratoriesPage() {
+  const urlQuery = useUrlQuery();
+  const [laboratories, setLaboratories] = useState<Array<{ id: string; name: string; location: string; status: string; email?: string; phone?: string }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
+  const [editingLab, setEditingLab] = useState<any | null>(null);
+  const [status, setStatus] = useState<StatusType>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    location: '',
+    phone: '',
+    email: '',
+    status: 'ACTIVE',
+    operatingHoursStart: '',
+    operatingHoursEnd: '',
+    equipment: '',
+    capacity: '',
+    description: ''
+  });
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
+  const filteredLaboratories = useMemo(() => {
+    if (!query.trim()) return laboratories;
+    const q = query.toLowerCase();
+    return laboratories.filter((lab) => [lab.name, lab.location, lab.status].some((value) => value.toLowerCase().includes(q)));
+  }, [laboratories, query]);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const data = await listLaboratories({ size: 30 });
+      setLaboratories((data.content ?? []).map((lab: any) => ({
+        id: lab.id,
+        name: lab.name,
+        location: lab.location,
+        status: lab.status,
+        email: lab.email,
+        phone: lab.phone
+      })));
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not load laboratories'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createLaboratory({
+        ...formData,
+        capacity: formData.capacity ? parseInt(formData.capacity) : undefined
+      });
+      setStatus('success');
+      setStatusMessage('Laboratory created successfully!');
+      setShowForm(false);
+      setFormData({
+        name: '',
+        location: '',
+        phone: '',
+        email: '',
+        status: 'ACTIVE',
+        operatingHoursStart: '',
+        operatingHoursEnd: '',
+        equipment: '',
+        capacity: '',
+        description: ''
+      });
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not create laboratory'));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this laboratory?')) return;
+    try {
+      await deleteLaboratory(id);
+      setStatus('success');
+      setStatusMessage('Laboratory deleted successfully!');
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not delete laboratory'));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Laboratory Management"
+        description="Manage laboratory facilities, equipment, and operational hours."
+        actionLabel="Add Laboratory"
+        onAction={() => setShowForm(true)}
+      />
+
+      <StatusAlert
+        status={status}
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss
+        autoDismissMs={3500}
+      />
+
+      {showForm && (
+        <Card className="border-primary">
+          <CardHeader>
+            <CardTitle>Add Laboratory</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Laboratory Name</label>
+                  <Input 
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    placeholder="Central Lab"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Location</label>
+                  <Input 
+                    value={formData.location}
+                    onChange={e => setFormData({...formData, location: e.target.value})}
+                    placeholder="Building A, Floor 2"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Phone</label>
+                  <Input 
+                    value={formData.phone}
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    placeholder="+251 123 456 789"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email</label>
+                  <Input 
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    type="email"
+                    placeholder="lab@clinic.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Operating Hours Start</label>
+                  <Input 
+                    value={formData.operatingHoursStart}
+                    onChange={e => setFormData({...formData, operatingHoursStart: e.target.value})}
+                    placeholder="08:00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Operating Hours End</label>
+                  <Input 
+                    value={formData.operatingHoursEnd}
+                    onChange={e => setFormData({...formData, operatingHoursEnd: e.target.value})}
+                    placeholder="17:00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Capacity</label>
+                  <Input 
+                    value={formData.capacity}
+                    onChange={e => setFormData({...formData, capacity: e.target.value})}
+                    type="number"
+                    placeholder="20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Status</label>
+                  <select 
+                    value={formData.status}
+                    onChange={e => setFormData({...formData, status: e.target.value})}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3"
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Equipment</label>
+                <Input 
+                  value={formData.equipment}
+                  onChange={e => setFormData({...formData, equipment: e.target.value})}
+                  placeholder="Analyzer, Centrifuge, Microscope"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Input 
+                  value={formData.description}
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  placeholder="Lab description"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
+                <Button type="submit">Create Laboratory</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Laboratories</CardTitle>
+            <CardDescription>Active facilities</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-bold text-teal-700">{laboratories.length}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Active</CardTitle>
+            <CardDescription>Operational</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-bold text-green-600">{laboratories.filter(l => l.status === 'ACTIVE').length}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Maintenance</CardTitle>
+            <CardDescription>Under service</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-bold text-amber-600">{laboratories.filter(l => l.status === 'MAINTENANCE').length}</CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Laboratories</CardTitle>
+            <CardDescription>All laboratory facilities</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Input className="max-w-xs" placeholder="Search laboratories..." value={query} onChange={(e) => setQuery(e.target.value)} />
+            <Button onClick={() => setShowForm(!showForm)}><Building2 className="h-4 w-4 mr-2" /> {showForm ? 'Cancel' : 'Add Lab'}</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full rounded" />
+              <Skeleton className="h-12 w-full rounded" />
+              <Skeleton className="h-12 w-full rounded" />
+            </div>
+          ) : filteredLaboratories.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No laboratories found.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLaboratories.map((lab) => (
+                  <TableRow key={lab.id}>
+                    <TableCell className="font-medium">{lab.name}</TableCell>
+                    <TableCell>{lab.location}</TableCell>
+                    <TableCell>{lab.phone || '-'}</TableCell>
+                    <TableCell>{lab.email || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant={lab.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                        {lab.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => (window.location.href = `/admin/laboratories/${lab.id}`)}>View</Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(lab.id)}>Delete</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================================
+// AdminDoctorAvailabilityPage
+// 
+// Manages doctor availability schedules across laboratories.
+// Allows admins to set working hours and availability for each doctor per lab.
+// ============================================================================
+export function AdminDoctorAvailabilityPage() {
+  const urlQuery = useUrlQuery();
+  const [availabilities, setAvailabilities] = useState<Array<any>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
+  const [status, setStatus] = useState<StatusType>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [labs, setLabs] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+    doctorId: '',
+    laboratoryId: '',
+    dayOfWeek: 'MONDAY',
+    startTime: '09:00',
+    endTime: '17:00',
+    isAvailable: true,
+    maxPatients: '10',
+    notes: ''
+  });
+
+  const DAYS_OF_WEEK = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
+  const filteredAvailabilities = useMemo(() => {
+    if (!query.trim()) return availabilities;
+    const q = query.toLowerCase();
+    return availabilities.filter((av: any) => 
+      [av.doctorName, av.laboratoryName, av.dayOfWeek].some((value) => value?.toLowerCase().includes(q))
+    );
+  }, [availabilities, query]);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [docData, labData, avData] = await Promise.all([
+        listDoctors({ size: 50 }),
+        listLaboratories({ size: 50 }),
+        listDoctorAvailability({ size: 100 })
+      ]);
+      setDoctors(docData.content || []);
+      setLabs(labData.content || []);
+      setAvailabilities((avData.content || []).map((av: any) => ({
+        id: av.id,
+        doctorName: av.doctorName,
+        doctorId: av.doctorId,
+        laboratoryName: av.laboratoryName,
+        laboratoryId: av.laboratoryId,
+        dayOfWeek: av.dayOfWeek,
+        startTime: av.startTime,
+        endTime: av.endTime,
+        isAvailable: av.isAvailable,
+        maxPatients: av.maxPatients
+      })));
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not load availability data'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createDoctorAvailability({
+        ...formData,
+        maxPatients: formData.maxPatients ? parseInt(formData.maxPatients) : undefined
+      });
+      setStatus('success');
+      setStatusMessage('Availability created successfully!');
+      setShowForm(false);
+      setFormData({
+        doctorId: '',
+        laboratoryId: '',
+        dayOfWeek: 'MONDAY',
+        startTime: '09:00',
+        endTime: '17:00',
+        isAvailable: true,
+        maxPatients: '10',
+        notes: ''
+      });
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not create availability'));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this availability?')) return;
+    try {
+      await deleteDoctorAvailability(id);
+      setStatus('success');
+      setStatusMessage('Availability deleted successfully!');
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not delete availability'));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Doctor Availability Schedule"
+        description="Configure doctor working hours and availability across laboratories."
+        actionLabel="Add Availability"
+        actionHref="#"
+      />
+
+      <StatusAlert
+        status={status}
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss
+        autoDismissMs={3500}
+      />
+
+      {showForm && (
+        <Card className="border-primary">
+          <CardHeader>
+            <CardTitle>Add Doctor Availability</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Doctor</label>
+                  <select 
+                    value={formData.doctorId}
+                    onChange={e => setFormData({...formData, doctorId: e.target.value})}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3"
+                    required
+                  >
+                    <option value="">Select a doctor</option>
+                    {doctors.map(doc => (
+                      <option key={doc.id} value={doc.id}>{doc.fullName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Laboratory</label>
+                  <select 
+                    value={formData.laboratoryId}
+                    onChange={e => setFormData({...formData, laboratoryId: e.target.value})}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3"
+                    required
+                  >
+                    <option value="">Select a laboratory</option>
+                    {labs.map(lab => (
+                      <option key={lab.id} value={lab.id}>{lab.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Day of Week</label>
+                  <select 
+                    value={formData.dayOfWeek}
+                    onChange={e => setFormData({...formData, dayOfWeek: e.target.value})}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3"
+                  >
+                    {DAYS_OF_WEEK.map(day => (
+                      <option key={day} value={day}>{day}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Max Patients</label>
+                  <Input 
+                    value={formData.maxPatients}
+                    onChange={e => setFormData({...formData, maxPatients: e.target.value})}
+                    type="number"
+                    placeholder="10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Start Time</label>
+                  <Input 
+                    value={formData.startTime}
+                    onChange={e => setFormData({...formData, startTime: e.target.value})}
+                    type="time"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">End Time</label>
+                  <Input 
+                    value={formData.endTime}
+                    onChange={e => setFormData({...formData, endTime: e.target.value})}
+                    type="time"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Input 
+                  value={formData.notes}
+                  onChange={e => setFormData({...formData, notes: e.target.value})}
+                  placeholder="Additional notes"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
+                <Button type="submit">Create Availability</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Schedules</CardTitle>
+            <CardDescription>Doctor availability records</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-bold text-blue-700">{availabilities.length}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Active Doctors</CardTitle>
+            <CardDescription>With scheduled hours</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-bold text-green-600">{new Set(availabilities.map(a => a.doctorId)).size}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Laboratories Covered</CardTitle>
+            <CardDescription>With doctor schedules</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-bold text-purple-600">{new Set(availabilities.map(a => a.laboratoryId)).size}</CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Doctor Schedules</CardTitle>
+            <CardDescription>Availability across laboratories</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Input className="max-w-xs" placeholder="Search schedules..." value={query} onChange={(e) => setQuery(e.target.value)} />
+            <Button onClick={() => setShowForm(!showForm)}><Clock className="h-4 w-4 mr-2" /> {showForm ? 'Cancel' : 'Add Schedule'}</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full rounded" />
+              <Skeleton className="h-12 w-full rounded" />
+              <Skeleton className="h-12 w-full rounded" />
+            </div>
+          ) : filteredAvailabilities.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No schedules found.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Doctor</TableHead>
+                  <TableHead>Laboratory</TableHead>
+                  <TableHead>Day</TableHead>
+                  <TableHead>Hours</TableHead>
+                  <TableHead>Capacity</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAvailabilities.map((av: any) => (
+                  <TableRow key={av.id}>
+                    <TableCell className="font-medium">{av.doctorName}</TableCell>
+                    <TableCell>{av.laboratoryName}</TableCell>
+                    <TableCell><Badge variant="outline">{av.dayOfWeek}</Badge></TableCell>
+                    <TableCell>{av.startTime} - {av.endTime}</TableCell>
+                    <TableCell>{av.maxPatients || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(av.id)}>Delete</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

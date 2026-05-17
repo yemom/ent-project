@@ -2,12 +2,14 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  output: "standalone",
+  allowedDevOrigins: [
+    "*.local",
+    "192.168.20.*",   // allows any device on your local network
+  ],
+  // speeds up dev compilation significantly
   experimental: {
-    allowedDevOrigins: [
-      'localhost:3000',
-      '127.0.0.1:3000',
-      '192.168.137.1:3000',
-    ],
+    turbo: {},
   },
 };
 
