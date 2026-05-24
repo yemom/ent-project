@@ -2290,7 +2290,12 @@ export function DoctorLaboratoryInvestigationsPage() {
   const [status, setStatus] = useState<StatusType>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    patientId: string;
+    tests: string[];
+    urgency: (typeof LAB_URGENCY)[number];
+    clinicalNotes: string;
+  }>({
     patientId: '',
     tests: [] as string[],
     urgency: 'routine',
@@ -2328,17 +2333,17 @@ export function DoctorLaboratoryInvestigationsPage() {
         // Fetch lab orders for this doctor
         if (authUser?.id) {
           try {
-            const ordersRes = await apiClient.get(`/api/lab-orders?doctorId=${authUser.id}&size=50`);
-            const orders = ordersRes.data?.content || [];
+            const ordersRes = await labOrdersService.list({ doctorId: authUser.id, size: 50 });
+            const orders: Array<{ id: string }> = ordersRes?.content || [];
             setLabOrders(orders);
             
             // Fetch results for each order in parallel
             const resultsMap = new Map<string, any>();
             const resultPromises = orders.map(order =>
-              apiClient.get(`/api/lab-results/order/${order.id}`)
-                .then(res => {
-                  if (res.data) {
-                    resultsMap.set(order.id, res.data);
+              labResultsService.getByLabOrderId(order.id)
+                .then(result => {
+                  if (result) {
+                    resultsMap.set(order.id, result);
                   }
                 })
                 .catch(() => {
@@ -2374,17 +2379,23 @@ export function DoctorLaboratoryInvestigationsPage() {
       return;
     }
 
+    if (!authUser?.id) {
+      setStatus('error');
+      setStatusMessage('Your doctor profile is not available yet. Please refresh and try again.');
+      return;
+    }
+
     try {
       setIsCreating(true);
       const orderData = {
         patientId: formData.patientId,
-        doctorId: authUser?.id,
+        doctorId: authUser.id,
         tests: formData.tests,
         urgency: formData.urgency,
         clinicalNotes: formData.clinicalNotes
       };
 
-      await apiClient.post('/api/lab-orders', orderData);
+      await labOrdersService.create(orderData);
       
       setStatus('success');
       setStatusMessage('Laboratory order created successfully!');
@@ -2479,7 +2490,7 @@ export function DoctorLaboratoryInvestigationsPage() {
                 <label className="text-sm font-medium">Select Patient *</label>
                 <select
                   value={formData.patientId}
-                  onChange={(e) => setFormData({...formData, patientId: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
                   className="h-10 w-full rounded-lg border border-input bg-background px-3"
                   required
                 >
@@ -2520,7 +2531,7 @@ export function DoctorLaboratoryInvestigationsPage() {
                 <label className="text-sm font-medium">Urgency Level</label>
                 <select
                   value={formData.urgency}
-                  onChange={(e) => setFormData({...formData, urgency: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, urgency: e.target.value as (typeof LAB_URGENCY)[number] })}
                   className="h-10 w-full rounded-lg border border-input bg-background px-3"
                 >
                   <option value="routine">Routine</option>

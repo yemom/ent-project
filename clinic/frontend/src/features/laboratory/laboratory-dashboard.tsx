@@ -1,47 +1,98 @@
 'use client';
 
-import { Activity, AlertCircle, ArrowUpRight, CheckCircle2, Clock, Download, Plus, Settings2, SlidersHorizontal, Eye } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, AlertCircle, ArrowUpRight, CheckCircle2, Clock, Download, FlaskConical, Plus, SlidersHorizontal, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLabOrders } from './hooks/use-lab-orders';
+import { labResultsService } from './services/lab-results.service';
 import { useRouter } from 'next/navigation';
 import { LAB_ROUTES } from '@/lib/constants';
 import Link from 'next/link';
+import type { LabOrder, LabResult } from './types';
+
+function normalizeStatus(status?: string) {
+  return String(status ?? '').toLowerCase();
+}
+
+function normalizeUrgency(urgency?: string) {
+  return String(urgency ?? '').toLowerCase();
+}
+
+function formatOrderTime(value?: string) {
+  if (!value) return 'New';
+  const created = new Date(value);
+  if (Number.isNaN(created.getTime())) return 'New';
+  const minutes = Math.max(0, Math.round((Date.now() - created.getTime()) / 60000));
+  if (minutes < 60) return `${minutes || 1}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return created.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function findingsEntries(result?: LabResult | null) {
+  if (!result?.findings) return [];
+  if (typeof result.findings === 'string') return [['Findings', result.findings]];
+  return Object.entries(result.findings).slice(0, 4);
+}
 
 export function LaboratoryDashboardPage() {
   const router = useRouter();
-  const { orders, isLoading } = useLabOrders();
+  const { orders, isLoading, error } = useLabOrders();
+  const [previewResult, setPreviewResult] = useState<LabResult | null>(null);
+  const [resultLoading, setResultLoading] = useState(false);
 
   // Metrics
-  const pendingCount = orders.filter(o => o.status === 'pending').length;
-  const inProgressCount = orders.filter(o => o.status === 'in_progress').length;
-  const completedCount = orders.filter(o => o.status === 'completed').length;
-  const criticalCount = orders.filter(o => o.urgency === 'critical').length;
+  const pendingCount = orders.filter(o => normalizeStatus(o.status) === 'pending').length;
+  const inProgressCount = orders.filter(o => normalizeStatus(o.status) === 'in_progress').length;
+  const completedCount = orders.filter(o => normalizeStatus(o.status) === 'completed').length;
+  const criticalCount = orders.filter(o => normalizeUrgency(o.urgency) === 'critical').length;
 
   // Get active queue orders (non-completed)
-  const activeOrders = orders.filter(o => o.status !== 'completed');
+  const activeOrders = orders.filter(o => normalizeStatus(o.status) !== 'completed');
 
   // Preview target (most recent critical or urgent order, else first order)
-  const previewOrder = orders.find(o => o.urgency === 'critical') || orders[0];
+  const previewOrder = useMemo(
+    () => orders.find(o => normalizeUrgency(o.urgency) === 'critical') || activeOrders[0] || orders[0],
+    [orders, activeOrders]
+  );
+  const previewFindings = findingsEntries(previewResult);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadPreviewResult(order?: LabOrder) {
+      setPreviewResult(null);
+      if (!order?.id) return;
+      try {
+        setResultLoading(true);
+        const result = await labResultsService.getByLabOrderId(order.id);
+        if (mounted) setPreviewResult(result);
+      } finally {
+        if (mounted) setResultLoading(false);
+      }
+    }
+    loadPreviewResult(previewOrder);
+    return () => { mounted = false; };
+  }, [previewOrder?.id]);
 
   const getUrgencyColor = (urgency: string) => {
-    const u = String(urgency).toLowerCase();
+    const u = normalizeUrgency(urgency);
     if (u === 'critical') return 'bg-red-500';
     if (u === 'urgent') return 'bg-amber-400';
     return 'bg-slate-300';
   };
 
   const getStatusBadge = (status: string) => {
-    const s = String(status).toLowerCase();
+    const s = normalizeStatus(status);
     if (s === 'completed') return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg">Completed</Badge>;
     if (s === 'in_progress') return <Badge className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg animate-pulse">Processing</Badge>;
     return <Badge className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg">Pending</Badge>;
   };
 
   const getUrgencyBadge = (urgency: string) => {
-    const u = String(urgency).toLowerCase();
+    const u = normalizeUrgency(urgency);
     if (u === 'critical') return <Badge variant="destructive" className="rounded-lg">Critical</Badge>;
     if (u === 'urgent') return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-none rounded-lg">Urgent</Badge>;
     return <Badge variant="outline" className="rounded-lg">Routine</Badge>;
@@ -52,8 +103,8 @@ export function LaboratoryDashboardPage() {
       {/* Header section matching mockup */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Laboratory Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Monitoring real-time test flows and diagnostic equipment.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Laboratory Dashboard</h1>
+          <p className="text-base text-slate-500 mt-1">Monitoring real-time test flows and diagnostic equipment.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="rounded-xl border-teal-100 text-teal-700 hover:bg-teal-50 bg-teal-50/50">
@@ -63,11 +114,17 @@ export function LaboratoryDashboardPage() {
           <Link href="/laboratory/orders">
             <Button className="rounded-xl bg-teal-800 hover:bg-teal-900 text-white shadow-sm">
               <Plus className="h-4 w-4 mr-2" />
-              View All Orders
+              New Lab Order
             </Button>
           </Link>
         </div>
       </div>
+
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {error}
+        </div>
+      ) : null}
 
       {/* Real Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -106,7 +163,7 @@ export function LaboratoryDashboardPage() {
                   {previewOrder.patientName} <span className="text-slate-400 font-normal">#{previewOrder.patientId.substring(0, 8).toUpperCase()}</span>
                 </p>
                 <p className="text-sm font-medium text-red-600 mt-0.5">
-                  Ordered Tests: {previewOrder.tests.join(', ')} (Urgent turnaround required)
+                  {previewOrder.tests.join(', ')} (critical priority)
                 </p>
               </div>
             </div>
@@ -124,16 +181,18 @@ export function LaboratoryDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         
         {/* Active Lab Queue */}
-        <Card className="rounded-3xl border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[480px]">
+        <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[480px]">
           <CardHeader className="pb-4 pt-5 px-6 border-b border-slate-50/80 bg-slate-50/30">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Active Lab Queue</CardTitle>
-                <CardDescription className="text-xs">Real-time analysis requests dispatched by doctors.</CardDescription>
+                <CardTitle className="text-2xl">Active Lab Queue</CardTitle>
               </div>
-              <Badge className="bg-teal-50 text-teal-800 hover:bg-teal-100 border-none rounded-xl px-3 py-1 font-semibold text-xs">
-                {activeOrders.length} Active Orders
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="rounded-md">All Orders</Badge>
+                <Badge className="bg-teal-50 text-teal-800 hover:bg-teal-100 border-none rounded-md">
+                  Pending Collection ({pendingCount})
+                </Badge>
+              </div>
             </div>
           </CardHeader>
 
@@ -155,10 +214,10 @@ export function LaboratoryDashboardPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50/50 text-xs uppercase text-slate-500 font-semibold border-b border-slate-100">
                   <tr>
-                    <th className="px-6 py-4">PATIENT</th>
-                    <th className="px-6 py-4">TEST TYPE</th>
-                    <th className="px-6 py-4">ORDERED BY</th>
-                    <th className="px-6 py-4">STATUS</th>
+                    <th className="px-6 py-5 text-base tracking-[0.14em]">PATIENT / ID</th>
+                    <th className="px-6 py-5 text-base tracking-[0.14em]">TEST TYPE</th>
+                    <th className="px-6 py-5 text-base tracking-[0.14em]">ORDERED BY</th>
+                    <th className="px-6 py-5 text-base tracking-[0.14em]">TAT STATUS</th>
                     <th className="px-6 py-4 text-right">ACTION</th>
                   </tr>
                 </thead>
@@ -169,26 +228,29 @@ export function LaboratoryDashboardPage() {
                       className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
                       onClick={() => router.push(`/laboratory/orders/${order.id}`)}
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-3">
                           <div className={`w-1.5 h-8 rounded-full ${getUrgencyColor(order.urgency)}`} />
                           <div>
                             <p className="font-semibold text-slate-900 group-hover:text-teal-700 transition-colors">
                               {order.patientName || 'Unknown Patient'}
                             </p>
-                            <p className="text-xs text-slate-400 font-medium">ID: {order.id.substring(0, 8).toUpperCase()}</p>
+                            <p className="text-xs text-slate-400 font-medium">SID: {order.id.substring(0, 8).toUpperCase()}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-900">{order.tests.join(' • ')}</p>
+                      <td className="px-6 py-5">
+                        <p className="font-semibold text-slate-900">{order.tests.join(', ')}</p>
                         <p className="text-xs text-slate-400 font-medium capitalize">{order.urgency.toLowerCase()} priority</p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <p className="text-slate-600 font-medium">{order.doctorName || 'Dr. Practitioner'}</p>
                       </td>
-                      <td className="px-6 py-4">
-                        {getStatusBadge(order.status)}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          {getStatusBadge(order.status)}
+                          <span className="text-xs text-slate-500">{formatOrderTime(order.createdAt)}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <Link href={`/laboratory/orders/${order.id}`}>
@@ -210,24 +272,24 @@ export function LaboratoryDashboardPage() {
         <div className="space-y-6">
           
           {/* Test Detail Summary */}
-          <Card className="rounded-3xl border-slate-100 shadow-sm relative overflow-hidden">
+          <Card className="rounded-2xl border-slate-100 shadow-sm relative overflow-hidden">
             <CardHeader className="pb-3 pt-5 px-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900">Active Test Context</CardTitle>
-                <SlidersHorizontal className="h-4 w-4 text-slate-400" />
+                <CardTitle className="text-base font-semibold text-slate-900">Test Detail Summary</CardTitle>
+                <ArrowUpRight className="h-5 w-5 text-slate-500" />
               </div>
             </CardHeader>
             <CardContent className="px-6 pb-6">
               {previewOrder ? (
                 <div className="space-y-5">
-                  <div className="rounded-2xl bg-teal-50/30 p-4 border border-teal-50 mb-1">
+                  <div className="rounded-2xl bg-teal-50/50 p-4 border border-teal-100 mb-1">
                     <div className="flex gap-3 items-center">
-                      <div className="h-10 w-10 bg-teal-800 text-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <Activity className="h-5 w-5" />
+                      <div className="h-12 w-12 bg-teal-800 text-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <FlaskConical className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-teal-900 text-sm">{previewOrder.tests.join(' • ')}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Order ID: {previewOrder.id.substring(0, 8).toUpperCase()}</p>
+                        <h3 className="font-semibold text-teal-900 text-sm">{previewOrder.tests[0] || 'Laboratory Test'}</h3>
+                        <p className="text-xs text-slate-700 mt-0.5">Sample ID: {previewOrder.id.substring(0, 8).toUpperCase()}</p>
                       </div>
                     </div>
                     <div className="mt-4 flex items-center gap-6 pt-3 border-t border-slate-200/60">
@@ -243,10 +305,26 @@ export function LaboratoryDashboardPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <h4 className="text-xs font-bold tracking-widest text-slate-400 uppercase">Clinical Context</h4>
-                    <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-100/60 italic leading-relaxed">
-                      "{previewOrder.clinicalNotes || 'No specific clinical notes provided.'}"
-                    </p>
+                    <h4 className="text-sm font-bold tracking-[0.18em] text-slate-950 uppercase">Preliminary Findings</h4>
+                    {resultLoading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-8 w-full rounded" />
+                        <Skeleton className="h-8 w-5/6 rounded" />
+                      </div>
+                    ) : previewFindings.length > 0 ? (
+                      <div className="space-y-3">
+                        {previewFindings.map(([name, value], index) => (
+                          <div key={name} className="flex items-center justify-between gap-4 text-sm">
+                            <span className="text-slate-700">{name}</span>
+                            <span className={index % 2 === 0 ? 'font-semibold text-red-600' : 'font-semibold text-teal-700'}>{String(value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-100/60 italic leading-relaxed">
+                        "{previewOrder.clinicalNotes || 'No result has been submitted for this order yet.'}"
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2 pt-1">
@@ -259,7 +337,7 @@ export function LaboratoryDashboardPage() {
 
                   <Link href={`/laboratory/orders/${previewOrder.id}`} className="block">
                     <Button className="w-full rounded-xl bg-teal-800 hover:bg-teal-900 text-white h-11 shadow-sm mt-2">
-                      Process Lab Order
+                      Verify & Release Results
                     </Button>
                   </Link>
                 </div>
@@ -273,7 +351,7 @@ export function LaboratoryDashboardPage() {
           </Card>
 
           {/* Lab Equipment Status */}
-          <Card className="rounded-3xl border-slate-100 shadow-sm overflow-hidden">
+          <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden">
             <CardHeader className="pb-3 pt-5 px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold text-slate-900">Lab Equipment Status</CardTitle>

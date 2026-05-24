@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '@/lib/env';
+import { tokenStorage } from '@/lib/token-storage';
 import { useAuthStore } from '@/store/auth-store';
 import type { ApiErrorResponse, AuthTokens } from '@/types/api';
 
@@ -10,8 +11,9 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const accessToken = useAuthStore.getState().accessToken;
+  const accessToken = useAuthStore.getState().accessToken ?? tokenStorage.getAccessToken();
   if (accessToken) {
+    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
@@ -43,7 +45,8 @@ apiClient.interceptors.response.use(
         useAuthStore.setState((state) => ({
           ...state,
           accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken
+          refreshToken: tokens.refreshToken ?? state.refreshToken,
+          isAuthenticated: Boolean(state.user && tokens.accessToken)
         }));
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;

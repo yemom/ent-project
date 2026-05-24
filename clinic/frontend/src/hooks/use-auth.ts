@@ -23,7 +23,15 @@ export function useLogin() {
     mutationFn: login,
     onSuccess: (data) => {
       useAuthStore.getState().setSession(data);
-      const target = data.user.role === 'DOCTOR' ? ROUTES.doctorDashboard : data.user.role === 'PATIENT' ? ROUTES.patientDashboard : data.user.role === 'PHARMACIST' ? ROUTES.pharmacistDashboard : ROUTES.adminDashboard;
+      const target = data.user.role === 'DOCTOR'
+        ? ROUTES.doctorDashboard
+        : data.user.role === 'PATIENT'
+          ? ROUTES.patientDashboard
+          : data.user.role === 'PHARMACIST'
+            ? ROUTES.pharmacistDashboard
+            : data.user.role === 'LABORATORY'
+              ? ROUTES.laboratoryRoot
+              : ROUTES.adminDashboard;
       router.push(target);
     }
   });
@@ -35,7 +43,15 @@ export function useRegister() {
     mutationFn: register,
     onSuccess: (data) => {
       useAuthStore.getState().setSession(data);
-      const target = data.user.role === 'DOCTOR' ? ROUTES.doctorDashboard : data.user.role === 'PATIENT' ? ROUTES.patientDashboard : data.user.role === 'PHARMACIST' ? ROUTES.pharmacistDashboard : ROUTES.adminDashboard;
+      const target = data.user.role === 'DOCTOR'
+        ? ROUTES.doctorDashboard
+        : data.user.role === 'PATIENT'
+          ? ROUTES.patientDashboard
+          : data.user.role === 'PHARMACIST'
+            ? ROUTES.pharmacistDashboard
+            : data.user.role === 'LABORATORY'
+              ? ROUTES.laboratoryRoot
+              : ROUTES.adminDashboard;
       router.push(target);
     }
   });

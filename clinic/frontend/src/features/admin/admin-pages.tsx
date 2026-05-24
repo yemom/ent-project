@@ -1,5 +1,5 @@
 'use client';
-import { Building2, CalendarCheck, CheckCircle2, Filter, KeyRound, PillBottle, Search, Shield, ShieldCheck, Sparkles, UserPlus, Users, XCircle, Beaker, Clock } from 'lucide-react';
+import { ArrowLeft, Building2, CalendarCheck, CheckCircle2, Filter, KeyRound, PillBottle, Search, Shield, ShieldCheck, Sparkles, UserPlus, Users, XCircle, Beaker, Clock } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { ROUTES } from '@/lib/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,8 @@ import {
 import { listUsers, listDoctors, listPatients } from '@/services/api/users';
 import { listAppointments } from '@/services/api/appointments';
 import { listPrescriptionOrders, updatePrescriptionOrderStatus } from '@/features/prescriptions';
-import { listLaboratories, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, createDoctorAvailability, updateDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
+import { listLaboratories, getLaboratory, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, getDoctorAvailabilityByLaboratory, createDoctorAvailability, updateDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
+import { labOrdersService } from '@/features/laboratory/services/lab-orders.service';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function formatAppointmentTime(value?: string) {
@@ -196,6 +197,8 @@ function OnSiteSpecialistsPanel() {
           specialization: (doctor as any).specialization,
           status: doctor.status
         })));
+      } catch {
+        setDoctors([]);
       } finally {
         setIsLoading(false);
       }
@@ -324,6 +327,8 @@ export function AdminUsersPage() {
           status: u.status,
           lastLogin: u.lastLogin ?? 'Never'
         })));
+      } catch {
+        setUsers([]);
       } finally {
         setIsLoading(false);
       }
@@ -418,6 +423,8 @@ export function AdminDoctorsPage() {
           status: d.status,
           specialization: (d as any).specialization
         })));
+      } catch {
+        setDoctors([]);
       } finally {
         setIsLoading(false);
       }
@@ -525,6 +532,8 @@ export function AdminPatientsPage() {
         email: p.email,
         status: p.status
       })));
+    } catch {
+      setPatients([]);
     } finally {
       setIsLoading(false);
     }
@@ -745,6 +754,8 @@ export function AdminAppointmentsPage() {
           status: a.status,
           reason: a.reason || ''
         })));
+      } catch {
+        setAppointments([]);
       } finally {
         setIsLoading(false);
       }
@@ -824,10 +835,14 @@ export function AdminPharmacyPage() {
   async function fetchData() {
     try {
       setIsLoading(true);
-      const [usersData, ordersData] = await Promise.all([
-        listUsers({ size: 100 }),
-        listPrescriptionOrders({ size: 100 })
-      ]);
+      const usersData = await listUsers({ size: 100 });
+      let ordersData: any = { content: [] };
+      try {
+        ordersData = await listPrescriptionOrders({ size: 100 });
+      } catch (err) {
+        setStatus('error');
+        setStatusMessage(getFriendlyErrorMessage(err, 'Could not load prescription orders'));
+      }
       setPharmacists((usersData.content ?? [])
         .filter((user) => user.role === 'PHARMACIST')
         .map((user) => ({
@@ -845,6 +860,9 @@ export function AdminPharmacyPage() {
         status: order.status,
         orderedAt: order.orderedAt
       })));
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not load pharmacy data'));
     } finally {
       setIsLoading(false);
     }
@@ -1719,6 +1737,242 @@ export function AdminLaboratoriesPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ============================================================================
+// AdminLaboratoryDetailPage
+//
+// Displays a single laboratory dashboard for admins using live laboratory,
+// doctor availability, and lab order data.
+// ============================================================================
+export function AdminLaboratoryDetailPage({ id }: { id: string }) {
+  const router = useRouter();
+  const [laboratory, setLaboratory] = useState<any | null>(null);
+  const [availabilities, setAvailabilities] = useState<Array<any>>([]);
+  const [orders, setOrders] = useState<Array<any>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<StatusType>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setStatus(null);
+      const [labData, availabilityData, ordersData] = await Promise.all([
+        getLaboratory(id),
+        getDoctorAvailabilityByLaboratory(id),
+        labOrdersService.list({ size: 12 })
+      ]);
+      setLaboratory(labData);
+      setAvailabilities(availabilityData ?? []);
+      setOrders(ordersData.content ?? []);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not load laboratory dashboard'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [id]);
+
+  const activeSchedules = availabilities.filter((availability) => availability.isAvailable !== false);
+  const pendingOrders = orders.filter((order) => String(order.status).toLowerCase() === 'pending');
+  const criticalOrders = orders.filter((order) => String(order.urgency).toLowerCase() === 'critical');
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-72 rounded" />
+        <div className="grid gap-4 md:grid-cols-4">
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+        </div>
+        <Skeleton className="h-96 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!laboratory) {
+    return (
+      <div className="space-y-6">
+        <Button variant="outline" onClick={() => router.push(ROUTES.adminLaboratories)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Laboratories
+        </Button>
+        <StatusAlert status={status} message={statusMessage || 'Laboratory not found.'} onDismiss={() => setStatus(null)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-3">
+          <Button variant="ghost" className="w-fit px-0" onClick={() => router.push(ROUTES.adminLaboratories)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Laboratories
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{laboratory.name}</h1>
+            <p className="text-muted-foreground">Live laboratory dashboard for operations, orders, and doctor coverage.</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchData}>Refresh Data</Button>
+          <Button onClick={() => router.push(ROUTES.adminDoctorAvailability)}>Manage Schedule</Button>
+        </div>
+      </div>
+
+      <StatusAlert
+        status={status}
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss
+        autoDismissMs={3500}
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Status</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Building2 className="h-5 w-5 text-teal-700" />
+              {laboratory.status}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">{laboratory.location}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Open Orders</CardDescription>
+            <CardTitle className="text-3xl">{pendingOrders.length}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">Awaiting laboratory processing</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Critical Queue</CardDescription>
+            <CardTitle className="text-3xl text-red-600">{criticalOrders.length}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">Orders marked critical</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Doctor Coverage</CardDescription>
+            <CardTitle className="text-3xl">{activeSchedules.length}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">Active availability entries</CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Active Lab Queue</CardTitle>
+              <CardDescription>Real orders from the laboratory order service</CardDescription>
+            </div>
+            <Badge variant="secondary">{orders.length} loaded</Badge>
+          </CardHeader>
+          <CardContent>
+            {orders.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">No lab orders found.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Tests</TableHead>
+                    <TableHead>Ordered By</TableHead>
+                    <TableHead>Urgency</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <div className="font-medium">{order.patientName || order.patientId}</div>
+                        <div className="text-xs text-muted-foreground">{order.id}</div>
+                      </TableCell>
+                      <TableCell>{Array.isArray(order.tests) ? order.tests.join(', ') : 'Lab tests'}</TableCell>
+                      <TableCell>{order.doctorName || order.doctorId}</TableCell>
+                      <TableCell>
+                        <Badge variant={String(order.urgency).toLowerCase() === 'critical' ? 'destructive' : 'outline'}>{order.urgency}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={String(order.status).toLowerCase() === 'completed' ? 'success' : 'secondary'}>{order.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Laboratory Profile</CardTitle>
+              <CardDescription>Facility details saved by the admin</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <span className="text-muted-foreground">Phone</span>
+                <span className="font-medium">{laboratory.phone || '-'}</span>
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-medium break-all">{laboratory.email || '-'}</span>
+                <span className="text-muted-foreground">Hours</span>
+                <span className="font-medium">{laboratory.operatingHoursStart || '--'} - {laboratory.operatingHoursEnd || '--'}</span>
+                <span className="text-muted-foreground">Capacity</span>
+                <span className="font-medium">{laboratory.capacity ?? '-'}</span>
+              </div>
+              {laboratory.equipment && (
+                <div className="rounded-2xl bg-muted/50 p-4">
+                  <p className="font-medium">Equipment</p>
+                  <p className="mt-1 text-muted-foreground">{laboratory.equipment}</p>
+                </div>
+              )}
+              {laboratory.description && <p className="text-muted-foreground">{laboratory.description}</p>}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Doctor Availability</CardTitle>
+              <CardDescription>Schedule entries assigned to this lab</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {availabilities.length === 0 ? (
+                <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">No doctor availability has been assigned.</div>
+              ) : (
+                availabilities.map((availability) => (
+                  <div key={availability.id} className="rounded-2xl bg-muted/50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{availability.doctorName}</p>
+                        <p className="text-sm text-muted-foreground">{availability.dayOfWeek} - {availability.startTime} - {availability.endTime}</p>
+                      </div>
+                      <Badge variant={availability.isAvailable === false ? 'secondary' : 'success'}>
+                        {availability.isAvailable === false ? 'Unavailable' : 'Available'}
+                      </Badge>
+                    </div>
+                    {availability.maxPatients ? <p className="mt-2 text-xs text-muted-foreground">Capacity: {availability.maxPatients} patients</p> : null}
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

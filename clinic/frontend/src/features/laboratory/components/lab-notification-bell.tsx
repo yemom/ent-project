@@ -16,7 +16,7 @@ export function LabNotificationBell() {
   const handleClick = async (id: string, orderId: string) => {
     await markRead(id);
     setOpen(false);
-    router.push(`/doctor/patients`);
+    router.push(`/doctor/laboratory?orderId=${encodeURIComponent(orderId)}`);
   };
 
   return (

@@ -28,9 +28,9 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       setSession: ({ accessToken, refreshToken, user }) => {
         tokenStorage.setSession(accessToken, user, refreshToken);
-        set({ user, accessToken, refreshToken, isAuthenticated: true });
+        set({ user, accessToken, refreshToken: refreshToken ?? null, isAuthenticated: Boolean(user && accessToken) });
       },
-      setUser: (user) => set({ user, isAuthenticated: Boolean(user) }),
+      setUser: (user) => set((state) => ({ user, isAuthenticated: Boolean(user && state.accessToken) })),
       clearSession: () => {
         tokenStorage.clear();
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
@@ -46,16 +46,19 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-        isAuthenticated: state.isAuthenticated
+        refreshToken: state.refreshToken
       }),
       onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
+        if (state) {
+          state.setHydrated(true);
+          const validSession = Boolean(state.user && state.accessToken);
+          if (!validSession) {
+            state.clearSession();
+          } else if (!state.isAuthenticated) {
+            useAuthStore.setState((current) => ({ ...current, isAuthenticated: true }));
+          }
+        }
       }
     }
   )
 );
-
-export function AuthHydrator() {
-  return null;
-}

@@ -49,7 +49,9 @@ export interface PageResponse<T> {
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
+  tokenType?: string;
+  expiresAt?: string;
 }
 
 export interface AuthUser {

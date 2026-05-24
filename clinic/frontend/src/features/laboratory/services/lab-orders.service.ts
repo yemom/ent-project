@@ -40,7 +40,7 @@ export const labOrdersService = {
     return res.data;
   },
   updateStatus: async (id: string, status: string): Promise<LabOrder> => {
-    const res = await axios.patch<LabOrder>(`${LAB_BASE}/api/lab-orders/${id}/status`, { status }, {
+    const res = await axios.patch<LabOrder>(`${LAB_BASE}/api/lab-orders/${id}/status`, { status: String(status).toUpperCase() }, {
       headers: { ...getAuthHeader() },
       withCredentials: true
     });

@@ -39,13 +39,13 @@ public class PrescriptionOrderController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
     public ResponseEntity<PrescriptionOrderResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(prescriptionOrderService.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
     public ResponseEntity<PageResponse<PrescriptionOrderResponse>> getAll(
             @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
     ) {
@@ -54,7 +54,7 @@ public class PrescriptionOrderController {
     }
 
     @GetMapping("/filter/by-status")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
     public ResponseEntity<PageResponse<PrescriptionOrderResponse>> getByStatus(
             @RequestParam PrescriptionOrderStatus status,
             @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
@@ -64,7 +64,7 @@ public class PrescriptionOrderController {
     }
 
     @GetMapping("/filter/by-doctor/{doctorId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
     public ResponseEntity<PageResponse<PrescriptionOrderResponse>> getByDoctorId(
             @PathVariable String doctorId,
             @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable

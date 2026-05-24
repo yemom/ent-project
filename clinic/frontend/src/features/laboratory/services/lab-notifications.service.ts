@@ -1,9 +1,27 @@
-import apiClient from '@/lib/api-client';
+import axios from 'axios';
+import { useAuthStore } from '@/store/auth-store';
 import type { PageResponse } from '@/types/api';
 import type { LabNotification } from '../types';
 
+const LAB_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1').replace(/\/api\/v1$/, '');
+
+function getAuthHeader() {
+  const token = useAuthStore.getState().accessToken;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export const labNotificationsService = {
-  list: (params?: Record<string, any>) => apiClient.get<PageResponse<LabNotification>>('/api/lab-notifications', { params }).then((r) => r.data),
-  unreadCount: (userId: string) => apiClient.get<number>(`/api/lab-notifications/unread-count/${userId}`).then((r) => r.data),
-  markRead: (id: string) => apiClient.patch<LabNotification>(`/api/lab-notifications/${id}/read`, { isRead: true }).then((r) => r.data)
+  list: (params?: Record<string, any>) => axios.get<PageResponse<LabNotification>>(`${LAB_BASE}/api/lab-notifications`, {
+    params,
+    headers: { ...getAuthHeader() },
+    withCredentials: true
+  }).then((r) => r.data),
+  unreadCount: (userId: string) => axios.get<number>(`${LAB_BASE}/api/lab-notifications/unread-count/${userId}`, {
+    headers: { ...getAuthHeader() },
+    withCredentials: true
+  }).then((r) => r.data),
+  markRead: (id: string) => axios.patch<LabNotification>(`${LAB_BASE}/api/lab-notifications/${id}/read`, { isRead: true }, {
+    headers: { ...getAuthHeader() },
+    withCredentials: true
+  }).then((r) => r.data)
 };

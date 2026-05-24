@@ -46,16 +46,24 @@ public class LabResultServiceImpl implements LabResultService {
         var labOrder = labOrderRepository.findById(request.labOrderId())
             .orElseThrow(() -> new ResourceNotFoundException("Lab order not found: " + request.labOrderId()));
 
+        LabResultStatus status = request.status() == null || request.status().isBlank()
+                ? LabResultStatus.DRAFT
+                : LabResultStatus.valueOf(request.status().toUpperCase());
+        LocalDateTime now = LocalDateTime.now();
+
         LabResult result = LabResult.builder()
             .labOrder(labOrder)
             .labTechnicianId(request.labTechnicianId())
             .findings(request.findings())
             .fileUrl(request.fileUrl())
-            .createdAt(LocalDateTime.now())
+            .status(status)
+            .submittedAt(status == LabResultStatus.FINAL ? now : null)
+            .createdAt(now)
             .build();
 
         LabResult saved = labResultRepository.save(result);
         log.info("Created lab result id={}", saved.getId());
+        notifyOrderingDoctorIfFinal(saved);
         return mapper.toResponse(saved);
     }
 
@@ -114,15 +122,7 @@ public class LabResultServiceImpl implements LabResultService {
         result.setUpdatedAt(LocalDateTime.now());
         LabResult updated = labResultRepository.save(result);
         log.info("Updated lab result status id={} status={}", id, request.status());
-        // If final, create a notification for the ordering doctor
-        if (LabResultStatus.FINAL.equals(updated.getStatus()) && updated.getLabOrder() != null) {
-            String doctorId = updated.getLabOrder().getDoctorId();
-            try {
-                labNotificationService.create(doctorId, updated.getLabOrder().getId(), updated.getId());
-            } catch (Exception e) {
-                log.error("Failed to create lab notification for labResultId={}", updated.getId(), e);
-            }
-        }
+        notifyOrderingDoctorIfFinal(updated);
         return mapper.toResponse(updated);
     }
 
@@ -135,5 +135,18 @@ public class LabResultServiceImpl implements LabResultService {
     private LabResult getEntityById(String id) {
         return labResultRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lab result not found with id: " + id));
+    }
+
+    private void notifyOrderingDoctorIfFinal(LabResult result) {
+        if (!LabResultStatus.FINAL.equals(result.getStatus()) || result.getLabOrder() == null) {
+            return;
+        }
+
+        String doctorId = result.getLabOrder().getDoctorId();
+        try {
+            labNotificationService.create(doctorId, result.getLabOrder().getId(), result.getId());
+        } catch (Exception e) {
+            log.error("Failed to create lab notification for labResultId={}", result.getId(), e);
+        }
     }
 }

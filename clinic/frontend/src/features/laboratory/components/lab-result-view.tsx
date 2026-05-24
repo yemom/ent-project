@@ -22,12 +22,18 @@ export function LabResultView({ order, result }: Props) {
       </div>
 
       <div className="space-y-2">
-        {r && typeof r.findings === 'object' && Object.entries(r.findings).map(([k, v]) => (
-          <div key={k} className="p-3 border rounded">
-            <div className="text-sm font-medium">{k}</div>
-            <div className="text-sm">{v}</div>
+        {r && typeof r.findings === 'string' ? (
+          <div className="rounded-2xl border bg-muted/30 p-4 text-sm whitespace-pre-wrap">
+            {r.findings}
           </div>
-        ))}
+        ) : (
+          r && typeof r.findings === 'object' && Object.entries(r.findings).map(([k, v]) => (
+            <div key={k} className="p-3 border rounded">
+              <div className="text-sm font-medium">{k}</div>
+              <div className="text-sm">{v}</div>
+            </div>
+          ))
+        )}
 
         {r?.fileUrl && (
           <div>

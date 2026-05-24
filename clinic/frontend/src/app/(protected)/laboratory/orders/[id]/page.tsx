@@ -7,14 +7,107 @@ import { labResultsService } from '@/features/laboratory/services/lab-results.se
 import { LabResultForm } from '@/features/laboratory/components/lab-result-form';
 import { LabResultView } from '@/features/laboratory/components/lab-result-view';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { LAB_ROUTES } from '@/lib/constants';
+import { getFriendlyErrorMessage } from '@/lib/error-handler';
+import { useAuthStore } from '@/store/auth-store';
 import { ArrowLeft, Beaker, CheckCircle2, ClipboardList, Clock, FlaskConical, AlertCircle } from 'lucide-react';
 import type { LabOrder, LabResult } from '@/features/laboratory/types';
+
+function normalizeLabStatus(status?: string) {
+  return String(status ?? '').toLowerCase();
+}
+
+function ReleaseLabResultAction({ order }: { order: LabOrder }) {
+  const user = useAuthStore((state) => state.user);
+  const [findings, setFindings] = useState('');
+  const [fileUrl, setFileUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const parseFindings = () => {
+    const tests = order.tests?.length ? order.tests : ['Finding'];
+    return Object.fromEntries(
+      findings
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line, index) => {
+          const separator = line.includes(':') ? ':' : line.includes('=') ? '=' : null;
+          if (!separator) return [tests[index] || `Finding ${index + 1}`, line];
+          const [key, ...rest] = line.split(separator);
+          return [key.trim() || tests[index] || `Finding ${index + 1}`, rest.join(separator).trim()];
+        })
+    );
+  };
+
+  const handleRelease = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!findings.trim()) {
+      setMessage('Enter the lab findings before releasing the result.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setMessage('');
+      await labResultsService.submit({
+        labOrderId: order.id,
+        labTechnicianId: user?.id || 'laboratory',
+        findings: parseFindings(),
+        fileUrl: fileUrl.trim() || null,
+        status: 'final',
+      });
+      await labOrdersService.updateStatus(order.id, 'completed');
+      setMessage(`Result released to ${order.doctorName || 'the ordering doctor'}.`);
+      window.setTimeout(() => {
+        window.location.href = LAB_ROUTES.laboratoryResults;
+      }, 900);
+    } catch (err) {
+      setMessage(getFriendlyErrorMessage(err, 'Could not release lab result'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (normalizeLabStatus(order.status) === 'completed') {
+    return (
+      <div className="rounded-2xl bg-teal-50 p-4 text-sm font-medium text-teal-800">
+        This investigation is completed. The submitted result is available on the Results page.
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleRelease} className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Lab Findings</label>
+        <Textarea
+          value={findings}
+          onChange={(event) => setFindings(event.target.value)}
+          placeholder={(order.tests?.length ? order.tests : ['Finding']).map((test) => `${test}: `).join('\n')}
+          className="min-h-32 rounded-2xl"
+          required
+        />
+        <p className="text-xs text-muted-foreground">One result per line, for example: Hemoglobin: 13.4 g/dL</p>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Attachment URL</label>
+        <Input value={fileUrl} onChange={(event) => setFileUrl(event.target.value)} placeholder="Optional report file URL" className="rounded-2xl" />
+      </div>
+      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      <Button type="submit" disabled={isSubmitting} className="w-full rounded-2xl bg-teal-800 hover:bg-teal-900">
+        {isSubmitting ? 'Releasing Result...' : `Release Result to ${order.doctorName || 'Doctor'}`}
+      </Button>
+    </form>
+  );
+}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -74,7 +167,7 @@ export default function OrderDetailsPage({ params }: Props) {
 
   const getStatusBadge = (status: string) => {
     const s = String(status).toLowerCase();
-    if (s === 'completed') return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-3 py-1 font-semibold">Completed</Badge>;
+    if (s === 'completed') return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-3 py-1 font-semibold">Done</Badge>;
     if (s === 'in_progress') return <Badge className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-3 py-1 font-semibold animate-pulse">In Progress</Badge>;
     return <Badge className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 py-1 font-semibold">Pending</Badge>;
   };
@@ -233,7 +326,15 @@ export default function OrderDetailsPage({ params }: Props) {
                     <Clock className="h-4 w-4 text-blue-500 animate-spin" />
                     <span className="text-xs font-semibold uppercase tracking-wider text-blue-500">Record Findings Below</span>
                   </div>
-                  <LabResultForm order={order} onSubmitted={fetchOrderAndResults} />
+                  <LabResultForm
+                    order={order}
+                    onSubmitted={async (_result, status) => {
+                      if (status === 'final') {
+                        await labOrdersService.updateStatus(order.id, 'completed');
+                      }
+                      await fetchOrderAndResults();
+                    }}
+                  />
                 </div>
               )}
 
@@ -242,7 +343,7 @@ export default function OrderDetailsPage({ params }: Props) {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-500">Released Findings</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-500">Order done</span>
                   </div>
                   <LabResultView order={order} result={result || undefined} />
                 </div>

@@ -12,7 +12,7 @@ function getAuthHeader() {
 
 export const labResultsService = {
   submit: async (payload: SubmitLabResultDto): Promise<LabResult> => {
-    const res = await axios.post<LabResult>(`${LAB_BASE}/api/lab-results`, payload, {
+    const res = await axios.post<LabResult>(`${LAB_BASE}/api/lab-results`, { ...payload, status: String(payload.status).toUpperCase() }, {
       headers: { ...getAuthHeader() },
       withCredentials: true
     });
@@ -51,7 +51,7 @@ export const labResultsService = {
     return res.data;
   },
   update: async (id: string, payload: Partial<SubmitLabResultDto>): Promise<LabResult> => {
-    const res = await axios.patch<LabResult>(`${LAB_BASE}/api/lab-results/${id}`, payload, {
+    const res = await axios.patch<LabResult>(`${LAB_BASE}/api/lab-results/${id}`, payload.status ? { ...payload, status: String(payload.status).toUpperCase() } : payload, {
       headers: { ...getAuthHeader() },
       withCredentials: true
     });

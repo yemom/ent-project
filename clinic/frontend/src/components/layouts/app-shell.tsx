@@ -147,15 +147,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               })}
             </nav>
             <div className="border-t border-border/60 p-4">
-              {user?.role === 'PHARMACIST' ? (
-                <Link
-                  href="/pharmacist/orders"
-                  className="inline-flex w-full items-center justify-start gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95"
-                >
-                  <PillBottle className="h-4 w-4" />
-                  View Orders
-                </Link>
-              ) : (
+              {roleName === 'ADMIN' ? (
                 <Link
                   href={ROUTES.adminCreateAppointment}
                   className="inline-flex w-full items-center justify-start gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95"
@@ -163,7 +155,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                   <Activity className="h-4 w-4" />
                   New Appointment
                 </Link>
-              )}
+              ) : user?.role === 'PHARMACIST' ? (
+                <Link
+                  href="/pharmacist/orders"
+                  className="inline-flex w-full items-center justify-start gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95"
+                >
+                  <PillBottle className="h-4 w-4" />
+                  View Orders
+                </Link>
+              ) : null}
               <Button className="mt-3 w-full justify-start rounded-2xl" variant="ghost" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
                 Sign out
