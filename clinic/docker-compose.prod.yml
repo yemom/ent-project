@@ -1,0 +1,107 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: clinic-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ../negixs/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend_1
+      - frontend_2
+      - backend_1
+      - backend_2
+    networks:
+      - clinic_network
+
+  frontend_1:
+    image: ${FRONTEND_IMAGE:?set FRONTEND_IMAGE}
+    container_name: clinic-frontend-1
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost/api/v1}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+    expose:
+      - "3000"
+    networks:
+      - clinic_network
+
+  frontend_2:
+    image: ${FRONTEND_IMAGE:?set FRONTEND_IMAGE}
+    container_name: clinic-frontend-2
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost/api/v1}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+    expose:
+      - "3000"
+    networks:
+      - clinic_network
+
+  backend_1:
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE}
+    container_name: clinic-backend-1
+    restart: unless-stopped
+    environment: &backend_environment
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-clinic_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-clinic_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?set APP_JWT_SECRET}
+      APP_JWT_EXPIRATION_MILLIS: ${APP_JWT_EXPIRATION_MILLIS:-86400000}
+      APP_JWT_ISSUER: ${APP_JWT_ISSUER:-clinic}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clinic_network
+
+  backend_2:
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE}
+    container_name: clinic-backend-2
+    restart: unless-stopped
+    environment:
+      <<: *backend_environment
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clinic_network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: clinic-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-clinic_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-clinic_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clinic_user} -d ${POSTGRES_DB:-clinic_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clinic_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  clinic_network:
+    driver: bridge

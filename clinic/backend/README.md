@@ -1,4 +1,4 @@
-# clinic - Clinic Appointment & Medical Records Management System
+docj# clinic - Clinic Appointment & Medical Records Management System
 
 A production-ready Spring Boot 3.x (Java 21) backend system for managing clinic appointments and medical records.
 
