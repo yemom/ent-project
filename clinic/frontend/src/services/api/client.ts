@@ -29,7 +29,10 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true;
-      useAuthStore.getState().clearSession();
+      const { isHydrated, accessToken } = useAuthStore.getState();
+      if (isHydrated && accessToken) {
+        useAuthStore.getState().clearSession();
+      }
     }
 
     return Promise.reject(error);

@@ -16,6 +16,7 @@ import { createDoctor, createPatient } from '@/services/api/admin';
 import { listUsers, listPatients } from '@/services/api/users';
 import { apiClient } from '@/services/api/client';
 import { getFriendlyErrorMessage } from '@/lib/error-handler';
+import { passwordFormRules } from '@/lib/password-policy';
 import type { UserRole } from '@/types/api';
 import type { ReactNode } from 'react';
 
@@ -211,7 +212,7 @@ export function InviteUserPage() {
                 <Input {...form.register('email', { required: true })} type="email" placeholder="e.vance@clinic.elhealth" className="h-11 rounded-xl" />
               </Field>
               <Field label="Temporary password">
-                <Input {...form.register('password', { required: true })} type="password" placeholder="Create a password" className="h-11 rounded-xl" />
+                <Input {...form.register('password', passwordFormRules)} type="password" placeholder="e.g. Clinic123!" className="h-11 rounded-xl" />
               </Field>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Phone number">
@@ -381,7 +382,7 @@ export function AddDoctorPage() {
           >
             <Field label="Full name"><Input {...form.register('fullName')} className="h-11 rounded-xl" placeholder="Dr. Sara Ahmed" /></Field>
             <Field label="Email"><Input {...form.register('email')} type="email" className="h-11 rounded-xl" placeholder="sara@clinic.com" /></Field>
-            <Field label="Password"><Input {...form.register('password')} type="password" className="h-11 rounded-xl" placeholder="Temporary password" /></Field>
+            <Field label="Password"><Input {...form.register('password', passwordFormRules)} type="password" className="h-11 rounded-xl" placeholder="e.g. Clinic123!" /></Field>
             <Field label="Phone"><Input {...form.register('phone')} className="h-11 rounded-xl" placeholder="+1 555 0100" /></Field>
             <Field label="Specialization"><Input {...form.register('specialization')} className="h-11 rounded-xl" placeholder="Cardiology" /></Field>
             <Field label="License number"><Input {...form.register('licenseNumber')} className="h-11 rounded-xl" placeholder="LIC-12345" /></Field>
@@ -440,7 +441,7 @@ export function ImportPatientsPage() {
           >
             <Field label="Full name"><Input {...form.register('fullName')} className="h-11 rounded-xl" placeholder="Amina Yusuf" /></Field>
             <Field label="Email"><Input {...form.register('email')} type="email" className="h-11 rounded-xl" placeholder="amina@clinic.com" /></Field>
-            <Field label="Password"><Input {...form.register('password')} type="password" className="h-11 rounded-xl" placeholder="Temporary password" /></Field>
+            <Field label="Password"><Input {...form.register('password', passwordFormRules)} type="password" className="h-11 rounded-xl" placeholder="e.g. Clinic123!" /></Field>
             <Field label="Phone"><Input {...form.register('phone')} className="h-11 rounded-xl" placeholder="+1 555 0200" /></Field>
             <Field label="Date of birth"><Input {...form.register('dateOfBirth')} type="date" className="h-11 rounded-xl" /></Field>
             <Field label="Gender"><Input {...form.register('gender')} className="h-11 rounded-xl" placeholder="MALE / FEMALE / OTHER" /></Field>

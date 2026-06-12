@@ -1,6 +1,6 @@
 # clinic - Entity Relationships & JPA Configuration
 
-## 📐 Entity Class Hierarchy
+##  Entity Class Hierarchy
 
 ```
 BaseEntity (Abstract, @MappedSuperclass)
@@ -228,7 +228,7 @@ private Appointment appointment;
 
 ---
 
-## 📊 JPA Inheritance Strategy
+##  JPA Inheritance Strategy
 
 ### Single Table Inheritance (STI)
 
@@ -275,19 +275,19 @@ User user = userRepository.findById(id);
 
 **Advantages**:
 
-- ✅ Efficient queries (no UNION, single table)
-- ✅ Polymorphic queries simple
-- ✅ Easy to query base type (all users)
-- ✅ Good for small number of subtypes
+-  Efficient queries (no UNION, single table)
+-  Polymorphic queries simple
+-  Easy to query base type (all users)
+-  Good for small number of subtypes
 
 **Trade-offs**:
 
-- ⚠️ Some columns NULL (acceptable in healthcare domain)
-- ⚠️ Large table (mitigated by proper indexing)
+-  Some columns NULL (acceptable in healthcare domain)
+-  Large table (mitigated by proper indexing)
 
 ---
 
-## 🔐 JPA Cascade & Orphan Removal
+##  JPA Cascade & Orphan Removal
 
 ### Cascade Strategies Used
 
@@ -313,7 +313,7 @@ User user = userRepository.findById(id);
 
 ---
 
-## 🔄 Fetch Strategies
+##  Fetch Strategies
 
 ### Eager Loading (FetchType.EAGER)
 
@@ -352,7 +352,7 @@ private List<Appointment> appointments;
 
 ---
 
-## 📋 Entity Field Validation
+##  Entity Field Validation
 
 ### BaseEntity
 
@@ -418,7 +418,7 @@ private List<Appointment> appointments;
 
 ---
 
-## 🎯 Entity Initialization & Construction
+##  Entity Initialization & Construction
 
 ### Using Lombok @Builder
 
@@ -460,7 +460,7 @@ MedicalRecord record = MedicalRecord.builder()
 
 ---
 
-## 🔐 Transactional Boundaries
+##  Transactional Boundaries
 
 ### Service Layer Best Practices
 
@@ -513,7 +513,7 @@ public class AppointmentService {
 
 ---
 
-## 🗺️ Entity-to-DTO Mapping
+##  Entity-to-DTO Mapping
 
 ### Mapping Strategy
 
@@ -544,7 +544,7 @@ MedicalRecordResponse includes:
 
 ---
 
-## 📊 Relationship Diagram (ASCII Art)
+##  Relationship Diagram (ASCII Art)
 
 ```
 ┌──────────────────────────────────────────┐
@@ -615,18 +615,18 @@ MedicalRecordResponse includes:
 
 ---
 
-## ✅ Entity Best Practices Implemented
+##  Entity Best Practices Implemented
 
-1. ✅ **Immutable IDs**: UUID primary keys, never updated
-2. ✅ **Audit Trails**: createdAt, updatedAt on all entities
-3. ✅ **Validation**: Bean validation annotations + DB constraints
-4. ✅ **Relationships**: Properly configured with cascade & fetch strategies
-5. ✅ **Inheritance**: Clean single-table inheritance for user types
-6. ✅ **Collections**: Use ArrayList with lazy loading
-7. ✅ **Equals/HashCode**: Lombok handles with exclusion of collections
-8. ✅ **Serialization**: Proper @Data annotations for serialization
-9. ✅ **Nullability**: Explicit nullable/not-null constraints
-10. ✅ **Timestamps**: Auto-managed by Hibernate
+1.  **Immutable IDs**: UUID primary keys, never updated
+2.  **Audit Trails**: createdAt, updatedAt on all entities
+3.  **Validation**: Bean validation annotations + DB constraints
+4.  **Relationships**: Properly configured with cascade & fetch strategies
+5.  **Inheritance**: Clean single-table inheritance for user types
+6.  **Collections**: Use ArrayList with lazy loading
+7.  **Equals/HashCode**: Lombok handles with exclusion of collections
+8.  **Serialization**: Proper @Data annotations for serialization
+9.  **Nullability**: Explicit nullable/not-null constraints
+10. **Timestamps**: Auto-managed by Hibernate
 
 ---
 

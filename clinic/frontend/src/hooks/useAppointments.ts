@@ -11,8 +11,12 @@ export function useAppointments() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const user = useAuthStore((state) => state.user);
+    const isHydrated = useAuthStore((state) => state.isHydrated);
+    const accessToken = useAuthStore((state) => state.accessToken);
 
     useEffect(() => {
+        if (!isHydrated || !accessToken || !user?.id) return;
+
         async function fetchAppointments() {
             try {
                 setIsLoading(true);
@@ -27,11 +31,11 @@ export function useAppointments() {
                 const mapped: Appointment[] = (data.content ?? []).map((appointment: any) => ({
                     id: appointment.id,
                     patient: {
-                        id: appointment.patient?.id || appointment.patientId || '1',
+                        id: appointment.patient?.id || appointment.patientId || '',
                         fullName: appointment.patient?.fullName || appointment.patientName || 'Unknown Patient'
                     },
                     doctor: {
-                        id: appointment.doctor?.id || appointment.doctorId || '1',
+                        id: appointment.doctor?.id || appointment.doctorId || '',
                         fullName: appointment.doctor?.fullName || appointment.doctorName || 'Unknown Doctor'
                     },
                     time: new Date(appointment.appointmentDate || appointment.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -49,7 +53,7 @@ export function useAppointments() {
         }
 
         fetchAppointments();
-    }, [user?.id, user?.role]);
+    }, [user?.id, user?.role, isHydrated, accessToken]);
 
     return { appointments, isLoading, error };
 }

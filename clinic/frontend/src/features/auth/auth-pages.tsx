@@ -373,7 +373,7 @@ export function RegisterPage() {
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
+                placeholder="Min 8 chars, letter, number & symbol"
                 className="pr-10 h-11 border-gray-300 rounded-lg"
                 {...form.register("password")}
               />

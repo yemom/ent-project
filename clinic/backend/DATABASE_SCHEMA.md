@@ -1,12 +1,12 @@
 # clinic Database Schema Design
 
-## 📊 Overview
+##  Overview
 
 Production-ready database schema for clinic - Clinic Appointment & Medical Records Management System. Built on PostgreSQL 15+ with normalized relational design, proper indexing, and referential integrity.
 
 ---
 
-## 🏛️ Architecture & Design Patterns
+##  Architecture & Design Patterns
 
 ### Inheritance Strategy: Single Table Inheritance (STI)
 
@@ -32,7 +32,7 @@ USERS table (single table inheritance)
 
 ---
 
-## 📋 Entity-Relationship Diagram
+##  Entity-Relationship Diagram
 
 ```
 ┌─────────────┐
@@ -97,7 +97,7 @@ USERS table (single table inheritance)
 
 ---
 
-## 📑 Table Specifications
+##  Table Specifications
 
 ### 1. USERS Table
 
@@ -247,7 +247,7 @@ USERS table (single table inheritance)
 
 ---
 
-## 🔍 Relationships Summary
+##  Relationships Summary
 
 | From        | To            | Type | Cascade    | Fetch | Description                          |
 | ----------- | ------------- | ---- | ---------- | ----- | ------------------------------------ |
@@ -259,7 +259,7 @@ USERS table (single table inheritance)
 
 ---
 
-## 🛡️ Constraints & Validation
+##  Constraints & Validation
 
 ### Data Integrity
 
@@ -294,7 +294,7 @@ Automatically updates `updated_at` timestamp on record modifications
 
 ---
 
-## 📊 Views (for convenience queries)
+##  Views (for convenience queries)
 
 ### 1. `patients` View
 
@@ -347,7 +347,7 @@ Summary of patient medical activity
 
 ---
 
-## 🔐 Audit Trail
+##  Audit Trail
 
 ### audit_logs Table
 
@@ -368,7 +368,7 @@ Summary of patient medical activity
 
 ---
 
-## 📈 Performance Optimization
+##  Performance Optimization
 
 ### Index Strategy
 
@@ -409,14 +409,14 @@ Recommended refresh: After bulk operations or on schedule (e.g., hourly)
 
 ---
 
-## 🚀 Scalability Considerations
+##  Scalability Considerations
 
 ### Current Design Handles:
 
-- ✅ Millions of users (UUID primary keys)
-- ✅ High appointment volume (indexed by patient/doctor/date)
-- ✅ Large medical records (TEXT columns with full-text search potential)
-- ✅ Complex queries (materialized views for aggregations)
+-  Millions of users (UUID primary keys)
+-  High appointment volume (indexed by patient/doctor/date)
+-  Large medical records (TEXT columns with full-text search potential)
+-  Complex queries (materialized views for aggregations)
 
 ### Future Enhancements:
 
@@ -428,7 +428,7 @@ Recommended refresh: After bulk operations or on schedule (e.g., hourly)
 
 ---
 
-## 📋 Sample Queries
+##  Sample Queries
 
 ### Find patient's upcoming appointments
 
@@ -475,7 +475,7 @@ WHERE id = $1;
 
 ---
 
-## 🔄 Flyway Migrations
+##  Flyway Migrations
 
 ### V1\_\_init_schema.sql
 
@@ -495,7 +495,7 @@ WHERE id = $1;
 
 ---
 
-## 📞 Notes for Development
+##  Notes for Development
 
 1. **UUID vs Auto-increment**: Using UUID for scalability and distributed systems
 2. **Single Table Inheritance**: Simplifies queries, eliminates JOINs for polymorphism

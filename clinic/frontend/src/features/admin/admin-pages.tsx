@@ -503,6 +503,7 @@ export function AdminDoctorsPage() {
 // the actual patient list in a table.
 // ============================================================================
 export function AdminPatientsPage() {
+  const router = useRouter();
   const urlQuery = useUrlQuery();
   const [patients, setPatients] = useState<Array<{ id: string; name: string; email: string; status: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -704,7 +705,7 @@ export function AdminPatientsPage() {
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button variant="outline" size="sm" onClick={() => setEditingPatient(patient)}>Edit</Button>
-                      <Button variant="outline" size="sm" onClick={() => (window.location.href = `/admin/patients/${patient.id}`)}>View</Button>
+                      <Button variant="outline" size="sm" onClick={() => router.push(`/admin/patients/${patient.id}`)}>View</Button>
                       <Button variant="destructive" size="sm" onClick={() => handleDelete(patient.id)}>Delete</Button>
                     </TableCell>
                   </TableRow>

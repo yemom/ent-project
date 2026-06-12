@@ -1,8 +1,10 @@
 package com.clinic.dto.request;
 
 import com.clinic.entity.Gender;
+import com.clinic.validation.PasswordPolicy;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
 
@@ -12,6 +14,7 @@ public record PatientCreateRequest(
         String email,
 
         @NotBlank(message = "Password is required")
+        @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE)
         String password,
 
         @NotBlank(message = "Full name is required")

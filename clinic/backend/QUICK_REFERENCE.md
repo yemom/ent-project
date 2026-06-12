@@ -1,8 +1,8 @@
 # clinic - Quick Reference Guide
 
-## ✅ What Has Been Created
+##  What Has Been Created
 
-### 📁 Project Structure
+###  Project Structure
 
 Complete Maven multi-layered architecture:
 
@@ -24,9 +24,9 @@ Complete Maven multi-layered architecture:
   - `java/com/clinic/` - Test classes
   - `resources/` - Test configuration
 
-### 📄 Configuration Files
+###  Configuration Files
 
-✅ **pom.xml** - Maven POM with:
+ **pom.xml** - Maven POM with:
 
 - Spring Boot 3.3.0
 - Java 21
@@ -40,20 +40,20 @@ Complete Maven multi-layered architecture:
 - Testing frameworks (JUnit 5, Mockito, Testcontainers)
 - Build plugins (JaCoCo for coverage, Surefire, Failsafe)
 
-### 🐳 Docker Files
+###  Docker Files
 
-✅ **Dockerfile** - Multi-stage build
-✅ **docker-compose.yml** - PostgreSQL + App orchestration
+ **Dockerfile** - Multi-stage build
+ **docker-compose.yml** - PostgreSQL + App orchestration
 
-### 📖 Documentation
+###  Documentation
 
-✅ **README.md** - Complete project guide
-✅ **PROJECT_STRUCTURE.md** - Detailed architecture
-✅ **.gitignore** - Standard Spring Boot ignore patterns
+ **README.md** - Complete project guide
+ **PROJECT_STRUCTURE.md** - Detailed architecture
+ **.gitignore** - Standard Spring Boot ignore patterns
 
 ---
 
-## 🎯 Key Specifications
+##  Key Specifications
 
 ### Technology Stack
 
@@ -73,23 +73,23 @@ Documentation:   OpenAPI/Swagger UI
 
 ### Core Features (Configured in pom.xml)
 
-✅ REST API with proper HTTP methods
-✅ JWT Authentication (stateless)
-✅ Role-Based Access Control (RBAC)
-✅ Database migrations (Flyway)
-✅ Entity relationships (JPA)
-✅ DTO pattern with mappers
-✅ Global exception handling
-✅ Bean validation
-✅ Pagination support
-✅ OpenAPI/Swagger documentation
-✅ Code coverage enforcement (70%+)
-✅ Integration testing with Testcontainers
-✅ Docker containerization
+ REST API with proper HTTP methods
+ JWT Authentication (stateless)
+ Role-Based Access Control (RBAC)
+ Database migrations (Flyway)
+ Entity relationships (JPA)
+ DTO pattern with mappers
+ Global exception handling
+ Bean validation
+ Pagination support
+ OpenAPI/Swagger documentation
+ Code coverage enforcement (70%+)
+ Integration testing with Testcontainers
+ Docker containerization
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### 1. Setup
 
@@ -132,7 +132,7 @@ docker-compose down
 
 ---
 
-## 📊 pom.xml Dependencies Overview
+##  pom.xml Dependencies Overview
 
 ### Spring Boot Starters (7)
 
@@ -193,7 +193,7 @@ docker-compose down
 
 ---
 
-## 🔐 Security Implementation (Ready in pom.xml)
+##  Security Implementation (Ready in pom.xml)
 
 ### JWT Flow
 
@@ -219,7 +219,7 @@ docker-compose down
 
 ---
 
-## 📝 Next Implementation Phases
+##  Next Implementation Phases
 
 After project structure & pom.xml, implement in this order:
 
@@ -282,7 +282,7 @@ After project structure & pom.xml, implement in this order:
 
 ---
 
-## 🛠️ Build Commands Reference
+##  Build Commands Reference
 
 ```bash
 # Clean & compile
@@ -315,9 +315,9 @@ docker-compose up -d
 
 ---
 
-## 📊 Project Status
+##  Project Status
 
-### ✅ Completed
+###  Completed
 
 - [x] Maven project structure
 - [x] pom.xml with all dependencies
@@ -330,7 +330,7 @@ docker-compose up -d
 - [x] Code coverage tooling (JaCoCo)
 - [x] Documentation
 
-### ⏳ Ready to Implement
+###  Ready to Implement
 
 - [ ] Entity classes (5 domain models)
 - [ ] Repository interfaces
@@ -343,7 +343,7 @@ docker-compose up -d
 - [ ] Flyway migrations
 - [ ] Unit & integration tests
 
-### 📈 Coverage Goals
+###  Coverage Goals
 
 - **Target**: 70%+ code coverage (enforced by JaCoCo)
 - **Scope**: All business logic (services, utilities)
@@ -351,7 +351,7 @@ docker-compose up -d
 
 ---
 
-## 🎯 Production Readiness Checklist
+##  Production Readiness Checklist
 
 ### Configuration
 
@@ -388,7 +388,7 @@ docker-compose up -d
 
 ---
 
-## 📞 Key Contacts
+##  Key Contacts
 
 For questions on architecture or implementation, refer to:
 
@@ -399,7 +399,7 @@ For questions on architecture or implementation, refer to:
 
 ---
 
-## 🎓 Learning Resources
+##  Learning Resources
 
 For implementing the remaining components:
 

@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader } from "@/components/layouts/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,8 +46,8 @@ import { useAppointments } from "@/hooks/useAppointments";
 import { LabOrderForm } from '@/features/laboratory/components/lab-order-form';
 import { createAppointment } from "@/services/api/appointments";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listMedicalRecords, searchMedicalRecords, createMedicalRecord, updateMedicalRecord, deleteMedicalRecord } from "@/services/api/medical-records";
-import { listPatients, updatePatient } from "@/services/api/users";
+import { getMedicalRecord, listMedicalRecords, searchMedicalRecords, createMedicalRecord, updateMedicalRecord, deleteMedicalRecord } from "@/services/api/medical-records";
+import { getPatient, listPatients, updatePatient } from "@/services/api/users";
 import { useLabOrders } from '@/features/laboratory/hooks/use-lab-orders';
 import { LabOrderList } from '@/features/laboratory/components/lab-order-list';
 import {
@@ -72,6 +72,7 @@ import { LAB_TEST_TYPES, LAB_URGENCY } from "@/lib/constants";
 // appointments. It uses the `useAppointments` hook to fetch data.
 // ============================================================================
 export function DoctorDashboardPage() {
+  const router = useRouter();
   const { appointments, isLoading, error } = useAppointments();
 
   return (
@@ -140,25 +141,36 @@ export function DoctorDashboardPage() {
             appointments.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-2xl bg-muted/50 p-4"
+                className="flex items-center justify-between gap-3 rounded-2xl bg-muted/50 p-4"
               >
                 <div>
                   <p className="font-medium">{item.patient.fullName}</p>
                   <p className="text-sm text-muted-foreground">{item.time}</p>
                 </div>
-                <Badge
-                  variant={
-                    item.status === "CONFIRMED"
-                      ? "success"
-                      : item.status === "IN_PROGRESS"
-                        ? "default"
-                        : item.status === "PENDING"
-                          ? "warning"
-                          : "destructive"
-                  }
-                >
-                  {item.status}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      item.status === "CONFIRMED"
+                        ? "success"
+                        : item.status === "IN_PROGRESS"
+                          ? "default"
+                          : item.status === "PENDING"
+                            ? "warning"
+                            : "destructive"
+                    }
+                  >
+                    {item.status}
+                  </Badge>
+                  {item.patient.id && item.patient.id.length > 8 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push(`/doctor/patients/${item.patient.id}`)}
+                    >
+                      View
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
 
@@ -182,6 +194,7 @@ function PatientLabOrders({ patientId }: { patientId: string }) {
 // DoctorAppointmentsPage
 // ============================================================================
 export function DoctorAppointmentsPage() {
+  const router = useRouter();
   const { appointments, isLoading, error } = useAppointments();
   const urlQuery = useSearchParams().get('q') ?? '';
   const [query, setQuery] = useState(urlQuery);
@@ -300,6 +313,15 @@ export function DoctorAppointmentsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-2 justify-end">
+                          {item.patient?.id && item.patient.id.length > 8 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => router.push(`/doctor/patients/${item.patient.id}`)}
+                            >
+                              View
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -552,12 +574,15 @@ export function DoctorCreateAppointmentPage() {
 // DoctorPatientsPage
 // ============================================================================
 export function DoctorPatientsPage() {
+  const router = useRouter();
   const urlQuery = useSearchParams().get('q') ?? '';
   const [patients, setPatients] = useState<
     Array<{ id: string; fullName: string; email: string; role: string; lastLogin?: string }>
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState(urlQuery);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   useEffect(() => {
     setQuery(urlQuery);
@@ -570,6 +595,8 @@ export function DoctorPatientsPage() {
   }, [patients, query]);
 
   useEffect(() => {
+    if (!isHydrated || !accessToken) return;
+
     async function fetchData() {
       try {
         setIsLoading(true);
@@ -586,7 +613,7 @@ export function DoctorPatientsPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [isHydrated, accessToken]);
 
   return (
     <div className="space-y-6">
@@ -632,9 +659,7 @@ export function DoctorPatientsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    window.location.href = `/doctor/patients/${patient.id}`;
-                  }}
+                  onClick={() => router.push(`/doctor/patients/${patient.id}`)}
                 >
                   View Details
                 </Button>
@@ -651,6 +676,7 @@ export function DoctorPatientsPage() {
 // DoctorPatientDetailPage
 // ============================================================================
 export function DoctorPatientDetailPage({ id }: { id: string }) {
+  const router = useRouter();
   const [patient, setPatient] = useState<
     {
       id: string;
@@ -671,7 +697,12 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
   >(null);
   const [records, setRecords] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const user = useAuthStore((s) => s.user);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const authReady = isHydrated && Boolean(accessToken);
+  const pageLoading = !authReady || isLoading;
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ diagnosis: '', treatment: '', prescription: '', notes: '' });
   const [status, setStatus] = useState<'success' | 'error' | null>(null);
@@ -718,42 +749,63 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
   };
 
   useEffect(() => {
+    if (!isHydrated) return;
+
+    if (!accessToken || !id) {
+      setIsLoading(false);
+      setPatient(null);
+      setRecords([]);
+      setFetchError('Please sign in again to view patient details.');
+      return;
+    }
+
+    let cancelled = false;
+
     async function fetchData() {
       try {
         setIsLoading(true);
-        // Fetch patient list to find this specific one (backend doesn't have direct getById for all users easily yet)
-        const patientData = await listPatients({ size: 100 });
-        const found = (patientData.content ?? []).find(p => p.id === id);
-        if (found) {
-          setPatient({
-            id: found.id,
-            fullName: found.fullName,
-            email: found.email,
-            role: found.role,
-            lastLogin: found.lastLogin,
-            phone: found.phone,
-            dateOfBirth: found.dateOfBirth,
-            gender: found.gender,
-            medicalHistory: found.medicalHistory,
-            bloodType: found.bloodType,
-            allergies: found.allergies,
-            emergencyContactName: found.emergencyContactName,
-            emergencyContactPhone: found.emergencyContactPhone,
-            active: found.active
-          });
-        }
+        setFetchError('');
 
-        // Fetch this patient's medical records
-        const recordsData = await searchMedicalRecords({ patientId: id });
+        const [found, recordsData] = await Promise.all([
+          getPatient(id),
+          searchMedicalRecords({ patientId: id, size: 50 }).catch(() => ({ content: [] }))
+        ]);
+
+        if (cancelled) return;
+
+        setPatient({
+          id: found.id,
+          fullName: found.fullName,
+          email: found.email,
+          role: found.role,
+          lastLogin: found.lastLogin,
+          phone: found.phone,
+          dateOfBirth: found.dateOfBirth,
+          gender: found.gender,
+          medicalHistory: found.medicalHistory,
+          bloodType: found.bloodType,
+          allergies: found.allergies,
+          emergencyContactName: found.emergencyContactName,
+          emergencyContactPhone: found.emergencyContactPhone,
+          active: found.active
+        });
         setRecords(recordsData.content ?? []);
       } catch (err) {
-        console.error("Error fetching patient details", err);
+        if (cancelled) return;
+        console.error('Error fetching patient details', err);
+        setPatient(null);
+        setRecords([]);
+        setFetchError(getFriendlyErrorMessage(err, 'Could not load patient details. Please try again.'));
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
+
     fetchData();
-  }, [id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isHydrated, accessToken]);
 
   const startEditing = (record: any) => {
     setEditingRecordId(record.id);
@@ -810,8 +862,24 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
         autoDismiss
         autoDismissMs={3500}
       />
+      {fetchError ? (
+        <StatusAlert
+          status="error"
+          message={fetchError}
+          onDismiss={() => setFetchError('')}
+        />
+      ) : null}
 
-      {patient && (
+      {pageLoading && (
+        <Card>
+          <CardContent className="space-y-4 p-6">
+            <Skeleton className="h-10 w-1/3" />
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
+        </Card>
+      )}
+
+      {!pageLoading && patient && (
         <Card className="overflow-hidden border-0 bg-gradient-to-br from-white via-white to-teal-50 shadow-sm">
           <CardContent className="p-6">
             <div className="grid gap-6 lg:grid-cols-[150px_1fr_auto]">
@@ -863,7 +931,7 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
             <CardDescription>Demographics and active status</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {pageLoading ? (
               <div className="space-y-4">
                 <Skeleton className="h-8 w-1/2" />
                 <Skeleton className="h-8 w-1/4" />
@@ -1008,7 +1076,7 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
             <CardDescription>Recent records and treatments</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {pageLoading ? (
               <div className="space-y-3">
                 <Skeleton className="h-12 w-full rounded" />
                 <Skeleton className="h-12 w-full rounded" />
@@ -1024,6 +1092,16 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
                         {new Date(record.recordDate || record.visitDate).toLocaleDateString()}
                       </p>
                       <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            router.push(`/${user?.role === 'ADMIN' ? 'admin' : 'doctor'}/records/${record.id}`);
+                          }}
+                        >
+                          <FileText className="h-4 w-4" />
+                          View
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => startEditing(record)}>
                           <Pencil className="h-4 w-4" />
                           Edit
@@ -1094,6 +1172,7 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
 // DoctorRecordsPage
 // ============================================================================
 export function DoctorRecordsPage() {
+  const router = useRouter();
   const [records, setRecords] = useState<
     Array<{ id: string; diagnosis: string; status: string; visitDate: string; patientName: string }>
   >([]);
@@ -1148,12 +1227,183 @@ export function DoctorRecordsPage() {
                   <p className="text-sm text-muted-foreground">{record.diagnosis}</p>
                   <p className="text-xs text-muted-foreground">{new Date(record.visitDate).toLocaleDateString()}</p>
                 </div>
-                <Badge variant="outline">{record.status}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{record.status}</Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/doctor/records/${record.id}`)}
+                  >
+                    View Details
+                  </Button>
+                </div>
               </div>
             ))
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ============================================================================
+// DoctorMedicalRecordDetailPage
+// ============================================================================
+export function DoctorMedicalRecordDetailPage({ id }: { id: string }) {
+  const user = useAuthStore((s) => s.user);
+  const [record, setRecord] = useState<{
+    id: string;
+    diagnosis: string;
+    treatment?: string;
+    prescription?: string;
+    notes?: string;
+    testResults?: string;
+    vitalSigns?: string;
+    medicalRecordType?: string;
+    recordDate?: string;
+    visitDate?: string;
+    followUpRequired?: boolean;
+    followUpDate?: string;
+    confidential?: boolean;
+    patient?: { id?: string; fullName?: string };
+    doctor?: { fullName?: string };
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<'success' | 'error' | null>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const basePath = user?.role === 'ADMIN' ? '/admin' : '/doctor';
+  const patientId = record?.patient?.id;
+  const backHref = patientId ? `${basePath}/patients/${patientId}` : `${basePath}/patients`;
+
+  useEffect(() => {
+    async function fetchRecord() {
+      try {
+        setIsLoading(true);
+        const data = await getMedicalRecord(id);
+        setRecord(data);
+      } catch (err) {
+        console.error('Error fetching medical record', err);
+        setStatus('error');
+        setStatusMessage(getFriendlyErrorMessage(err, 'Failed to load medical record'));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchRecord();
+  }, [id]);
+
+  const visitDate = record?.recordDate || record?.visitDate;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Medical Record Details"
+        description="Full clinical encounter history for this patient."
+        actionLabel="Back to Patient"
+        actionHref={backHref}
+      />
+      <StatusAlert
+        status={status}
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss
+        autoDismissMs={3500}
+      />
+
+      {isLoading ? (
+        <Card>
+          <CardContent className="space-y-4 p-6">
+            <Skeleton className="h-8 w-1/3" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+      ) : !record ? (
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">Medical record not found.</CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+          <Card>
+            <CardHeader>
+              <CardTitle>{record.diagnosis}</CardTitle>
+              <CardDescription>
+                {visitDate ? new Date(visitDate).toLocaleString() : 'Date unavailable'}
+                {record.medicalRecordType ? ` • ${record.medicalRecordType}` : ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {record.treatment && (
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">Treatment</p>
+                  <p className="mt-1 text-base">{record.treatment}</p>
+                </div>
+              )}
+              {record.prescription && (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                  <p className="text-xs font-bold uppercase text-amber-800">Prescription</p>
+                  <p className="mt-2 text-sm text-amber-900">{record.prescription}</p>
+                </div>
+              )}
+              {record.testResults && (
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">Test Results</p>
+                  <p className="mt-1 whitespace-pre-wrap text-base">{record.testResults}</p>
+                </div>
+              )}
+              {record.vitalSigns && (
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">Vital Signs</p>
+                  <p className="mt-1 whitespace-pre-wrap text-base">{record.vitalSigns}</p>
+                </div>
+              )}
+              {record.notes && (
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">Clinical Notes</p>
+                  <p className="mt-1 whitespace-pre-wrap text-base text-muted-foreground">{record.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Encounter Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div>
+                  <p className="font-semibold text-muted-foreground">Patient</p>
+                  <p className="mt-1 text-base">{record.patient?.fullName || 'Unknown'}</p>
+                  {patientId && (
+                    <Button
+                      variant="ghost"
+                      className="h-auto p-0 text-teal-700"
+                      onClick={() => {
+                        window.location.href = `${basePath}/patients/${patientId}`;
+                      }}
+                    >
+                      View patient profile
+                    </Button>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-muted-foreground">Attending Doctor</p>
+                  <p className="mt-1 text-base">{record.doctor?.fullName || 'Unknown'}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {record.confidential && <Badge variant="warning">Confidential</Badge>}
+                  {record.followUpRequired && <Badge variant="outline">Follow-up required</Badge>}
+                  {record.followUpDate && (
+                    <Badge variant="secondary">Follow-up: {new Date(record.followUpDate).toLocaleDateString()}</Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

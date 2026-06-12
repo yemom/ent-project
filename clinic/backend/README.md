@@ -2,14 +2,14 @@
 
 A production-ready Spring Boot 3.x (Java 21) backend system for managing clinic appointments and medical records.
 
-## 🏗️ Architecture
+##  Architecture
 
 - **Layered Architecture**: Controller → Service → Repository → Entity
 - **Design Patterns**: DTO, Mapper, Service Layer
 - **SOLID Principles**: Applied throughout
 - **API-First**: RESTful API with OpenAPI/Swagger documentation
 
-## ⚙️ Tech Stack
+##  Tech Stack
 
 - **Java 21** with Records and modern language features
 - **Spring Boot 3.3.0** with Spring Framework 6.x
@@ -22,7 +22,7 @@ A production-ready Spring Boot 3.x (Java 21) backend system for managing clinic 
 - **SpringDoc OpenAPI** for Swagger UI
 - **Docker & Docker Compose** for containerization
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -64,7 +64,7 @@ mvn clean verify
 # Coverage report: target/site/jacoco/index.html
 ```
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 clinic/
@@ -103,7 +103,7 @@ clinic/
 └── README.md
 ```
 
-## 🧩 Core Features
+##  Core Features
 
 ### 1. **Entity Models**
 
@@ -140,7 +140,7 @@ clinic/
 - Swagger UI at `/swagger-ui.html`
 - API docs at `/v3/api-docs`
 
-## 🔐 Security Features
+##  Security Features
 
 - **JWT Tokens**: Signed with HS512
 - **Password Security**: BCrypt hashing
@@ -149,14 +149,14 @@ clinic/
 - **CORS**: Configurable cross-origin requests
 - **Input Validation**: Bean Validation with custom validators
 
-## 📊 Testing
+##  Testing
 
 - **Unit Tests**: @WebMvcTest, @DataJpaTest
 - **Integration Tests**: Testcontainers with PostgreSQL
 - **Coverage**: JaCoCo (target: 70%+)
 - **Frameworks**: JUnit 5, Mockito
 
-## 🐳 Docker Deployment
+##  Docker Deployment
 
 ```bash
 # Build Docker image
@@ -177,7 +177,7 @@ docker-compose down
 - **app**: Spring Boot application (port 8080)
 - **postgres**: PostgreSQL database (port 5432)
 
-## 📝 Configuration
+##  Configuration
 
 ### application.yml
 
@@ -200,14 +200,14 @@ spring:
       expiration: 86400000 # 24 hours
 ```
 
-## 🧪 Code Quality
+##  Code Quality
 
 - **Code Coverage**: 70%+ (enforced by JaCoCo)
 - **Testing**: Comprehensive unit and integration tests
 - **Clean Code**: SOLID principles, design patterns
 - **Documentation**: JavaDoc, API documentation
 
-## 📚 API Documentation
+##  API Documentation
 
 Visit `/swagger-ui.html` after starting the application to:
 
@@ -215,7 +215,7 @@ Visit `/swagger-ui.html` after starting the application to:
 - Test API calls interactively
 - View request/response schemas
 
-## 🔄 Database Migrations
+##  Database Migrations
 
 Migrations are versioned and applied automatically with Flyway:
 
@@ -226,7 +226,7 @@ Migrations are versioned and applied automatically with Flyway:
 - V5\_\_appointments.sql - Appointment entity
 - V6\_\_medical_records.sql - Medical records entity
 
-## 📦 Dependencies
+##  Dependencies
 
 See [pom.xml](pom.xml) for complete dependency list. Key dependencies:
 
@@ -239,17 +239,17 @@ See [pom.xml](pom.xml) for complete dependency list. Key dependencies:
 - Lombok 1.18.30
 - SpringDoc OpenAPI 2.3.0
 
-## 🤝 Contributing
+##  Contributing
 
 1. Create a feature branch
 2. Follow Spring Boot conventions
 3. Write tests (>70% coverage)
 4. Create pull request
 
-## 📄 License
+##  License
 
 Proprietary - clinic System
 
-## 👥 Contact
+##  Contact
 
 For questions or support, contact the development team.

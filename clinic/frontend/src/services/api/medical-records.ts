@@ -12,10 +12,15 @@ export interface MedicalRecordItem {
   treatment?: string;
   notes?: string;
   status: 'DRAFT' | 'SIGNED' | 'ARCHIVED';
-  patient?: { fullName: string };
-  doctor?: { fullName: string };
+  patient?: { id?: string; fullName: string };
+  doctor?: { id?: string; fullName: string };
   createdAt?: string;
   medicalRecordType?: string;
+}
+
+export async function getMedicalRecord(id: string) {
+  const { data } = await apiClient.get<MedicalRecordItem>(`/medical-records/${id}`);
+  return data;
 }
 
 export async function listMedicalRecords(params: Record<string, string | number | undefined> = {}) {

@@ -1,25 +1,27 @@
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { dashboardForRole, getRequiredRole, getRole, hasSession, isProtectedPath } from './src/middleware/auth';
 
-export const protectedPrefixes = ['/admin', '/doctor', '/patient', '/pharmacist', '/laboratory'];
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-export function isProtectedPath(pathname: string) {
-  return protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
+  if (!isProtectedPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (!hasSession(request)) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  const activeRole = getRole(request);
+  const requiredRole = getRequiredRole(pathname);
+
+  if (activeRole && activeRole !== requiredRole) {
+    return NextResponse.redirect(new URL(dashboardForRole(activeRole), request.url));
+  }
+
+  return NextResponse.next();
 }
 
-export function getRequiredRole(pathname: string) {
-  if (pathname.startsWith('/doctor')) return 'DOCTOR';
-  if (pathname.startsWith('/patient')) return 'PATIENT';
-  if (pathname.startsWith('/pharmacist')) return 'PHARMACIST';
-  if (pathname.startsWith('/laboratory')) return 'LABORATORY';
-  return 'ADMIN';
-}
-
-export function hasSession(request: NextRequest) {
-  return request.cookies.get('clinic.auth')?.value === '1';
-}
-
-export function getRole(request: NextRequest) {
-  return request.cookies.get('clinic.role')?.value ?? null;
-}
-
-export { isProtectedPath as isProtected, getRequiredRole as requiredRole };
+export const config = {
+  matcher: ['/admin/:path*', '/doctor/:path*', '/patient/:path*', '/pharmacist/:path*', '/laboratory/:path*']
+};

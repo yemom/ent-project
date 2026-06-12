@@ -1,6 +1,6 @@
 # clinic Project Structure & pom.xml Documentation
 
-## 📋 Complete Project Tree
+##  Complete Project Tree
 
 ```
 clinic/
@@ -134,7 +134,7 @@ clinic/
 
 ---
 
-## 🔧 pom.xml Summary
+##  pom.xml Summary
 
 ### Parent & Properties
 
@@ -203,7 +203,7 @@ clinic/
 
 ---
 
-## 🏗️ Architectural Layers
+##  Architectural Layers
 
 ### 1. **Controller Layer** (`com.clinice.controller`)
 
@@ -242,7 +242,7 @@ clinic/
 
 ---
 
-## 🔐 Security Layers
+##  Security Layers
 
 ### Authentication & Authorization
 
@@ -264,7 +264,7 @@ clinic/
 
 ---
 
-## 🗄️ Database Design
+##  Database Design
 
 ### Entities & Relationships
 
@@ -294,7 +294,7 @@ MedicalRecord
 
 ---
 
-## 🧪 Testing Strategy
+##  Testing Strategy
 
 ### Test Types
 
@@ -315,7 +315,7 @@ MedicalRecord
 
 ---
 
-## 🐳 Docker & Deployment
+##  Docker & Deployment
 
 ### Dockerfile Strategy
 
@@ -336,7 +336,7 @@ MedicalRecord
 
 ---
 
-## 🚀 Build & Run Commands
+##  Build & Run Commands
 
 ```bash
 # Clean build with all tests

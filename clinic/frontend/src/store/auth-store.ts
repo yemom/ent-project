@@ -54,8 +54,11 @@ export const useAuthStore = create<AuthState>()(
           const validSession = Boolean(state.user && state.accessToken);
           if (!validSession) {
             state.clearSession();
-          } else if (!state.isAuthenticated) {
-            useAuthStore.setState((current) => ({ ...current, isAuthenticated: true }));
+          } else {
+            tokenStorage.setSession(state.accessToken!, state.user!, state.refreshToken ?? undefined);
+            if (!state.isAuthenticated) {
+              useAuthStore.setState((current) => ({ ...current, isAuthenticated: true }));
+            }
           }
         }
       }

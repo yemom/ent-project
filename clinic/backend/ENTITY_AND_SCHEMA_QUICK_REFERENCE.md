@@ -1,36 +1,36 @@
 # clinicl - Database & Entity Quick Reference
 
-## 📊 Files Generated
+##  Files Generated
 
 ### Entity Classes (Java)
 
-✅ `BaseEntity.java` - Abstract base with id, createdAt, updatedAt
-✅ `User.java` - Abstract user base (single table inheritance)
-✅ `Patient.java` - Patient entity extending User
-✅ `Doctor.java` - Doctor entity extending User
-✅ `Appointment.java` - Appointment entity
-✅ `MedicalRecord.java` - Medical record entity
+ `BaseEntity.java` - Abstract base with id, createdAt, updatedAt
+ `User.java` - Abstract user base (single table inheritance)
+ `Patient.java` - Patient entity extending User
+ `Doctor.java` - Doctor entity extending User
+ `Appointment.java` - Appointment entity
+ `MedicalRecord.java` - Medical record entity
 
 ### Enums (Java)
 
-✅ `UserRole.java` - ADMIN, DOCTOR, PATIENT
-✅ `Gender.java` - MALE, FEMALE, OTHER
-✅ `AppointmentStatus.java` - SCHEDULED, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW
+ `UserRole.java` - ADMIN, DOCTOR, PATIENT
+ `Gender.java` - MALE, FEMALE, OTHER
+ `AppointmentStatus.java` - SCHEDULED, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW
 
 ### Flyway Migrations (SQL)
 
-✅ `V1__init_schema.sql` - Initial schema, tables, indexes, views
-✅ `V2__add_constraints_and_triggers.sql` - Triggers, constraints, audit logging
+ `V1__init_schema.sql` - Initial schema, tables, indexes, views
+ `V2__add_constraints_and_triggers.sql` - Triggers, constraints, audit logging
 
 ### Documentation
 
-✅ `DATABASE_SCHEMA.md` - Complete schema documentation
-✅ `ENTITY_RELATIONSHIPS.md` - JPA configuration and relationships
-✅ `ENTITY_AND_SCHEMA_QUICK_REFERENCE.md` - This file
+ `DATABASE_SCHEMA.md` - Complete schema documentation
+ `ENTITY_RELATIONSHIPS.md` - JPA configuration and relationships
+ `ENTITY_AND_SCHEMA_QUICK_REFERENCE.md` - This file
 
 ---
 
-## 🗄️ Table Summary
+##  Table Summary
 
 ### USERS (Single Table Inheritance)
 
@@ -175,7 +175,7 @@
 
 ---
 
-## 🔗 Relationship Quick Reference
+##  Relationship Quick Reference
 
 | Relationship                | Cardinality | Cascade                | FK             | Notes                  |
 | --------------------------- | ----------- | ---------------------- | -------------- | ---------------------- |
@@ -187,7 +187,7 @@
 
 ---
 
-## 📝 JPA Annotations Summary
+##  JPA Annotations Summary
 
 ### Entity Declaration
 
@@ -262,7 +262,7 @@ private UserRole role;
 
 ---
 
-## 🗂️ Entity File Locations
+##  Entity File Locations
 
 ```
 src/main/java/com/clinice/entity/
@@ -281,7 +281,7 @@ Total Entity Code: ~456 lines (well-documented, production-ready)
 
 ---
 
-## 🗄️ Migration File Locations
+##  Migration File Locations
 
 ```
 src/main/resources/db/migration/
@@ -303,7 +303,7 @@ src/main/resources/db/migration/
 
 ---
 
-## 🔐 Cascade & Fetch Decisions
+##  Cascade & Fetch Decisions
 
 ### Why Eager Loading for FK?
 
@@ -338,7 +338,7 @@ Result: Load on-demand, save memory, better scalability
 
 ---
 
-## 📊 Validation Rules
+##  Validation Rules
 
 ### User Fields
 
@@ -382,7 +382,7 @@ Result: Load on-demand, save memory, better scalability
 
 ---
 
-## 💾 Data Persistence Flow
+##  Data Persistence Flow
 
 ### Create Patient
 
@@ -449,7 +449,7 @@ recordRepository.save(record)
 
 ---
 
-## 🔍 Sample Queries
+##  Sample Queries
 
 ### Find Patient's Upcoming Appointments
 
@@ -506,19 +506,19 @@ List<Doctor> availableDoctors = doctorRepository
 
 ---
 
-## 🚀 Development Next Steps
+##  Development Next Steps
 
-1. ✅ **Entities**: Complete - ready to use
-2. ✅ **Migrations**: Complete - run with Flyway
-3. ⏳ **Repositories**: Next - extend JpaRepository
-4. ⏳ **Services**: Next - implement business logic
-5. ⏳ **DTOs & Mappers**: Next - API contracts
-6. ⏳ **Controllers**: Next - REST endpoints
-7. ⏳ **Tests**: Next - unit and integration
+1.  **Entities**: Complete - ready to use
+2.  **Migrations**: Complete - run with Flyway
+3.  **Repositories**: Next - extend JpaRepository
+4.  **Services**: Next - implement business logic
+5.  **DTOs & Mappers**: Next - API contracts
+6.  **Controllers**: Next - REST endpoints
+7.  **Tests**: Next - unit and integration
 
 ---
 
-## 📖 Key Files Reference
+##  Key Files Reference
 
 | File                                   | Purpose           | Lines |
 | -------------------------------------- | ----------------- | ----- |
@@ -535,7 +535,7 @@ List<Doctor> availableDoctors = doctorRepository
 
 ---
 
-**Status**: ✅ COMPLETE  
+**Status**:  COMPLETE  
 **Entities**: 5 + 3 Enums  
 **Tables**: 3 + views  
 **Relationships**: 5  
