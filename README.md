@@ -1,6 +1,6 @@
-# Clinic Monorepo
+[![Clinic CI/CD](https://github.com/yemom/ent-project/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/yemom/ent-project/actions/workflows/ci-cd.yml)
 
-# clinic - Clinic Appointment & Medical Records Management System
+# Clinic Appointment & Medical Records Management System
 This repository contains the Clinic application: a Java Spring Boot backend and a Next.js frontend. The README below documents the detailed folder structure, responsibilities for each folder, core technologies and how to run/test the project.
 
 Quick links
