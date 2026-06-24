@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toUserFacingError } from '@/lib/error-handler';
 import { useAuthStore } from '@/store/auth-store';
 import type { CreateLabOrderDto, LabOrder } from '../types';
 
@@ -14,36 +15,52 @@ function getAuthHeader() {
 
 export const labOrdersService = {
   create: async (payload: CreateLabOrderDto): Promise<LabOrder> => {
-    const res = await axios.post<LabOrder>(`${LAB_BASE}/api/lab-orders`, payload, {
-      headers: { ...getAuthHeader() },
-      withCredentials: true
-    });
-    return res.data;
+    try {
+      const res = await axios.post<LabOrder>(`${LAB_BASE}/api/lab-orders`, payload, {
+        headers: { ...getAuthHeader() },
+        withCredentials: true
+      });
+      return res.data;
+    } catch (err) {
+      throw toUserFacingError(err, 'Could not create the lab order.');
+    }
   },
   list: async (params?: Record<string, any>): Promise<{ content: LabOrder[]; totalElements: number; totalPages: number }> => {
-    const queryParams = { ...params };
-    if (queryParams.status) {
-      queryParams.status = String(queryParams.status).toUpperCase();
+    try {
+      const queryParams = { ...params };
+      if (queryParams.status) {
+        queryParams.status = String(queryParams.status).toUpperCase();
+      }
+      const res = await axios.get(`${LAB_BASE}/api/lab-orders`, {
+        params: queryParams,
+        headers: { ...getAuthHeader() },
+        withCredentials: true
+      });
+      return res.data;
+    } catch (err) {
+      throw toUserFacingError(err, 'Could not load lab orders.');
     }
-    const res = await axios.get(`${LAB_BASE}/api/lab-orders`, {
-      params: queryParams,
-      headers: { ...getAuthHeader() },
-      withCredentials: true
-    });
-    return res.data;
   },
   get: async (id: string): Promise<LabOrder> => {
-    const res = await axios.get<LabOrder>(`${LAB_BASE}/api/lab-orders/${id}`, {
-      headers: { ...getAuthHeader() },
-      withCredentials: true
-    });
-    return res.data;
+    try {
+      const res = await axios.get<LabOrder>(`${LAB_BASE}/api/lab-orders/${id}`, {
+        headers: { ...getAuthHeader() },
+        withCredentials: true
+      });
+      return res.data;
+    } catch (err) {
+      throw toUserFacingError(err, 'Could not load the lab order.');
+    }
   },
   updateStatus: async (id: string, status: string): Promise<LabOrder> => {
-    const res = await axios.patch<LabOrder>(`${LAB_BASE}/api/lab-orders/${id}/status`, { status: String(status).toUpperCase() }, {
-      headers: { ...getAuthHeader() },
-      withCredentials: true
-    });
-    return res.data;
+    try {
+      const res = await axios.patch<LabOrder>(`${LAB_BASE}/api/lab-orders/${id}/status`, { status: String(status).toUpperCase() }, {
+        headers: { ...getAuthHeader() },
+        withCredentials: true
+      });
+      return res.data;
+    } catch (err) {
+      throw toUserFacingError(err, 'Could not update the lab order status.');
+    }
   }
 };

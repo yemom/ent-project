@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toUserFacingError } from '@/lib/error-handler';
 import { useAuthStore } from '@/store/auth-store';
 import type { LabResult, SubmitLabResultDto } from '../types';
 
@@ -12,11 +13,15 @@ function getAuthHeader() {
 
 export const labResultsService = {
   submit: async (payload: SubmitLabResultDto): Promise<LabResult> => {
-    const res = await axios.post<LabResult>(`${LAB_BASE}/api/lab-results`, { ...payload, status: String(payload.status).toUpperCase() }, {
-      headers: { ...getAuthHeader() },
-      withCredentials: true
-    });
-    return res.data;
+    try {
+      const res = await axios.post<LabResult>(`${LAB_BASE}/api/lab-results`, { ...payload, status: String(payload.status).toUpperCase() }, {
+        headers: { ...getAuthHeader() },
+        withCredentials: true
+      });
+      return res.data;
+    } catch (err) {
+      throw toUserFacingError(err, 'Could not save the lab result.');
+    }
   },
   getByLabOrderId: async (orderId: string): Promise<LabResult | null> => {
     try {
@@ -25,9 +30,9 @@ export const labResultsService = {
         withCredentials: true
       });
       return res.data;
-    } catch (err: any) {
-      if (err?.response?.status === 404) return null;
-      throw err;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      throw toUserFacingError(err, 'Could not load the lab result.');
     }
   },
   getByOrder: async (orderId: string): Promise<LabResult | null> => {
@@ -37,24 +42,32 @@ export const labResultsService = {
         withCredentials: true
       });
       return res.data;
-    } catch (err: any) {
-      if (err?.response?.status === 404) return null;
-      throw err;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      throw toUserFacingError(err, 'Could not load the lab result.');
     }
   },
   getAll: async (params?: Record<string, any>): Promise<{ content: LabResult[]; totalElements: number }> => {
-    const res = await axios.get(`${LAB_BASE}/api/lab-results`, {
-      params,
-      headers: { ...getAuthHeader() },
-      withCredentials: true
-    });
-    return res.data;
+    try {
+      const res = await axios.get(`${LAB_BASE}/api/lab-results`, {
+        params,
+        headers: { ...getAuthHeader() },
+        withCredentials: true
+      });
+      return res.data;
+    } catch (err) {
+      throw toUserFacingError(err, 'Could not load lab results.');
+    }
   },
   update: async (id: string, payload: Partial<SubmitLabResultDto>): Promise<LabResult> => {
-    const res = await axios.patch<LabResult>(`${LAB_BASE}/api/lab-results/${id}`, payload.status ? { ...payload, status: String(payload.status).toUpperCase() } : payload, {
-      headers: { ...getAuthHeader() },
-      withCredentials: true
-    });
-    return res.data;
+    try {
+      const res = await axios.patch<LabResult>(`${LAB_BASE}/api/lab-results/${id}`, payload.status ? { ...payload, status: String(payload.status).toUpperCase() } : payload, {
+        headers: { ...getAuthHeader() },
+        withCredentials: true
+      });
+      return res.data;
+    } catch (err) {
+      throw toUserFacingError(err, 'Could not update the lab result.');
+    }
   }
 };

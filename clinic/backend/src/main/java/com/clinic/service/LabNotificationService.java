@@ -5,8 +5,6 @@ import com.clinic.dto.response.LabNotificationResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
-
 public interface LabNotificationService {
 
     LabNotificationResponse create(String userId, String labOrderId, String labResultId);
@@ -15,7 +13,7 @@ public interface LabNotificationService {
 
     Page<LabNotificationResponse> getByUserId(String userId, Pageable pageable);
 
-    List<LabNotificationResponse> getUnreadByUserId(String userId);
+    Page<LabNotificationResponse> getUnreadByUserId(String userId, Pageable pageable);
 
     long getUnreadCountByUserId(String userId);
 

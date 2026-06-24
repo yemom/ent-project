@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '@/lib/env';
+import { getFriendlyErrorMessage } from '@/lib/error-handler';
 import { tokenStorage } from '@/lib/token-storage';
 import { useAuthStore } from '@/store/auth-store';
 import type { ApiErrorResponse } from '@/types/api';
@@ -33,6 +34,10 @@ apiClient.interceptors.response.use(
       if (isHydrated && accessToken) {
         useAuthStore.getState().clearSession();
       }
+    }
+
+    if (error.response?.status === 429) {
+      error.message = getFriendlyErrorMessage(error);
     }
 
     return Promise.reject(error);

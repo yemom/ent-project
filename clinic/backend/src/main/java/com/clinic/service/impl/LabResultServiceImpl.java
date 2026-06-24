@@ -10,9 +10,11 @@ import com.clinic.exception.ResourceNotFoundException;
 import com.clinic.mapper.LabResultMapper;
 import com.clinic.repository.LabResultRepository;
 import com.clinic.repository.LabOrderRepository;
-import com.clinic.service.LabNotificationService;
+import com.clinic.service.AsyncNotificationService;
 import com.clinic.service.LabResultService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import static com.clinic.config.CacheNames.LAB_RESULTS;
+
 @Service
 @Transactional
 @Slf4j
@@ -28,20 +32,21 @@ public class LabResultServiceImpl implements LabResultService {
 
     private final LabResultRepository labResultRepository;
     private final LabOrderRepository labOrderRepository;
-    private final LabNotificationService labNotificationService;
+    private final AsyncNotificationService asyncNotificationService;
     private final LabResultMapper mapper;
 
     public LabResultServiceImpl(LabResultRepository labResultRepository,
                                 LabOrderRepository labOrderRepository,
-                                LabNotificationService labNotificationService,
+                                AsyncNotificationService asyncNotificationService,
                                 LabResultMapper mapper) {
         this.labResultRepository = labResultRepository;
         this.labOrderRepository = labOrderRepository;
-        this.labNotificationService = labNotificationService;
+        this.asyncNotificationService = asyncNotificationService;
         this.mapper = mapper;
     }
 
     @Override
+    @CacheEvict(cacheNames = LAB_RESULTS, allEntries = true)
     public LabResultResponse create(CreateLabResultRequest request) {
         var labOrder = labOrderRepository.findById(request.labOrderId())
             .orElseThrow(() -> new ResourceNotFoundException("Lab order not found: " + request.labOrderId()));
@@ -69,6 +74,7 @@ public class LabResultServiceImpl implements LabResultService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = LAB_RESULTS, key = "'id:' + #id")
     public LabResultResponse getById(String id) {
         return mapper.toResponse(getEntityById(id));
     }
@@ -98,6 +104,7 @@ public class LabResultServiceImpl implements LabResultService {
     }
 
     @Override
+    @CacheEvict(cacheNames = LAB_RESULTS, allEntries = true)
     public LabResultResponse update(String id, UpdateLabResultRequest request) {
         LabResult result = getEntityById(id);
         if (request.findings() != null) {
@@ -113,6 +120,7 @@ public class LabResultServiceImpl implements LabResultService {
     }
 
     @Override
+    @CacheEvict(cacheNames = LAB_RESULTS, allEntries = true)
     public LabResultResponse updateStatus(String id, UpdateLabResultStatusRequest request) {
         LabResult result = getEntityById(id);
         result.setStatus(LabResultStatus.valueOf(request.status().toUpperCase()));
@@ -127,6 +135,7 @@ public class LabResultServiceImpl implements LabResultService {
     }
 
     @Override
+    @CacheEvict(cacheNames = LAB_RESULTS, allEntries = true)
     public void delete(String id) {
         labResultRepository.deleteById(id);
         log.info("Deleted lab result id={}", id);
@@ -143,10 +152,6 @@ public class LabResultServiceImpl implements LabResultService {
         }
 
         String doctorId = result.getLabOrder().getDoctorId();
-        try {
-            labNotificationService.create(doctorId, result.getLabOrder().getId(), result.getId());
-        } catch (Exception e) {
-            log.error("Failed to create lab notification for labResultId={}", result.getId(), e);
-        }
+        asyncNotificationService.notifyLabResultReady(doctorId, result.getLabOrder().getId(), result.getId());
     }
 }

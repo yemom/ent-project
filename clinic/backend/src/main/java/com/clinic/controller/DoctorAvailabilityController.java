@@ -23,8 +23,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/doctor-availability")
 public class DoctorAvailabilityController {
@@ -58,20 +56,32 @@ public class DoctorAvailabilityController {
 
     @GetMapping("/doctor/{doctorId}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
-    public ResponseEntity<List<DoctorAvailabilityResponse>> getByDoctorId(@PathVariable String doctorId) {
-        return ResponseEntity.ok(availabilityService.getByDoctorId(doctorId));
+    public ResponseEntity<PageResponse<DoctorAvailabilityResponse>> getByDoctorId(
+            @PathVariable String doctorId,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
+    ) {
+        Page<DoctorAvailabilityResponse> page = availabilityService.getByDoctorId(doctorId, pageable);
+        return ResponseEntity.ok(PageResponse.of(page));
     }
 
     @GetMapping("/laboratory/{laboratoryId}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
-    public ResponseEntity<List<DoctorAvailabilityResponse>> getByLaboratoryId(@PathVariable String laboratoryId) {
-        return ResponseEntity.ok(availabilityService.getByLaboratoryId(laboratoryId));
+    public ResponseEntity<PageResponse<DoctorAvailabilityResponse>> getByLaboratoryId(
+            @PathVariable String laboratoryId,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
+    ) {
+        Page<DoctorAvailabilityResponse> page = availabilityService.getByLaboratoryId(laboratoryId, pageable);
+        return ResponseEntity.ok(PageResponse.of(page));
     }
 
     @GetMapping("/day/{dayOfWeek}")
     @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
-    public ResponseEntity<List<DoctorAvailabilityResponse>> getByDayOfWeek(@PathVariable String dayOfWeek) {
-        return ResponseEntity.ok(availabilityService.getByDayOfWeek(dayOfWeek));
+    public ResponseEntity<PageResponse<DoctorAvailabilityResponse>> getByDayOfWeek(
+            @PathVariable String dayOfWeek,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
+    ) {
+        Page<DoctorAvailabilityResponse> page = availabilityService.getByDayOfWeek(dayOfWeek, pageable);
+        return ResponseEntity.ok(PageResponse.of(page));
     }
 
     @PutMapping("/{id}")

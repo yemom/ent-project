@@ -5,8 +5,6 @@ import com.clinic.dto.response.DoctorAvailabilityResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
-
 public interface DoctorAvailabilityService {
 
     DoctorAvailabilityResponse create(DoctorAvailabilityCreateRequest request);
@@ -17,11 +15,11 @@ public interface DoctorAvailabilityService {
 
     Page<DoctorAvailabilityResponse> getAll(Pageable pageable);
 
-    List<DoctorAvailabilityResponse> getByDoctorId(String doctorId);
+    Page<DoctorAvailabilityResponse> getByDoctorId(String doctorId, Pageable pageable);
 
-    List<DoctorAvailabilityResponse> getByLaboratoryId(String laboratoryId);
+    Page<DoctorAvailabilityResponse> getByLaboratoryId(String laboratoryId, Pageable pageable);
 
-    List<DoctorAvailabilityResponse> getByDayOfWeek(String dayOfWeek);
+    Page<DoctorAvailabilityResponse> getByDayOfWeek(String dayOfWeek, Pageable pageable);
 
     void delete(String id);
 }

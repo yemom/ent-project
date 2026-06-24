@@ -14,11 +14,17 @@ spring:
     open-in-view: false
   flyway:
     enabled: false
+  cache:
+    type: simple
   security:
     jwt:
       secret: c2VjcmV0LWZvci10ZXN0cy1vbmx5LWNsaW5pY2VsLXNlY3JldC1rZXktMzI=
       expiration-millis: 3600000
       issuer: clinic-Test
+
+app:
+  rate-limit:
+    enabled: false
 
 logging:
   level:

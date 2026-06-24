@@ -3,6 +3,9 @@ spring:
     url: jdbc:postgresql://localhost:5432/clinic_db
     username: clinic_user
     password: clinic_secure_password_change_me
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
   jpa:
     hibernate:
       ddl-auto: validate

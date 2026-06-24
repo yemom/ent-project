@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toUserFacingError } from '@/lib/error-handler';
 import { useAuthStore } from '@/store/auth-store';
 import type { PageResponse } from '@/types/api';
 import type { LabNotification } from '../types';
@@ -15,13 +16,19 @@ export const labNotificationsService = {
     params,
     headers: { ...getAuthHeader() },
     withCredentials: true
-  }).then((r) => r.data),
+  }).then((r) => r.data).catch((err) => {
+    throw toUserFacingError(err, 'Could not load lab notifications.');
+  }),
   unreadCount: (userId: string) => axios.get<number>(`${LAB_BASE}/api/lab-notifications/unread-count/${userId}`, {
     headers: { ...getAuthHeader() },
     withCredentials: true
-  }).then((r) => r.data),
+  }).then((r) => r.data).catch((err) => {
+    throw toUserFacingError(err, 'Could not load unread notification count.');
+  }),
   markRead: (id: string) => axios.patch<LabNotification>(`${LAB_BASE}/api/lab-notifications/${id}/read`, { isRead: true }, {
     headers: { ...getAuthHeader() },
     withCredentials: true
-  }).then((r) => r.data)
+  }).then((r) => r.data).catch((err) => {
+    throw toUserFacingError(err, 'Could not mark the notification as read.');
+  })
 };

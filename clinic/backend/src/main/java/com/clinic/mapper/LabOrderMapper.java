@@ -4,20 +4,14 @@ import com.clinic.dto.request.CreateLabOrderRequest;
 import com.clinic.dto.response.LabOrderResponse;
 import com.clinic.entity.LabOrder;
 import com.clinic.entity.LabUrgency;
-import com.clinic.repository.UserRepository;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
 public class LabOrderMapper {
-
-    private final UserRepository userRepository;
-
-    public LabOrderMapper(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
 
     public LabOrder toEntity(CreateLabOrderRequest request) {
         return LabOrder.builder()
@@ -34,12 +28,12 @@ public class LabOrderMapper {
     }
 
     public LabOrderResponse toResponse(LabOrder entity) {
-        String patientName = userRepository.findById(entity.getPatientId())
-                .map(u -> u.getFullName())
-                .orElse(entity.getPatientId());
-        String doctorName = userRepository.findById(entity.getDoctorId())
-                .map(u -> u.getFullName())
-                .orElse("Unknown Doctor");
+        return toResponse(entity, Map.of());
+    }
+
+    public LabOrderResponse toResponse(LabOrder entity, Map<String, String> userNamesById) {
+        String patientName = userNamesById.getOrDefault(entity.getPatientId(), entity.getPatientId());
+        String doctorName = userNamesById.getOrDefault(entity.getDoctorId(), "Unknown Doctor");
 
         return new LabOrderResponse(
                 entity.getId(),

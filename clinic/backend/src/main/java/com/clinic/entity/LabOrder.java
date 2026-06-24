@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.BatchSize;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,9 +41,10 @@ public class LabOrder extends BaseEntity {
     @Column(name = "appointment_id")
     private String appointmentId;
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "lab_order_tests", joinColumns = @JoinColumn(name = "lab_order_id"))
     @Column(name = "test_name")
+    @BatchSize(size = 50)
     @NotEmpty(message = "At least one test must be selected")
     private List<String> tests = new ArrayList<>();
 

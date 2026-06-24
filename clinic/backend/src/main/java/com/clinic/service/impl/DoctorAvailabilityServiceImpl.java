@@ -12,13 +12,14 @@ import com.clinic.repository.DoctorRepository;
 import com.clinic.repository.LaboratoryRepository;
 import com.clinic.service.DoctorAvailabilityService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import static com.clinic.config.CacheNames.DOCTOR_AVAILABILITY;
 
 @Service
 @Transactional
@@ -43,6 +44,7 @@ public class DoctorAvailabilityServiceImpl implements DoctorAvailabilityService 
     }
 
     @Override
+    @CacheEvict(cacheNames = DOCTOR_AVAILABILITY, allEntries = true)
     public DoctorAvailabilityResponse create(DoctorAvailabilityCreateRequest request) {
         Doctor doctor = doctorRepository.findById(request.doctorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + request.doctorId()));
@@ -57,6 +59,7 @@ public class DoctorAvailabilityServiceImpl implements DoctorAvailabilityService 
     }
 
     @Override
+    @CacheEvict(cacheNames = DOCTOR_AVAILABILITY, allEntries = true)
     public DoctorAvailabilityResponse update(String id, DoctorAvailabilityCreateRequest request) {
         DoctorAvailability availability = getEntityById(id);
         availabilityMapper.updateEntity(availability, request);
@@ -65,6 +68,7 @@ public class DoctorAvailabilityServiceImpl implements DoctorAvailabilityService 
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = DOCTOR_AVAILABILITY, key = "'id:' + #id")
     public DoctorAvailabilityResponse getById(String id) {
         return availabilityMapper.toResponse(getEntityById(id));
     }
@@ -77,32 +81,24 @@ public class DoctorAvailabilityServiceImpl implements DoctorAvailabilityService 
 
     @Override
     @Transactional(readOnly = true)
-    public List<DoctorAvailabilityResponse> getByDoctorId(String doctorId) {
-        return availabilityRepository.findByDoctorId(doctorId)
-                .stream()
-                .map(availabilityMapper::toResponse)
-                .collect(Collectors.toList());
+    public Page<DoctorAvailabilityResponse> getByDoctorId(String doctorId, Pageable pageable) {
+        return availabilityRepository.findByDoctorId(doctorId, pageable).map(availabilityMapper::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<DoctorAvailabilityResponse> getByLaboratoryId(String laboratoryId) {
-        return availabilityRepository.findByLaboratoryId(laboratoryId)
-                .stream()
-                .map(availabilityMapper::toResponse)
-                .collect(Collectors.toList());
+    public Page<DoctorAvailabilityResponse> getByLaboratoryId(String laboratoryId, Pageable pageable) {
+        return availabilityRepository.findByLaboratoryId(laboratoryId, pageable).map(availabilityMapper::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<DoctorAvailabilityResponse> getByDayOfWeek(String dayOfWeek) {
-        return availabilityRepository.findByDayOfWeek(dayOfWeek)
-                .stream()
-                .map(availabilityMapper::toResponse)
-                .collect(Collectors.toList());
+    public Page<DoctorAvailabilityResponse> getByDayOfWeek(String dayOfWeek, Pageable pageable) {
+        return availabilityRepository.findByDayOfWeek(dayOfWeek, pageable).map(availabilityMapper::toResponse);
     }
 
     @Override
+    @CacheEvict(cacheNames = DOCTOR_AVAILABILITY, allEntries = true)
     public void delete(String id) {
         DoctorAvailability availability = getEntityById(id);
         availabilityRepository.delete(availability);

@@ -52,6 +52,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: clinic_secure_password_change_me
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       APP_JWT_SECRET: c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=
       APP_JWT_EXPIRATION_MILLIS: 86400000
       APP_JWT_ISSUER: clinic
@@ -62,6 +64,8 @@ services:
       - "8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - clinic_network
@@ -81,6 +85,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: clinic_secure_password_change_me
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       APP_JWT_SECRET: c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=
       APP_JWT_EXPIRATION_MILLIS: 86400000
       APP_JWT_ISSUER: clinic
@@ -91,6 +97,8 @@ services:
       - "8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - clinic_network
@@ -115,8 +123,27 @@ services:
     networks:
       - clinic_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: clinic-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clinic_network
+
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

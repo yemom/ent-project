@@ -5,6 +5,14 @@ spring:
     url: jdbc:postgresql://localhost:5432/clinic_db
     username: clinic_user
     password: clinic_secure_password_change_me
+    hikari:
+      pool-name: ClinicHikariPool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      validation-timeout: 5000
   jpa:
     open-in-view: false
     hibernate:
@@ -12,6 +20,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        default_batch_fetch_size: 50
         jdbc:
           time_zone: UTC
   flyway:
@@ -23,20 +32,38 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m
+      cache-null-values: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
 
 server:
   port: 8080
   shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,text/css,text/javascript,application/javascript
+    min-response-size: 1024
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus,caches,threaddump
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: when_authorized
+  health:
+    redis:
+      enabled: true
 
 springdoc:
   swagger-ui:
@@ -56,3 +83,10 @@ app:
     secret: c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=
     expiration-millis: 86400000
     issuer: clinic
+  rate-limit:
+    enabled: true
+    requests: ${RATE_LIMIT_REQUESTS:120}
+    auth-requests: ${RATE_LIMIT_AUTH_REQUESTS:20}
+    window: ${RATE_LIMIT_WINDOW:1m}
+    protected-path-prefixes:
+      - /api

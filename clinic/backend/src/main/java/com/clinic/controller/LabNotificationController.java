@@ -15,8 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/lab-notifications")
 @Slf4j
@@ -46,8 +44,12 @@ public class LabNotificationController {
 
     @GetMapping("/unread/{userId}")
     @PreAuthorize("hasAnyRole('DOCTOR', 'LABORATORY', 'ADMIN')")
-    public ResponseEntity<List<LabNotificationResponse>> getUnreadByUser(@PathVariable String userId) {
-        return ResponseEntity.ok(labNotificationService.getUnreadByUserId(userId));
+    public ResponseEntity<PageResponse<LabNotificationResponse>> getUnreadByUser(
+            @PathVariable String userId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
+    ) {
+        Page<LabNotificationResponse> page = labNotificationService.getUnreadByUserId(userId, pageable);
+        return ResponseEntity.ok(PageResponse.of(page));
     }
 
     @GetMapping("/unread-count/{userId}")
