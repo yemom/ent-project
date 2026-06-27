@@ -10,7 +10,8 @@ export interface DoctorCreateRequest {
   licenseNumber: string;
   yearsOfExperience?: number;
   qualifications?: string;
-  consultationFee?: string;
+  /** Backend expects BigDecimal — must be a number, not a string */
+  consultationFee?: number;
   bio?: string;
 }
 
@@ -19,8 +20,10 @@ export interface PatientCreateRequest {
   password: string;
   fullName: string;
   phone?: string;
+  /** ISO date string e.g. "1990-05-20" */
   dateOfBirth?: string;
-  gender?: string;
+  /** Must match backend Gender enum: MALE | FEMALE | OTHER */
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
   medicalHistory?: string;
   bloodType?: string;
   allergies?: string;
@@ -32,6 +35,7 @@ export interface InviteUserRequest {
   fullName: string;
   email: string;
   password: string;
+  phone?: string;
   role: UserRole;
 }
 
@@ -45,8 +49,12 @@ export async function createPatient(payload: PatientCreateRequest) {
   return data;
 }
 
+/**
+ * Creates a non-doctor/patient user (PHARMACIST, LABORATORY, ADMIN).
+ * Uses the admin-protected endpoint POST /admin/users.
+ */
 export async function inviteUser(payload: InviteUserRequest) {
-  const { data } = await apiClient.post('/auth/register', payload);
+  const { data } = await apiClient.post('/admin/users', payload);
   return data;
 }
 

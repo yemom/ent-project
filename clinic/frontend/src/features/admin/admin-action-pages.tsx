@@ -6,17 +6,14 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
-  Activity,
   ArrowLeft,
   CheckCircle2,
   Shield,
   UserRoundPlus,
-  Mail,
-  Phone,
   BadgeCheck,
   Search,
-  Upload,
   AlertTriangle,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +27,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ROUTES } from "@/lib/constants";
 import { createAppointment } from "@/services/api/appointments";
-import { createDoctor, createPatient } from "@/services/api/admin";
+import { createDoctor, createPatient, inviteUser } from "@/services/api/admin";
 import { listUsers, listPatients } from "@/services/api/users";
-import { apiClient } from "@/services/api/client";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { passwordFormRules } from "@/lib/password-policy";
 import type { UserRole } from "@/types/api";
@@ -71,8 +67,17 @@ function ActionLayout({
   );
 }
 
-function StatusBanner({ status }: Readonly<{ status: string | null }>) {
+function StatusBanner({ status, isError }: Readonly<{ status: string | null; isError?: boolean }>) {
   if (!status) return null;
+
+  if (isError) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <AlertTriangle className="h-4 w-4" />
+        {status}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -84,12 +89,14 @@ function StatusBanner({ status }: Readonly<{ status: string | null }>) {
 
 function Field({
   label,
+  error,
   children,
-}: Readonly<{ label: string; children: ReactNode }>) {
+}: Readonly<{ label: string; error?: string; children: ReactNode }>) {
   return (
     <label className="block space-y-2 text-sm font-medium text-slate-900">
       <span>{label}</span>
       {children}
+      {error && <span className="text-xs text-red-500 font-medium block">{error}</span>}
     </label>
   );
 }
@@ -97,6 +104,7 @@ function Field({
 export function InviteUserPage() {
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
   const [search, setSearch] = useState("");
   const [teamMembers, setTeamMembers] = useState<
     Array<{
@@ -177,79 +185,89 @@ export function InviteUserPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <StatusBanner status={status} />
+            <StatusBanner status={status} isError={isError} />
             <form
               className="space-y-5"
               onSubmit={form.handleSubmit(async (values) => {
+                setStatus(null);
+                setIsError(false);
                 const fullName =
                   `${values.firstName} ${values.lastName}`.trim();
 
-                if (values.role === "DOCTOR") {
-                  await createDoctor({
-                    fullName,
-                    email: values.email,
-                    password: values.password,
-                    phone: values.phone,
-                    specialization: values.specialization,
-                    licenseNumber: values.licenseNumber,
-                    yearsOfExperience: undefined,
-                    qualifications: undefined,
-                    consultationFee: undefined,
-                    bio: undefined,
-                  });
-                  setStatus("Doctor created successfully.");
-                  setTimeout(() => router.push(ROUTES.adminDoctors), 700);
-                  return;
-                }
+                try {
+                  if (values.role === "DOCTOR") {
+                    // specialization and licenseNumber are required by the backend
+                    if (!values.specialization || !values.specialization.trim()) {
+                      setIsError(true);
+                      setStatus("Specialization is required for a Doctor account.");
+                      return;
+                    }
+                    if (!values.licenseNumber || !values.licenseNumber.trim()) {
+                      setIsError(true);
+                      setStatus("Medical license number is required for a Doctor account.");
+                      return;
+                    }
+                    await createDoctor({
+                      fullName,
+                      email: values.email,
+                      password: values.password,
+                      phone: values.phone || undefined,
+                      specialization: values.specialization.trim(),
+                      licenseNumber: values.licenseNumber.trim(),
+                    });
+                    setStatus("Doctor created successfully.");
+                    setTimeout(() => router.push(ROUTES.adminDoctors), 700);
+                    return;
+                  }
 
-                if (values.role === "PATIENT") {
-                  await createPatient({
-                    fullName,
-                    email: values.email,
-                    password: values.password,
-                    phone: values.phone,
-                    dateOfBirth: undefined,
-                    gender: undefined,
-                    medicalHistory: undefined,
-                    bloodType: undefined,
-                    allergies: undefined,
-                    emergencyContactName: undefined,
-                    emergencyContactPhone: undefined,
-                  });
-                  setStatus("Patient created successfully.");
-                  setTimeout(() => router.push(ROUTES.adminPatients), 700);
-                  return;
-                }
+                  if (values.role === "PATIENT") {
+                    await createPatient({
+                      fullName,
+                      email: values.email,
+                      password: values.password,
+                      phone: values.phone || undefined,
+                    });
+                    setStatus("Patient created successfully.");
+                    setTimeout(() => router.push(ROUTES.adminPatients), 700);
+                    return;
+                  }
 
-                if (values.role === "PHARMACIST") {
-                  await apiClient.post("/admin/users", {
-                    fullName,
-                    email: values.email,
-                    password: values.password,
-                    phone: values.phone,
-                    role: "PHARMACIST",
-                  });
-                  setStatus("Pharmacist created successfully.");
-                  setTimeout(() => router.push(ROUTES.adminPharmacy), 700);
-                  return;
-                }
+                  if (values.role === "PHARMACIST") {
+                    await inviteUser({
+                      fullName,
+                      email: values.email,
+                      password: values.password,
+                      phone: values.phone || undefined,
+                      role: "PHARMACIST",
+                    });
+                    setStatus("Pharmacist created successfully.");
+                    setTimeout(() => router.push(ROUTES.adminPharmacy), 700);
+                    return;
+                  }
 
-                if (values.role === "LABORATORY") {
-                  await apiClient.post("/admin/users", {
-                    fullName,
-                    email: values.email,
-                    password: values.password,
-                    phone: values.phone,
-                    role: "LABORATORY",
-                  });
-                  setStatus("Laboratory user created successfully.");
-                  setTimeout(() => router.push(ROUTES.adminLaboratories), 700);
-                  return;
-                }
+                  if (values.role === "LABORATORY") {
+                    await inviteUser({
+                      fullName,
+                      email: values.email,
+                      password: values.password,
+                      phone: values.phone || undefined,
+                      role: "LABORATORY",
+                    });
+                    setStatus("Laboratory user created successfully.");
+                    setTimeout(() => router.push(ROUTES.adminLaboratories), 700);
+                    return;
+                  }
 
-                setStatus(
-                  "Admin accounts are not supported from this screen yet. Choose Doctor, Patient, Pharmacist, or Laboratory.",
-                );
+                  setIsError(true);
+                  setStatus(
+                    "Admin accounts are not supported from this screen yet. Choose Doctor, Patient, Pharmacist, or Laboratory.",
+                  );
+                } catch (err) {
+                  setIsError(true);
+                  setStatus(
+                    getFriendlyErrorMessage(err, "Could not create the user. Please check the details and try again."),
+                  );
+                }
               })}
             >
               <div className="grid gap-4 md:grid-cols-2">
@@ -498,6 +516,7 @@ export function InviteUserPage() {
 export function AddDoctorPage() {
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const form = useForm({
     defaultValues: {
       fullName: "",
@@ -513,11 +532,19 @@ export function AddDoctorPage() {
     },
   });
 
+  const [doctorError, setDoctorError] = useState<string | null>(null);
+
   const doctorMutation = useMutation({
     mutationFn: createDoctor,
     onSuccess: () => {
       setStatus("Doctor created successfully.");
+      setDoctorError(null);
       setTimeout(() => router.push(ROUTES.adminDoctors), 700);
+    },
+    onError: (err) => {
+      setDoctorError(
+        getFriendlyErrorMessage(err, "Could not create doctor. Please check the form details and try again."),
+      );
     },
   });
 
@@ -535,7 +562,8 @@ export function AddDoctorPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <StatusBanner status={status} />
+          <StatusBanner status={doctorError} isError />
+          <StatusBanner status={doctorError ? null : status} />
           <form
             className="grid gap-4 md:grid-cols-2"
             onSubmit={form.handleSubmit((values) =>
@@ -544,7 +572,10 @@ export function AddDoctorPage() {
                 yearsOfExperience: values.yearsOfExperience
                   ? Number(values.yearsOfExperience)
                   : undefined,
-                consultationFee: values.consultationFee || undefined,
+                // Convert to number so Jackson maps it to BigDecimal correctly
+                consultationFee: values.consultationFee
+                  ? Number(values.consultationFee)
+                  : undefined,
               }),
             )}
           >
@@ -655,13 +686,17 @@ export function ImportPatientsPage() {
     },
   });
 
+  const [isPatientError, setIsPatientError] = useState(false);
+
   const patientMutation = useMutation({
     mutationFn: createPatient,
     onSuccess: () => {
+      setIsPatientError(false);
       setStatus("Patient imported successfully.");
       setTimeout(() => router.push(ROUTES.adminPatients), 700);
     },
     onError: (err) => {
+      setIsPatientError(true);
       setStatus(
         getFriendlyErrorMessage(
           err,
@@ -685,18 +720,27 @@ export function ImportPatientsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <StatusBanner status={status} />
+          <StatusBanner status={status} isError={isPatientError} />
           <form
             className="grid gap-4 md:grid-cols-2"
-            onSubmit={form.handleSubmit((values) =>
+            onSubmit={form.handleSubmit((values) => {
+              const validGenders = ['MALE', 'FEMALE', 'OTHER'] as const;
+              const rawGender = values.gender?.toUpperCase().trim() as 'MALE' | 'FEMALE' | 'OTHER' | '';
+              const gender = validGenders.includes(rawGender as 'MALE' | 'FEMALE' | 'OTHER')
+                ? (rawGender as 'MALE' | 'FEMALE' | 'OTHER')
+                : undefined;
               patientMutation.mutate({
                 ...values,
+                phone: values.phone || undefined,
                 dateOfBirth: values.dateOfBirth || undefined,
-                gender: values.gender
-                  ? values.gender.toUpperCase().trim()
-                  : undefined,
-              }),
-            )}
+                gender,
+                medicalHistory: values.medicalHistory || undefined,
+                bloodType: values.bloodType || undefined,
+                allergies: values.allergies || undefined,
+                emergencyContactName: values.emergencyContactName || undefined,
+                emergencyContactPhone: values.emergencyContactPhone || undefined,
+              });
+            })}
           >
             <Field label="Full name">
               <Input
@@ -736,11 +780,15 @@ export function ImportPatientsPage() {
               />
             </Field>
             <Field label="Gender">
-              <Input
+              <select
                 {...form.register("gender")}
-                className="h-11 rounded-xl"
-                placeholder="MALE / FEMALE / OTHER"
-              />
+                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              >
+                <option value="">Select gender...</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+              </select>
             </Field>
             <Field label="Blood type">
               <Input
