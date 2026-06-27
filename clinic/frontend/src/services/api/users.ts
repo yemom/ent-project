@@ -27,7 +27,7 @@ export async function listUsers(params: Record<string, string | number | undefin
     const { data } = await apiClient.get<PageResponse<UserItem>>('/admin/users', { params });
     data.content = (data.content ?? []).map((user) => ({
       ...user,
-      status: user.status ?? 'ACTIVE'
+      status: user.status ?? (user.active === false ? 'OFFLINE' : 'ACTIVE')
     }));
     return data;
   } catch (error) {

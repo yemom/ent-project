@@ -1,6 +1,7 @@
 package com.clinic.controller;
 
 import com.clinic.dto.request.CreateUserRequest;
+import com.clinic.dto.request.UpdateUserRequest;
 import com.clinic.dto.response.PageResponse;
 import com.clinic.dto.response.UserSummaryResponse;
 import com.clinic.service.AdminService;
@@ -34,5 +35,21 @@ public class AdminController {
     public ResponseEntity<UserSummaryResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         log.info("Admin creating user with email={} role={}", request.email(), request.role());
         return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createUser(request));
+    }
+
+    @PutMapping("/users/{id}")
+    public ResponseEntity<UserSummaryResponse> updateUser(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateUserRequest request
+    ) {
+        log.info("Admin updating user id={}", id);
+        return ResponseEntity.ok(adminService.updateUser(id, request));
+    }
+
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+        log.info("Admin deleting user id={}", id);
+        adminService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 }

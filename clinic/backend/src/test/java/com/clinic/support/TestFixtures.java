@@ -87,7 +87,7 @@ public final class TestFixtures {
     }
 
     public static UserSummaryResponse userSummary(UUID id, String name, String email, UserRole role) {
-        return new UserSummaryResponse(id.toString(), name, email, role);
+        return new UserSummaryResponse(id.toString(), name, email, role, true);
     }
 
     public static AuthResponse authResponse(String token) {

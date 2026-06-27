@@ -16,8 +16,10 @@ import {
   createDoctor,
   createPatient,
   deletePatient,
+  deleteUser,
   inviteUser,
   updatePatient,
+  updateUser,
 } from "@/services/api/admin";
 import { listUsers, listDoctors, listPatients } from '@/services/api/users';
 import { listAppointments } from '@/services/api/appointments';
@@ -301,8 +303,11 @@ export function AdminDashboardPage() {
 // ============================================================================
 export function AdminUsersPage() {
   const urlQuery = useUrlQuery();
-  const [users, setUsers] = useState<Array<{ name: string; email: string; role: string; status: string; lastLogin: string }>>([]);
+  const [users, setUsers] = useState<Array<{ id: string; name: string; email: string; phone: string; role: string; status: string; lastLogin: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingUser, setEditingUser] = useState<{ id: string; name: string; email: string; phone: string; active: boolean } | null>(null);
+  const [status, setStatus] = useState<StatusType>(null);
+  const [statusMessage, setStatusMessage] = useState('');
   const [query, setQuery] = useState(urlQuery);
 
   const filteredUsers = useMemo(() => {
@@ -315,30 +320,133 @@ export function AdminUsersPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        const data = await listUsers({ size: 30 });
-        setUsers((data.content ?? []).map((u) => ({
-          name: u.fullName,
-          email: u.email,
-          role: u.role,
-          status: u.status,
-          lastLogin: u.lastLogin ?? 'Never'
-        })));
-      } catch {
-        setUsers([]);
-      } finally {
-        setIsLoading(false);
-      }
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const data = await listUsers({ size: 100 });
+      setUsers((data.content ?? []).map((u) => ({
+        id: u.id,
+        name: u.fullName,
+        email: u.email,
+        phone: u.phone ?? '',
+        role: u.role,
+        status: u.status ?? (u.active === false ? 'OFFLINE' : 'ACTIVE'),
+        lastLogin: u.lastLogin ?? 'Never'
+      })));
+    } catch {
+      setUsers([]);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    try {
+      await deleteUser(id);
+      setStatus('success');
+      setStatusMessage('User deleted successfully!');
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'We could not delete this user right now. Please try again.'));
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      await updateUser(editingUser.id, {
+        fullName: editingUser.name,
+        email: editingUser.email,
+        phone: editingUser.phone || undefined,
+        active: editingUser.active,
+      });
+      setEditingUser(null);
+      setStatus('success');
+      setStatusMessage('User updated successfully!');
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'We could not update this user right now. Please try again.'));
+    }
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader title="User Management" description="Search, filter, and manage staff and patient accounts." actionLabel="Invite User" actionHref={ROUTES.adminInviteUser} />
+
+      <StatusAlert
+        status={status}
+        message={statusMessage}
+        onDismiss={() => setStatus(null)}
+        autoDismiss={true}
+        autoDismissMs={3500}
+      />
+
+      {editingUser && (
+        <Card className="border-primary">
+          <CardHeader>
+            <CardTitle>Edit User</CardTitle>
+            <CardDescription>Update account details and status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Full Name</label>
+                  <Input
+                    value={editingUser.name}
+                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email</label>
+                  <Input
+                    type="email"
+                    value={editingUser.email}
+                    onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Phone</label>
+                  <Input
+                    value={editingUser.phone}
+                    onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Status</label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={editingUser.active ? 'ACTIVE' : 'OFFLINE'}
+                    onChange={(e) => setEditingUser({ ...editingUser, active: e.target.value === 'ACTIVE' })}
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="OFFLINE">Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" type="button" onClick={() => setEditingUser(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div>
@@ -357,6 +465,8 @@ export function AdminUsersPage() {
               <Skeleton className="h-12 w-full rounded" />
               <Skeleton className="h-12 w-full rounded" />
             </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No users found.</div>
           ) : (
             <Table>
               <TableHeader>
@@ -366,16 +476,33 @@ export function AdminUsersPage() {
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Login</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.map((user) => (
-                  <TableRow key={user.name}>
+                  <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
                     <TableCell><Badge variant={user.status === 'ACTIVE' ? 'success' : 'secondary'}>{user.status}</Badge></TableCell>
                     <TableCell>{user.lastLogin}</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingUser({
+                          id: user.id,
+                          name: user.name,
+                          email: user.email,
+                          phone: user.phone,
+                          active: user.status === 'ACTIVE',
+                        })}
+                      >
+                        Edit
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(user.id, user.name)}>Delete</Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

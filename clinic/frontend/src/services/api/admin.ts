@@ -58,6 +58,22 @@ export async function inviteUser(payload: InviteUserRequest) {
   return data;
 }
 
+export interface UpdateUserRequest {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  active?: boolean;
+}
+
+export async function updateUser(id: string, payload: UpdateUserRequest) {
+  const { data } = await apiClient.put(`/admin/users/${id}`, payload);
+  return data;
+}
+
+export async function deleteUser(id: string) {
+  await apiClient.delete(`/admin/users/${id}`);
+}
+
 export async function updatePatient(id: string, payload: Partial<PatientCreateRequest>) {
   const { data } = await apiClient.put(`/patients/${id}`, payload);
   return data;
