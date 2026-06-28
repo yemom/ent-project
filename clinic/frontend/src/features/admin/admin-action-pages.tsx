@@ -28,7 +28,12 @@ import { Badge } from "@/components/ui/badge";
 import { ROUTES } from "@/lib/constants";
 import { createAppointment } from "@/services/api/appointments";
 import { createDoctor, createPatient, inviteUser } from "@/services/api/admin";
-import { listUsers, listPatients } from "@/services/api/users";
+import { listUsers, listPatients, listAvailableDoctors } from "@/services/api/users";
+import { listDoctorAvailability } from "@/services/api/laboratory";
+import {
+  getDoctorAvailabilityLabel,
+  isDoctorAvailableAtTime,
+} from "@/lib/doctor-availability";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { passwordFormRules } from "@/lib/password-policy";
 import type { UserRole } from "@/types/api";
@@ -854,6 +859,7 @@ export function CreateAppointmentPage() {
   const [hasConflict, setHasConflict] = useState(false);
   const [patients, setPatients] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
 
   const form = useForm({
     defaultValues: {
@@ -866,17 +872,29 @@ export function CreateAppointmentPage() {
     },
   });
 
+  const appointmentDate = form.watch("appointmentDate");
+  const appointmentTime = form.watch("appointmentTime");
+
   useEffect(() => {
     async function fetch() {
       try {
-        const patientData = await listPatients({ size: 50 });
+        const [patientData, doctorData, scheduleData] = await Promise.all([
+          listPatients({ size: 50 }),
+          listAvailableDoctors({ size: 100 }),
+          listDoctorAvailability({ size: 200 }),
+        ]);
         setPatients(patientData.content || []);
-        const doctorData = await listUsers({ size: 50 });
-        setDoctors(
-          doctorData.content?.filter((u: any) => u.role === "DOCTOR") || [],
+        setDoctors(doctorData.content || []);
+        setSchedules(
+          (scheduleData.content || []).map((slot: any) => ({
+            doctorId: slot.doctorId,
+            dayOfWeek: slot.dayOfWeek,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isAvailable: slot.isAvailable,
+          })),
         );
       } catch (err) {
-        // Silent fail - component handles missing data gracefully
         setStatus(
           getFriendlyErrorMessage(
             err,
@@ -887,6 +905,27 @@ export function CreateAppointmentPage() {
     }
     fetch();
   }, []);
+
+  const bookableDoctors = useMemo(() => {
+    return doctors.filter((doctor) =>
+      isDoctorAvailableAtTime(
+        doctor.id,
+        schedules,
+        appointmentDate,
+        appointmentTime,
+      ),
+    );
+  }, [doctors, schedules, appointmentDate, appointmentTime]);
+
+  useEffect(() => {
+    const selectedDoctorId = form.getValues("doctorId");
+    if (
+      selectedDoctorId &&
+      !bookableDoctors.some((doctor) => doctor.id === selectedDoctorId)
+    ) {
+      form.setValue("doctorId", "");
+    }
+  }, [bookableDoctors, form]);
 
   const filteredPatients = patientSearch
     ? patients.filter((p) =>
@@ -925,6 +964,20 @@ export function CreateAppointmentPage() {
     if (!selectedPatient || !values.doctorId) {
       setStatus(
         "Please choose a patient and a doctor before creating the appointment.",
+      );
+      return;
+    }
+
+    if (
+      !isDoctorAvailableAtTime(
+        values.doctorId,
+        schedules,
+        values.appointmentDate,
+        values.appointmentTime,
+      )
+    ) {
+      setStatus(
+        "The selected doctor is not available at that date and time. Please choose another doctor or time.",
       );
       return;
     }
@@ -1108,33 +1161,49 @@ export function CreateAppointmentPage() {
             <label className="text-sm font-semibold text-slate-900 uppercase tracking-tight">
               Doctor Availability
             </label>
-            <div className="mt-3">
-              {doctors.slice(0, 1).map((doctor) => (
-                <label
-                  key={doctor.id}
-                  className="flex items-center gap-3 rounded-2xl border-2 border-teal-200 bg-white p-4 cursor-pointer hover:bg-teal-50/50 transition"
-                >
-                  <input
-                    type="radio"
-                    name="doctor"
-                    value={doctor.id}
-                    onChange={(e) => form.setValue("doctorId", e.target.value)}
-                    className="w-5 h-5"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">{doctor.fullName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Senior Neurologist • 12 Slots Open
-                    </p>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="bg-teal-50 text-teal-700 border-teal-200"
+            <p className="mt-1 text-xs text-muted-foreground">
+              Doctors are available by default until a custom schedule is added on the Doctor Availability page.
+            </p>
+            <div className="mt-3 space-y-2">
+              {bookableDoctors.length === 0 ? (
+                <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                  No doctors are available for the selected date and time.
+                </div>
+              ) : (
+                bookableDoctors.map((doctor) => (
+                  <label
+                    key={doctor.id}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 cursor-pointer hover:bg-teal-50/50 transition has-[:checked]:border-teal-300 has-[:checked]:bg-teal-50/40"
                   >
-                    AVAILABLE
-                  </Badge>
-                </label>
-              ))}
+                    <input
+                      type="radio"
+                      name="doctor"
+                      value={doctor.id}
+                      checked={form.watch("doctorId") === doctor.id}
+                      onChange={(e) => form.setValue("doctorId", e.target.value)}
+                      className="w-5 h-5"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{doctor.fullName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {doctor.specialization || "General Practice"} •{" "}
+                        {getDoctorAvailabilityLabel(
+                          doctor.id,
+                          schedules,
+                          appointmentDate,
+                          appointmentTime,
+                        )}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="bg-teal-50 text-teal-700 border-teal-200"
+                    >
+                      AVAILABLE
+                    </Badge>
+                  </label>
+                ))
+              )}
             </div>
           </div>
 

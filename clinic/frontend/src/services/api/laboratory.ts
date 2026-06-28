@@ -74,7 +74,16 @@ export async function getDoctorAvailability(id: string) {
   return data;
 }
 
-export async function createDoctorAvailability(availability: Partial<DoctorAvailability>) {
+export async function createDoctorAvailability(availability: {
+  doctorId: string;
+  laboratoryId: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  isAvailable?: boolean;
+  maxPatients?: number;
+  notes?: string;
+}) {
   const { data } = await apiClient.post<DoctorAvailability>('/doctor-availability', availability);
   return data;
 }

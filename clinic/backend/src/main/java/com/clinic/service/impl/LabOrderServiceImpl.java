@@ -110,9 +110,24 @@ public class LabOrderServiceImpl implements LabOrderService {
     private Map<String, String> loadUserNames(Page<LabOrder> page) {
         Set<String> userIds = page.getContent().stream()
                 .flatMap(order -> java.util.stream.Stream.of(order.getPatientId(), order.getDoctorId()))
+                .filter(id -> id != null && !id.isBlank())
                 .collect(Collectors.toSet());
 
-        return userRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, User::getFullName, (left, right) -> left));
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+
+        try {
+            return userRepository.findAllById(userIds).stream()
+                    .filter(user -> user != null && user.getId() != null)
+                    .collect(Collectors.toMap(
+                            User::getId,
+                            user -> user.getFullName() != null ? user.getFullName() : "Unknown User",
+                            (left, right) -> left
+                    ));
+        } catch (Exception e) {
+            log.error("Failed to load user names for userIds: {}", userIds, e);
+            return Map.of();
+        }
     }
 }

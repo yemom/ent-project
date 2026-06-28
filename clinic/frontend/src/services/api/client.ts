@@ -26,14 +26,43 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean } | undefined;
 
     const requestPath = originalRequest?.url ?? '';
-    const isAuthRequest = requestPath.includes('/auth/login') || requestPath.includes('/auth/register') || requestPath.includes('/auth/logout') || requestPath.includes('/auth/refresh');
+    const isAuthRequest =
+      requestPath.includes('/auth/login') ||
+      requestPath.includes('/auth/register') ||
+      requestPath.includes('/auth/logout') ||
+      requestPath.includes('/auth/refresh');
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRequest) {
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthRequest
+    ) {
       originalRequest._retry = true;
-      const { isHydrated, accessToken } = useAuthStore.getState();
-      if (isHydrated && accessToken) {
-        useAuthStore.getState().clearSession();
+      const { isHydrated, refreshToken, setSession, clearSession } = useAuthStore.getState();
+
+      if (isHydrated && refreshToken) {
+        try {
+          const { data } = await axios.post(
+            `${env.apiBaseUrl}/auth/refresh`,
+            { refreshToken },
+            { withCredentials: true }
+          );
+          setSession(data);
+          originalRequest.headers = originalRequest.headers ?? {};
+          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+          return apiClient(originalRequest);
+        } catch {
+          clearSession();
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
       }
+
+      // No refresh token — clear and redirect
+      clearSession();
+      window.location.href = '/login';
+      return Promise.reject(error);
     }
 
     if (error.response?.status === 429) {

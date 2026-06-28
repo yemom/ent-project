@@ -1,0 +1,1000 @@
+﻿        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:36:46.473Z TRACE 1 --- [clinic] [nio-8080-exec-7] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:36:46.737Z  INFO 1 --- [clinic] [nio-8080-exec-7] c.clinic.config.ApiRequestLoggingFilter  : POST /api/v1/auth/login -> 200 (279 ms)
+2026-06-27T21:36:47.108Z DEBUG 1 --- [clinic] [nio-8080-exec-8] org.hibernate.SQL                        : 
+    select
+        tb1_0.id 
+    from
+        token_blacklist tb1_0 
+    where
+        (
+            tb1_0.deleted = false
+        ) 
+        and tb1_0.token=? 
+    fetch
+        first ? rows only
+2026-06-27T21:36:47.109Z TRACE 1 --- [clinic] [nio-8080-exec-8] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJjbGluaWMiLCJzdWIiOiJuYWhvbUBkZXYuY29tIiwiaWF0IjoxNzgyNTk2MjA2LCJleHAiOjE3ODI2ODI2MDYsImp0aSI6IjE4MDBlODVkLThmOWItNDk0OS1hM2Y4LTkyNGIyNjM4OTQxOCIsInJvbGVzIjpbIlJPTEVfRE9DVE9SIl19._ChMbWucIiX2uKj54mneJp489UljGxqcbFY9ojJOy3XnIIbGU6Xn5rnx0qPufUpxr2JrC3FFzNlSxptIjWQdxw]
+2026-06-27T21:36:47.110Z TRACE 1 --- [clinic] [nio-8080-exec-8] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [1]
+2026-06-27T21:36:47.134Z DEBUG 1 --- [clinic] [nio-8080-exec-8] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:36:47.134Z TRACE 1 --- [clinic] [nio-8080-exec-8] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:36:47.160Z DEBUG 1 --- [clinic] [nio-8080-exec-8] org.hibernate.SQL                        : 
+    select
+        a1_0.id,
+        a1_0.appointment_date,
+        a1_0.cancellation_date,
+        a1_0.cancellation_reason,
+        a1_0.cancelled_by,
+        a1_0.created_at,
+        a1_0.deleted,
+        a1_0.deleted_at,
+        a1_0.doctor_id,
+        d1_0.id,
+        d1_0.active,
+        d1_0.created_at,
+        d1_0.deleted,
+        d1_0.deleted_at,
+        d1_0.email,
+        d1_0.full_name,
+        d1_0.password,
+        d1_0.phone,
+        d1_0.role,
+        d1_0.updated_at,
+        d1_0.available,
+        d1_0.bio,
+        d1_0.consultation_fee,
+        d1_0.license_number,
+        d1_0.qualifications,
+        d1_0.specialization,
+        d1_0.years_of_experience,
+        a1_0.duration,
+        a1_0.notes,
+        a1_0.patient_id,
+        p1_0.id,
+        p1_0.active,
+        p1_0.created_at,
+        p1_0.deleted,
+        p1_0.deleted_at,
+        p1_0.email,
+        p1_0.full_name,
+        p1_0.password,
+        p1_0.phone,
+        p1_0.role,
+        p1_0.updated_at,
+        p1_0.allergies,
+        p1_0.blood_type,
+        p1_0.date_of_birth,
+        p1_0.emergency_contact_name,
+        p1_0.emergency_contact_phone,
+        p1_0.gender,
+        p1_0.medical_history,
+        a1_0.reason_for_visit,
+        a1_0.reminder_sent,
+        a1_0.reminder_sent_at,
+        a1_0.status,
+        a1_0.updated_at 
+    from
+        appointments a1_0 
+    join
+        (select
+            * 
+        from
+            users t 
+        where
+            t.user_type='DOCTOR') d1_0 
+            on d1_0.id=a1_0.doctor_id 
+            and (d1_0.deleted = false) 
+    join
+        (select
+            * 
+        from
+            users t 
+        where
+            t.user_type='PATIENT') p1_0 
+            on p1_0.id=a1_0.patient_id 
+            and (p1_0.deleted = false) 
+    where
+        (
+            a1_0.deleted = false
+        ) 
+        and a1_0.doctor_id=? 
+    order by
+        a1_0.id desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+2026-06-27T21:36:47.160Z TRACE 1 --- [clinic] [nio-8080-exec-8] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:36:47.160Z TRACE 1 --- [clinic] [nio-8080-exec-8] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [0]
+2026-06-27T21:36:47.161Z TRACE 1 --- [clinic] [nio-8080-exec-8] org.hibernate.orm.jdbc.bind              : binding parameter (3:INTEGER) <- [20]
+2026-06-27T21:36:47.177Z  INFO 1 --- [clinic] [nio-8080-exec-8] c.clinic.config.ApiRequestLoggingFilter  : GET /api/v1/appointments/search -> 200 (74 ms)
+2026-06-27T21:36:47.189Z DEBUG 1 --- [clinic] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        tb1_0.id 
+    from
+        token_blacklist tb1_0 
+    where
+        (
+            tb1_0.deleted = false
+        ) 
+        and tb1_0.token=? 
+    fetch
+        first ? rows only
+2026-06-27T21:36:47.189Z TRACE 1 --- [clinic] [io-8080-exec-10] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJjbGluaWMiLCJzdWIiOiJuYWhvbUBkZXYuY29tIiwiaWF0IjoxNzgyNTk2MjA2LCJleHAiOjE3ODI2ODI2MDYsImp0aSI6IjE4MDBlODVkLThmOWItNDk0OS1hM2Y4LTkyNGIyNjM4OTQxOCIsInJvbGVzIjpbIlJPTEVfRE9DVE9SIl19._ChMbWucIiX2uKj54mneJp489UljGxqcbFY9ojJOy3XnIIbGU6Xn5rnx0qPufUpxr2JrC3FFzNlSxptIjWQdxw]
+2026-06-27T21:36:47.189Z TRACE 1 --- [clinic] [io-8080-exec-10] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [1]
+2026-06-27T21:36:47.194Z DEBUG 1 --- [clinic] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:36:47.196Z TRACE 1 --- [clinic] [io-8080-exec-10] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:36:47.216Z DEBUG 1 --- [clinic] [io-8080-exec-10] org.hibernate.SQL                        : 
+    select
+        a1_0.id,
+        a1_0.appointment_date,
+        a1_0.cancellation_date,
+        a1_0.cancellation_reason,
+        a1_0.cancelled_by,
+        a1_0.created_at,
+        a1_0.deleted,
+        a1_0.deleted_at,
+        a1_0.doctor_id,
+        d1_0.id,
+        d1_0.active,
+        d1_0.created_at,
+        d1_0.deleted,
+        d1_0.deleted_at,
+        d1_0.email,
+        d1_0.full_name,
+        d1_0.password,
+        d1_0.phone,
+        d1_0.role,
+        d1_0.updated_at,
+        d1_0.available,
+        d1_0.bio,
+        d1_0.consultation_fee,
+        d1_0.license_number,
+        d1_0.qualifications,
+        d1_0.specialization,
+        d1_0.years_of_experience,
+        a1_0.duration,
+        a1_0.notes,
+        a1_0.patient_id,
+        p1_0.id,
+        p1_0.active,
+        p1_0.created_at,
+        p1_0.deleted,
+        p1_0.deleted_at,
+        p1_0.email,
+        p1_0.full_name,
+        p1_0.password,
+        p1_0.phone,
+        p1_0.role,
+        p1_0.updated_at,
+        p1_0.allergies,
+        p1_0.blood_type,
+        p1_0.date_of_birth,
+        p1_0.emergency_contact_name,
+        p1_0.emergency_contact_phone,
+        p1_0.gender,
+        p1_0.medical_history,
+        a1_0.reason_for_visit,
+        a1_0.reminder_sent,
+        a1_0.reminder_sent_at,
+        a1_0.status,
+        a1_0.updated_at 
+    from
+        appointments a1_0 
+    join
+        (select
+            * 
+        from
+            users t 
+        where
+            t.user_type='DOCTOR') d1_0 
+            on d1_0.id=a1_0.doctor_id 
+            and (d1_0.deleted = false) 
+    join
+        (select
+            * 
+        from
+            users t 
+        where
+            t.user_type='PATIENT') p1_0 
+            on p1_0.id=a1_0.patient_id 
+            and (p1_0.deleted = false) 
+    where
+        (
+            a1_0.deleted = false
+        ) 
+        and a1_0.doctor_id=? 
+    order by
+        a1_0.id desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+2026-06-27T21:36:47.217Z TRACE 1 --- [clinic] [io-8080-exec-10] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:36:47.219Z TRACE 1 --- [clinic] [io-8080-exec-10] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [0]
+2026-06-27T21:36:47.219Z TRACE 1 --- [clinic] [io-8080-exec-10] org.hibernate.orm.jdbc.bind              : binding parameter (3:INTEGER) <- [20]
+2026-06-27T21:36:47.230Z  INFO 1 --- [clinic] [io-8080-exec-10] c.clinic.config.ApiRequestLoggingFilter  : GET /api/v1/appointments/search -> 200 (45 ms)
+2026-06-27T21:36:52.072Z DEBUG 1 --- [clinic] [nio-8080-exec-9] org.hibernate.SQL                        : 
+    select
+        tb1_0.id 
+    from
+        token_blacklist tb1_0 
+    where
+        (
+            tb1_0.deleted = false
+        ) 
+        and tb1_0.token=? 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.074Z TRACE 1 --- [clinic] [nio-8080-exec-9] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJjbGluaWMiLCJzdWIiOiJuYWhvbUBkZXYuY29tIiwiaWF0IjoxNzgyNTk2MjA2LCJleHAiOjE3ODI2ODI2MDYsImp0aSI6IjE4MDBlODVkLThmOWItNDk0OS1hM2Y4LTkyNGIyNjM4OTQxOCIsInJvbGVzIjpbIlJPTEVfRE9DVE9SIl19._ChMbWucIiX2uKj54mneJp489UljGxqcbFY9ojJOy3XnIIbGU6Xn5rnx0qPufUpxr2JrC3FFzNlSxptIjWQdxw]
+2026-06-27T21:36:52.074Z TRACE 1 --- [clinic] [nio-8080-exec-9] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [1]
+2026-06-27T21:36:52.079Z DEBUG 1 --- [clinic] [nio-8080-exec-9] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:36:52.080Z TRACE 1 --- [clinic] [nio-8080-exec-9] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:36:52.106Z DEBUG 1 --- [clinic] [nio-8080-exec-9] org.hibernate.SQL                        : 
+    select
+        p1_0.id,
+        p1_0.active,
+        p1_0.created_at,
+        p1_0.deleted,
+        p1_0.deleted_at,
+        p1_0.email,
+        p1_0.full_name,
+        p1_0.password,
+        p1_0.phone,
+        p1_0.role,
+        p1_0.updated_at,
+        p1_0.allergies,
+        p1_0.blood_type,
+        p1_0.date_of_birth,
+        p1_0.emergency_contact_name,
+        p1_0.emergency_contact_phone,
+        p1_0.gender,
+        p1_0.medical_history 
+    from
+        users p1_0 
+    where
+        (
+            p1_0.deleted = false
+        ) 
+        and p1_0.user_type='PATIENT' 
+    order by
+        p1_0.created_at desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.106Z TRACE 1 --- [clinic] [nio-8080-exec-9] org.hibernate.orm.jdbc.bind              : binding parameter (1:INTEGER) <- [0]
+2026-06-27T21:36:52.107Z TRACE 1 --- [clinic] [nio-8080-exec-9] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [100]
+2026-06-27T21:36:52.121Z  INFO 1 --- [clinic] [nio-8080-exec-9] c.clinic.config.ApiRequestLoggingFilter  : GET /api/v1/patients -> 200 (53 ms)
+2026-06-27T21:36:52.138Z DEBUG 1 --- [clinic] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        tb1_0.id 
+    from
+        token_blacklist tb1_0 
+    where
+        (
+            tb1_0.deleted = false
+        ) 
+        and tb1_0.token=? 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.138Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJjbGluaWMiLCJzdWIiOiJuYWhvbUBkZXYuY29tIiwiaWF0IjoxNzgyNTk2MjA2LCJleHAiOjE3ODI2ODI2MDYsImp0aSI6IjE4MDBlODVkLThmOWItNDk0OS1hM2Y4LTkyNGIyNjM4OTQxOCIsInJvbGVzIjpbIlJPTEVfRE9DVE9SIl19._ChMbWucIiX2uKj54mneJp489UljGxqcbFY9ojJOy3XnIIbGU6Xn5rnx0qPufUpxr2JrC3FFzNlSxptIjWQdxw]
+2026-06-27T21:36:52.139Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [1]
+2026-06-27T21:36:52.147Z DEBUG 1 --- [clinic] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        tb1_0.id 
+    from
+        token_blacklist tb1_0 
+    where
+        (
+            tb1_0.deleted = false
+        ) 
+        and tb1_0.token=? 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.152Z DEBUG 1 --- [clinic] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:36:52.153Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:36:52.159Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJjbGluaWMiLCJzdWIiOiJuYWhvbUBkZXYuY29tIiwiaWF0IjoxNzgyNTk2MjA2LCJleHAiOjE3ODI2ODI2MDYsImp0aSI6IjE4MDBlODVkLThmOWItNDk0OS1hM2Y4LTkyNGIyNjM4OTQxOCIsInJvbGVzIjpbIlJPTEVfRE9DVE9SIl19._ChMbWucIiX2uKj54mneJp489UljGxqcbFY9ojJOy3XnIIbGU6Xn5rnx0qPufUpxr2JrC3FFzNlSxptIjWQdxw]
+2026-06-27T21:36:52.159Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [1]
+2026-06-27T21:36:52.167Z DEBUG 1 --- [clinic] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        p1_0.id,
+        p1_0.active,
+        p1_0.created_at,
+        p1_0.deleted,
+        p1_0.deleted_at,
+        p1_0.email,
+        p1_0.full_name,
+        p1_0.password,
+        p1_0.phone,
+        p1_0.role,
+        p1_0.updated_at,
+        p1_0.allergies,
+        p1_0.blood_type,
+        p1_0.date_of_birth,
+        p1_0.emergency_contact_name,
+        p1_0.emergency_contact_phone,
+        p1_0.gender,
+        p1_0.medical_history 
+    from
+        users p1_0 
+    where
+        (
+            p1_0.deleted = false
+        ) 
+        and p1_0.user_type='PATIENT' 
+    order by
+        p1_0.created_at desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.167Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (1:INTEGER) <- [0]
+2026-06-27T21:36:52.168Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [100]
+2026-06-27T21:36:52.174Z  INFO 1 --- [clinic] [nio-8080-exec-1] c.clinic.config.ApiRequestLoggingFilter  : GET /api/v1/patients -> 200 (42 ms)
+2026-06-27T21:36:52.187Z DEBUG 1 --- [clinic] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:36:52.187Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:36:52.266Z DEBUG 1 --- [clinic] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        lo1_0.id,
+        lo1_0.appointment_id,
+        lo1_0.clinical_notes,
+        lo1_0.created_at,
+        lo1_0.deleted,
+        lo1_0.deleted_at,
+        lo1_0.doctor_id,
+        lo1_0.patient_id,
+        lo1_0.status,
+        lo1_0.updated_at,
+        lo1_0.urgency 
+    from
+        lab_orders lo1_0 
+    where
+        lo1_0.doctor_id=? 
+    order by
+        lo1_0.created_at desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.267Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:36:52.267Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [0]
+2026-06-27T21:36:52.267Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (3:INTEGER) <- [50]
+2026-06-27T21:36:52.274Z DEBUG 1 --- [clinic] [nio-8080-exec-2] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.id in (?, ?)
+2026-06-27T21:36:52.275Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [2f0a494d-b281-4e0d-b964-825d25dc1abe]
+2026-06-27T21:36:52.275Z TRACE 1 --- [clinic] [nio-8080-exec-2] org.hibernate.orm.jdbc.bind              : binding parameter (2:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:36:52.285Z  INFO 1 --- [clinic] [nio-8080-exec-2] c.clinic.config.ApiRequestLoggingFilter  : GET /api/lab-orders -> 500 (148 ms)
+2026-06-27T21:36:52.294Z DEBUG 1 --- [clinic] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        tb1_0.id 
+    from
+        token_blacklist tb1_0 
+    where
+        (
+            tb1_0.deleted = false
+        ) 
+        and tb1_0.token=? 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.294Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJjbGluaWMiLCJzdWIiOiJuYWhvbUBkZXYuY29tIiwiaWF0IjoxNzgyNTk2MjA2LCJleHAiOjE3ODI2ODI2MDYsImp0aSI6IjE4MDBlODVkLThmOWItNDk0OS1hM2Y4LTkyNGIyNjM4OTQxOCIsInJvbGVzIjpbIlJPTEVfRE9DVE9SIl19._ChMbWucIiX2uKj54mneJp489UljGxqcbFY9ojJOy3XnIIbGU6Xn5rnx0qPufUpxr2JrC3FFzNlSxptIjWQdxw]
+2026-06-27T21:36:52.294Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [1]
+2026-06-27T21:36:52.302Z DEBUG 1 --- [clinic] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:36:52.303Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:36:52.313Z DEBUG 1 --- [clinic] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        lo1_0.id,
+        lo1_0.appointment_id,
+        lo1_0.clinical_notes,
+        lo1_0.created_at,
+        lo1_0.deleted,
+        lo1_0.deleted_at,
+        lo1_0.doctor_id,
+        lo1_0.patient_id,
+        lo1_0.status,
+        lo1_0.updated_at,
+        lo1_0.urgency 
+    from
+        lab_orders lo1_0 
+    where
+        lo1_0.doctor_id=? 
+    order by
+        lo1_0.created_at desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+2026-06-27T21:36:52.314Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:36:52.322Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [0]
+2026-06-27T21:36:52.324Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (3:INTEGER) <- [50]
+2026-06-27T21:36:52.334Z DEBUG 1 --- [clinic] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.id in (?, ?)
+2026-06-27T21:36:52.334Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [2f0a494d-b281-4e0d-b964-825d25dc1abe]
+2026-06-27T21:36:52.335Z TRACE 1 --- [clinic] [nio-8080-exec-3] org.hibernate.orm.jdbc.bind              : binding parameter (2:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:36:52.352Z  INFO 1 --- [clinic] [nio-8080-exec-3] c.clinic.config.ApiRequestLoggingFilter  : GET /api/lab-orders -> 500 (62 ms)
+2026-06-27T21:37:05.509Z  INFO 1 --- [clinic] [nio-8080-exec-4] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (9 ms)
+2026-06-27T21:37:35.610Z  INFO 1 --- [clinic] [nio-8080-exec-6] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (9 ms)
+2026-06-27T21:38:05.683Z  INFO 1 --- [clinic] [nio-8080-exec-8] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (8 ms)
+2026-06-27T21:38:35.753Z  INFO 1 --- [clinic] [io-8080-exec-10] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (6 ms)
+2026-06-27T21:39:05.829Z  INFO 1 --- [clinic] [nio-8080-exec-9] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:39:35.897Z  INFO 1 --- [clinic] [nio-8080-exec-2] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:40:05.977Z  INFO 1 --- [clinic] [nio-8080-exec-4] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:40:36.053Z  INFO 1 --- [clinic] [nio-8080-exec-6] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:41:06.138Z  INFO 1 --- [clinic] [nio-8080-exec-8] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (7 ms)
+2026-06-27T21:41:36.224Z  INFO 1 --- [clinic] [nio-8080-exec-9] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:42:06.305Z  INFO 1 --- [clinic] [nio-8080-exec-2] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (7 ms)
+2026-06-27T21:42:36.380Z  INFO 1 --- [clinic] [nio-8080-exec-3] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (8 ms)
+2026-06-27T21:43:06.490Z  INFO 1 --- [clinic] [nio-8080-exec-5] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (16 ms)
+2026-06-27T21:43:36.562Z  INFO 1 --- [clinic] [nio-8080-exec-6] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (8 ms)
+2026-06-27T21:44:06.641Z  INFO 1 --- [clinic] [nio-8080-exec-8] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (6 ms)
+2026-06-27T21:44:36.721Z  INFO 1 --- [clinic] [nio-8080-exec-9] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:45:06.808Z  INFO 1 --- [clinic] [nio-8080-exec-2] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (20 ms)
+2026-06-27T21:45:37.075Z  INFO 1 --- [clinic] [nio-8080-exec-3] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (16 ms)
+2026-06-27T21:46:07.173Z  INFO 1 --- [clinic] [nio-8080-exec-5] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (11 ms)
+2026-06-27T21:46:37.263Z  INFO 1 --- [clinic] [nio-8080-exec-6] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:47:07.329Z  INFO 1 --- [clinic] [nio-8080-exec-8] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (6 ms)
+2026-06-27T21:47:37.401Z  INFO 1 --- [clinic] [nio-8080-exec-9] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:47:49.875Z  INFO 1 --- [clinic] [nio-8080-exec-2] c.clinic.config.ApiRequestLoggingFilter  : POST /api/v1/auth/login -> 400 (33 ms)
+2026-06-27T21:47:59.914Z  INFO 1 --- [clinic] [nio-8080-exec-3] c.clinic.config.ApiRequestLoggingFilter  : POST /api/v1/auth/login -> 400 (2 ms)
+2026-06-27T21:48:06.325Z  INFO 1 --- [clinic] [nio-8080-exec-4] com.clinic.controller.AuthController     : Login request received for email=admin@clinice.com
+2026-06-27T21:48:06.336Z DEBUG 1 --- [clinic] [nio-8080-exec-4] c.clinic.service.impl.AuthServiceImpl    : Authenticating user with email=admin@clinice.com
+2026-06-27T21:48:06.380Z DEBUG 1 --- [clinic] [nio-8080-exec-4] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:48:06.383Z TRACE 1 --- [clinic] [nio-8080-exec-4] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [admin@clinice.com]
+2026-06-27T21:48:06.657Z  INFO 1 --- [clinic] [nio-8080-exec-4] c.clinic.config.ApiRequestLoggingFilter  : POST /api/v1/auth/login -> 401 (344 ms)
+2026-06-27T21:48:07.474Z  INFO 1 --- [clinic] [nio-8080-exec-6] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (5 ms)
+2026-06-27T21:48:12.243Z  INFO 1 --- [clinic] [nio-8080-exec-8] com.clinic.controller.AuthController     : Login request received for email=nahom@dev.com
+2026-06-27T21:48:12.244Z DEBUG 1 --- [clinic] [nio-8080-exec-8] c.clinic.service.impl.AuthServiceImpl    : Authenticating user with email=nahom@dev.com
+2026-06-27T21:48:12.247Z DEBUG 1 --- [clinic] [nio-8080-exec-8] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:48:12.247Z TRACE 1 --- [clinic] [nio-8080-exec-8] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:48:12.553Z  INFO 1 --- [clinic] [nio-8080-exec-8] c.clinic.config.ApiRequestLoggingFilter  : POST /api/v1/auth/login -> 200 (312 ms)
+2026-06-27T21:48:30.826Z  INFO 1 --- [clinic] [nio-8080-exec-9] com.clinic.controller.AuthController     : Login request received for email=nahom@dev.com
+2026-06-27T21:48:30.828Z DEBUG 1 --- [clinic] [nio-8080-exec-9] c.clinic.service.impl.AuthServiceImpl    : Authenticating user with email=nahom@dev.com
+2026-06-27T21:48:30.834Z DEBUG 1 --- [clinic] [nio-8080-exec-9] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:48:30.834Z TRACE 1 --- [clinic] [nio-8080-exec-9] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:48:31.155Z  INFO 1 --- [clinic] [nio-8080-exec-9] c.clinic.config.ApiRequestLoggingFilter  : POST /api/v1/auth/login -> 200 (332 ms)
+2026-06-27T21:48:31.203Z DEBUG 1 --- [clinic] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        tb1_0.id 
+    from
+        token_blacklist tb1_0 
+    where
+        (
+            tb1_0.deleted = false
+        ) 
+        and tb1_0.token=? 
+    fetch
+        first ? rows only
+2026-06-27T21:48:31.203Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJjbGluaWMiLCJzdWIiOiJuYWhvbUBkZXYuY29tIiwiaWF0IjoxNzgyNTk2OTExLCJleHAiOjE3ODI2ODMzMTEsImp0aSI6Ijc0YzIyNWM0LTI3ZTctNGI2Yy1hNGI4LTE3NmRmYWZlNGZjMyIsInJvbGVzIjpbIlJPTEVfRE9DVE9SIl19.BxaMLraMJsH0by0bXVQsbLuTEY5LB0XmZcd2pfiD6GdbWTtVUYmhj6QjxIJ3RXTA-NOhE1IdNTziFj1JoKR00A]
+2026-06-27T21:48:31.204Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [1]
+2026-06-27T21:48:31.213Z DEBUG 1 --- [clinic] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.email=? 
+        and u1_0.active
+2026-06-27T21:48:31.213Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [nahom@dev.com]
+2026-06-27T21:48:31.238Z DEBUG 1 --- [clinic] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        lo1_0.id,
+        lo1_0.appointment_id,
+        lo1_0.clinical_notes,
+        lo1_0.created_at,
+        lo1_0.deleted,
+        lo1_0.deleted_at,
+        lo1_0.doctor_id,
+        lo1_0.patient_id,
+        lo1_0.status,
+        lo1_0.updated_at,
+        lo1_0.urgency 
+    from
+        lab_orders lo1_0 
+    where
+        lo1_0.doctor_id=? 
+    order by
+        lo1_0.created_at desc 
+    offset
+        ? rows 
+    fetch
+        first ? rows only
+2026-06-27T21:48:31.238Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:48:31.238Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (2:INTEGER) <- [0]
+2026-06-27T21:48:31.239Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (3:INTEGER) <- [20]
+2026-06-27T21:48:31.250Z DEBUG 1 --- [clinic] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        u1_0.id,
+        u1_0.user_type,
+        u1_0.active,
+        u1_0.created_at,
+        u1_0.deleted,
+        u1_0.deleted_at,
+        u1_0.email,
+        u1_0.full_name,
+        u1_0.password,
+        u1_0.phone,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.available,
+        u1_0.bio,
+        u1_0.consultation_fee,
+        u1_0.license_number,
+        u1_0.qualifications,
+        u1_0.specialization,
+        u1_0.years_of_experience,
+        u1_0.allergies,
+        u1_0.blood_type,
+        u1_0.date_of_birth,
+        u1_0.emergency_contact_name,
+        u1_0.emergency_contact_phone,
+        u1_0.gender,
+        u1_0.medical_history,
+        u1_0.employee_number,
+        u1_0.pharmacy_location 
+    from
+        users u1_0 
+    where
+        (
+            u1_0.deleted = false
+        ) 
+        and u1_0.id in (?, ?)
+2026-06-27T21:48:31.250Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (1:VARCHAR) <- [2f0a494d-b281-4e0d-b964-825d25dc1abe]
+2026-06-27T21:48:31.250Z TRACE 1 --- [clinic] [nio-8080-exec-1] org.hibernate.orm.jdbc.bind              : binding parameter (2:VARCHAR) <- [e96b4403-3f94-42db-b03b-783d725c156c]
+2026-06-27T21:48:31.260Z  INFO 1 --- [clinic] [nio-8080-exec-1] c.clinic.config.ApiRequestLoggingFilter  : GET /api/lab-orders -> 500 (69 ms)
+2026-06-27T21:48:37.548Z  INFO 1 --- [clinic] [nio-8080-exec-2] c.clinic.config.ApiRequestLoggingFilter  : GET /actuator/health -> 200 (6 ms)

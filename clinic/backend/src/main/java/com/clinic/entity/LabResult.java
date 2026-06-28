@@ -1,5 +1,6 @@
 package com.clinic.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,6 +30,7 @@ public class LabResult extends BaseEntity {
     @NotNull(message = "Lab Order ID is required")
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "lab_order_id", nullable = false)
+    @JsonIgnore
     private LabOrder labOrder;
 
     @NotNull(message = "Lab Technician ID is required")

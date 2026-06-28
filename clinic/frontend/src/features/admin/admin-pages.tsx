@@ -2156,6 +2156,12 @@ export function AdminDoctorAvailabilityPage() {
       ]);
       setDoctors(docData.content || []);
       setLabs(labData.content || []);
+      if ((labData.content || []).length === 1) {
+        setFormData((current) => ({
+          ...current,
+          laboratoryId: labData.content[0].id,
+        }));
+      }
       setAvailabilities((avData.content || []).map((av: any) => ({
         id: av.id,
         doctorName: av.doctorName,
@@ -2182,10 +2188,21 @@ export function AdminDoctorAvailabilityPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.laboratoryId) {
+      setStatus('error');
+      setStatusMessage('Please select a laboratory before saving availability.');
+      return;
+    }
     try {
       await createDoctorAvailability({
-        ...formData,
-        maxPatients: formData.maxPatients ? parseInt(formData.maxPatients) : undefined
+        doctorId: formData.doctorId,
+        laboratoryId: formData.laboratoryId,
+        dayOfWeek: formData.dayOfWeek,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        isAvailable: formData.isAvailable,
+        maxPatients: formData.maxPatients ? parseInt(formData.maxPatients, 10) : undefined,
+        notes: formData.notes || undefined,
       });
       setStatus('success');
       setStatusMessage('Availability created successfully!');
@@ -2230,7 +2247,12 @@ export function AdminDoctorAvailabilityPage() {
         title="Doctor Availability Schedule"
         description="Configure doctor working hours and availability across laboratories."
         actionLabel="Add Availability"
-        actionHref="#"
+        onAction={() => {
+          setShowForm(true);
+          if (labs.length === 1) {
+            setFormData((current) => ({ ...current, laboratoryId: labs[0].id }));
+          }
+        }}
       />
 
       <StatusAlert
@@ -2245,8 +2267,16 @@ export function AdminDoctorAvailabilityPage() {
         <Card className="border-primary">
           <CardHeader>
             <CardTitle>Add Doctor Availability</CardTitle>
+            <CardDescription>
+              Doctors without a custom schedule remain available by default. Add a schedule here to limit booking to specific days and times.
+            </CardDescription>
           </CardHeader>
           <CardContent>
+            {labs.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                No laboratories found. Create a laboratory first, then return here to set doctor availability.
+              </div>
+            ) : (
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -2328,6 +2358,7 @@ export function AdminDoctorAvailabilityPage() {
                 <Button type="submit">Create Availability</Button>
               </div>
             </form>
+            )}
           </CardContent>
         </Card>
       )}
@@ -2343,9 +2374,9 @@ export function AdminDoctorAvailabilityPage() {
         <Card>
           <CardHeader>
             <CardTitle>Active Doctors</CardTitle>
-            <CardDescription>With scheduled hours</CardDescription>
+            <CardDescription>Available by default unless a schedule is set</CardDescription>
           </CardHeader>
-          <CardContent className="text-3xl font-bold text-green-600">{new Set(availabilities.map(a => a.doctorId)).size}</CardContent>
+          <CardContent className="text-3xl font-bold text-green-600">{doctors.length}</CardContent>
         </Card>
         <Card>
           <CardHeader>
@@ -2364,7 +2395,12 @@ export function AdminDoctorAvailabilityPage() {
           </div>
           <div className="flex gap-2">
             <Input className="max-w-xs" placeholder="Search schedules..." value={query} onChange={(e) => setQuery(e.target.value)} />
-            <Button onClick={() => setShowForm(!showForm)}><Clock className="h-4 w-4 mr-2" /> {showForm ? 'Cancel' : 'Add Schedule'}</Button>
+            <Button onClick={() => {
+              setShowForm(!showForm);
+              if (!showForm && labs.length === 1) {
+                setFormData((current) => ({ ...current, laboratoryId: labs[0].id }));
+              }
+            }}><Clock className="h-4 w-4 mr-2" /> {showForm ? 'Cancel' : 'Add Schedule'}</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -2375,7 +2411,9 @@ export function AdminDoctorAvailabilityPage() {
               <Skeleton className="h-12 w-full rounded" />
             </div>
           ) : filteredAvailabilities.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No schedules found.</div>
+            <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+              No custom schedules yet. All doctors are currently available by default for appointment booking.
+            </div>
           ) : (
             <Table>
               <TableHeader>

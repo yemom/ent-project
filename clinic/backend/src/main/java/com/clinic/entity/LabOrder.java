@@ -1,5 +1,6 @@
 package com.clinic.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -13,7 +14,7 @@ import java.util.List;
 
 /**
  * Lab Order entity representing a request from a doctor for laboratory tests.
- * 
+ *
  * Fields: id, patientId, doctorId, appointmentId, tests, urgency, clinicalNotes,
  * status, createdAt, updatedAt
  */
@@ -41,7 +42,7 @@ public class LabOrder extends BaseEntity {
     @Column(name = "appointment_id")
     private String appointmentId;
 
-    @ElementCollection(fetch = FetchType.LAZY)
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "lab_order_tests", joinColumns = @JoinColumn(name = "lab_order_id"))
     @Column(name = "test_name")
     @BatchSize(size = 50)
@@ -65,5 +66,6 @@ public class LabOrder extends BaseEntity {
 
     @OneToMany(mappedBy = "labOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @JsonIgnore
     private List<LabResult> results = new ArrayList<>();
 }

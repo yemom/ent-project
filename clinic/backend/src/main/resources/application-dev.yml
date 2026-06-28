@@ -10,8 +10,18 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+  server:
+    tomcat:
+      min-spare-threads: 5
 
 logging:
   level:
-    com.clinic: DEBUG
-    org.springframework.security: INFO
+    com.clinic: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN

@@ -42,7 +42,7 @@ public class LabOrderMapper {
                 entity.getDoctorId(),
                 doctorName,
                 entity.getAppointmentId(),
-                entity.getTests(),
+                entity.getTests() != null ? new java.util.ArrayList<>(entity.getTests()) : java.util.Collections.emptyList(),
                 entity.getUrgency(),
                 entity.getClinicalNotes(),
                 entity.getStatus(),

@@ -18,6 +18,8 @@ export interface UserItem {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   active?: boolean;
+  available?: boolean;
+  specialization?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -54,9 +56,18 @@ export async function listUsers(params: Record<string, string | number | undefin
   }
 }
 
-export async function listDoctors(params: Record<string, string | number | undefined> = {}) {
+export async function listDoctors(params: Record<string, string | number | boolean | undefined> = {}) {
   const { data } = await apiClient.get<PageResponse<UserItem>>('/doctors', { params });
   return data;
+}
+
+export async function searchDoctors(params: Record<string, string | number | boolean | undefined> = {}) {
+  const { data } = await apiClient.get<PageResponse<UserItem>>('/doctors/search', { params });
+  return data;
+}
+
+export async function listAvailableDoctors(params: Record<string, string | number | boolean | undefined> = {}) {
+  return searchDoctors({ available: true, active: true, size: 100, ...params });
 }
 
 export async function listPatients(params: Record<string, string | number | undefined> = {}) {

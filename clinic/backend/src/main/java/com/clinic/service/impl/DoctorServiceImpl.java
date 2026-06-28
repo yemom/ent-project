@@ -48,6 +48,9 @@ public class DoctorServiceImpl implements DoctorService {
         if (userRepository.existsByEmail(request.email())) {
             throw new BadRequestException("Email already exists");
         }
+        if (doctorRepository.findByLicenseNumber(request.licenseNumber()).isPresent()) {
+            throw new BadRequestException("A doctor with this license number already exists");
+        }
         Doctor doctor = doctorMapper.toEntity(request, passwordEncoder.encode(request.password()));
         Doctor saved = doctorRepository.save(doctor);
         log.info("Created doctor id={}", saved.getId());
