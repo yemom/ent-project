@@ -1,0 +1,11 @@
+#! clinic-postgres-service.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: Service
+metadata:
+    name: clinic-postgres-published
+    namespace: clinic
+spec:
+    type: LoadBalancer
+
+# check if there is at least one published port

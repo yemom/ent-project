@@ -1,0 +1,21 @@
+#! clinic-postgres-service.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: Service
+metadata:
+    name: clinic-postgres-published
+    namespace: clinic
+    labels:
+        com.docker.compose.project: clinic
+        com.docker.compose.service: clinic-postgres
+spec:
+    selector:
+        com.docker.compose.project: clinic
+        com.docker.compose.service: clinic-postgres
+    ports:
+        - name: clinic-pos-5432
+          port: 5432
+          protocol: TCP
+          targetPort: clinic-pos-5432
+
+# check if there is at least one published port

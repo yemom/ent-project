@@ -1,0 +1,74 @@
+#! clinic-app-deployment.yaml
+# Generated code, do not edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: clinic-app
+    namespace: clinic
+    labels:
+        com.docker.compose.project: clinic
+        com.docker.compose.service: clinic-app
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            com.docker.compose.project: clinic
+            com.docker.compose.service: clinic-app
+    strategy:
+        type: Recreate
+    template:
+        metadata:
+            labels:
+                com.docker.compose.project: clinic
+                com.docker.compose.service: clinic-app
+                com.docker.compose.network.default: "true"
+        spec:
+            restartPolicy: unless-stopped
+            containers:
+                - name: clinic-app
+                  image: clinic-clinic-app
+                  imagePullPolicy: IfNotPresent
+                  env:
+                    - name: ADMIN_EMAIL
+                      value: "12yemom@gmail.com"
+                    - name: ADMIN_NAME
+                      value: "ESrom Basazinaw"
+                    - name: ADMIN_PASSWORD
+                      value: "12345678"
+                    - name: APP_JWT_EXPIRATION_MILLIS
+                      value: "86400000"
+                    - name: APP_JWT_ISSUER
+                      value: "clinic"
+                    - name: APP_JWT_SECRET
+                      value: "c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo="
+                    - name: CORS_ALLOWED_ORIGINS
+                      value: "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:3003,http://192.168.137.1:3000,http://192.168.137.1:3001,http://192.168.20.27:3000,http://192.168.20.27:3001"
+                    - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+                      value: "health,info"
+                    - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+                      value: "true"
+                    - name: POSTGRES_DB
+                      value: "clinic_db"
+                    - name: POSTGRES_PASSWORD
+                      value: "clinic_secure_password_change_me"
+                    - name: POSTGRES_USER
+                      value: "clinic_user"
+                    - name: REDIS_HOST
+                      value: "clinic-redis"
+                    - name: REDIS_PORT
+                      value: "6379"
+                    - name: SPRING_DATASOURCE_PASSWORD
+                      value: "clinic_secure_password_change_me"
+                    - name: SPRING_DATASOURCE_URL
+                      value: "jdbc:postgresql://clinic-postgres:5432/clinic_db"
+                    - name: SPRING_DATASOURCE_USERNAME
+                      value: "clinic_user"
+                    - name: SPRING_FLYWAY_ENABLED
+                      value: "true"
+                    - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+                      value: "validate"
+                    - name: SPRING_PROFILES_ACTIVE
+                      value: "dev"
+                  ports:
+                    - name: clinic-app-8080
+                      containerPort: 8080

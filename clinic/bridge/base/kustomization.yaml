@@ -1,0 +1,18 @@
+#! kustomization.yaml
+# Generated code, do not edit
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+    - 0-clinic-namespace.yaml
+    - clinic-app-deployment.yaml
+    - clinic-app-expose.yaml
+    - clinic-app-service.yaml
+    - clinic-postgres-deployment.yaml
+    - clinic-postgres-expose.yaml
+    - clinic-postgres-postgres-data-persistentVolumeClaim.yaml
+    - clinic-postgres-service.yaml
+    - clinic-redis-deployment.yaml
+    - clinic-redis-expose.yaml
+    - clinic-redis-redis-data-persistentVolumeClaim.yaml
+    - clinic-redis-service.yaml
+    - default-network-policy.yaml

@@ -1,0 +1,8 @@
+#! 0-clinic-namespace.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: clinic
+    labels:
+        com.docker.compose.project: clinic

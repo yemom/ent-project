@@ -1,0 +1,12 @@
+#! kustomization.yaml
+# Generated code, do not edit
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+    - ../../base
+patches:
+    - path: clinic-app-service.yaml
+    - path: clinic-postgres-postgres-data-persistentVolumeClaim.yaml
+    - path: clinic-postgres-service.yaml
+    - path: clinic-redis-redis-data-persistentVolumeClaim.yaml
+    - path: clinic-redis-service.yaml

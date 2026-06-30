@@ -1,0 +1,56 @@
+#! clinic-postgres-deployment.yaml
+# Generated code, do not edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: clinic-postgres
+    namespace: clinic
+    labels:
+        com.docker.compose.project: clinic
+        com.docker.compose.service: clinic-postgres
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            com.docker.compose.project: clinic
+            com.docker.compose.service: clinic-postgres
+    strategy:
+        type: Recreate
+    template:
+        metadata:
+            labels:
+                com.docker.compose.project: clinic
+                com.docker.compose.service: clinic-postgres
+                com.docker.compose.network.default: "true"
+        spec:
+            restartPolicy: unless-stopped
+            containers:
+                - name: clinic-postgres
+                  image: postgres:16-alpine
+                  imagePullPolicy: IfNotPresent
+                  env:
+                    - name: POSTGRES_DB
+                      value: "clinic_db"
+                    - name: POSTGRES_PASSWORD
+                      value: "clinic_secure_password_change_me"
+                    - name: POSTGRES_USER
+                      value: "clinic_user"
+                  livenessProbe:
+                    exec:
+                        command:
+                            - /bin/sh
+                            - -c
+                            - pg_isready -U clinic_user -d clinic_db
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 5
+                  ports:
+                    - name: clinic-pos-5432
+                      containerPort: 5432
+                  volumeMounts:
+                    - name: var-lib-postgresql-data
+                      mountPath: /var/lib/postgresql/data
+            volumes:
+                - name: var-lib-postgresql-data
+                  persistentVolumeClaim:
+                    claimName: clinic-postgres-postgres-data

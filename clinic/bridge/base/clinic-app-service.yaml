@@ -1,0 +1,23 @@
+# check if there is at least one published port
+
+#! clinic-app-service.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: Service
+metadata:
+    name: clinic-app-published
+    namespace: clinic
+    labels:
+        com.docker.compose.project: clinic
+        com.docker.compose.service: clinic-app
+spec:
+    selector:
+        com.docker.compose.project: clinic
+        com.docker.compose.service: clinic-app
+    ports:
+        - name: clinic-app-8080
+          port: 8080
+          protocol: TCP
+          targetPort: clinic-app-8080
+
+# check if there is at least one published port

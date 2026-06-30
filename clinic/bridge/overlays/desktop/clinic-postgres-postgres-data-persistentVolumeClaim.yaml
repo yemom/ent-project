@@ -1,0 +1,9 @@
+#! clinic-postgres-postgres-data-persistentVolumeClaim.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: clinic-postgres-postgres-data
+    namespace: clinic
+spec:
+    storageClassName: "hostpath" # see docker/desktop-storage-provisioner

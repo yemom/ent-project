@@ -1,0 +1,9 @@
+#! clinic-redis-redis-data-persistentVolumeClaim.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: clinic-redis-redis-data
+    namespace: clinic
+spec:
+    storageClassName: "hostpath" # see docker/desktop-storage-provisioner

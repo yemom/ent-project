@@ -1,0 +1,9 @@
+#! clinic-redis-service.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: Service
+metadata:
+    name: clinic-redis-published
+    namespace: clinic
+spec:
+    type: LoadBalancer
