@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useLogin, useRegister } from "@/hooks/use-auth";
-import { getFriendlyErrorMessage } from '@/lib/error-handler';
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import type { z } from "zod";
 
 function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -30,7 +30,7 @@ function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
               ⚕️
             </div>
-            clinic
+            የ፟-mom clinic
           </div>
           <p className="text-white/80">Healthcare Suite</p>
         </div>
@@ -124,14 +124,16 @@ export function LoginPage() {
     <AuthLayout>
       <div className="w-full max-w-md">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">clinic</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            የ፟-mom clinic
+          </h1>
           <p className="text-sm text-gray-600">
             Secure access to your high-performance healthcare suite.
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-gray-200">
+        {/* <div className="flex gap-4 mb-6 border-b border-gray-200">
           <button
             onClick={() => setUserType("staff")}
             className={`pb-4 font-medium text-sm transition-colors ${
@@ -152,12 +154,15 @@ export function LoginPage() {
           >
             Patient Portal
           </button>
-        </div>
+        </div> */}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {login.error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {getFriendlyErrorMessage(login.error, 'Unable to sign in. Please check your email and password.')}
+              {getFriendlyErrorMessage(
+                login.error,
+                "Unable to sign in. Please check your email and password.",
+              )}
             </div>
           ) : null}
 
@@ -325,7 +330,9 @@ export function RegisterPage() {
     <AuthLayout>
       <div className="w-full max-w-md">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">clinic</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            የ፟-mom clinic
+          </h1>
           <p className="text-sm text-gray-600">Create your account</p>
           <p className="text-xs text-gray-600 mt-1">
             Start managing your healthcare journey today.
@@ -339,7 +346,7 @@ export function RegisterPage() {
               Full Name
             </label>
             <Input
-              placeholder="Dr. Julian Smith"
+              placeholder=" Julian Smith"
               className="h-11 border-gray-300 rounded-lg"
               {...form.register("fullName")}
             />
@@ -357,7 +364,7 @@ export function RegisterPage() {
             </label>
             <Input
               type="email"
-              placeholder="julian.smith@clinic.com"
+              placeholder="julian.smith@gmail.com"
               className="h-11 border-gray-300 rounded-lg"
               {...form.register("email")}
             />
@@ -401,8 +408,8 @@ export function RegisterPage() {
             <label className="block text-sm font-medium text-gray-900 mb-3">
               I am signing up as:
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
+            <div className=" grid  gap-3">
+              {/* <button
                 type="button"
                 onClick={() => setSignUpAs("DOCTOR")}
                 className={`p-4 rounded-lg border-2 transition-all text-sm font-medium ${
@@ -413,7 +420,7 @@ export function RegisterPage() {
               >
                 <div className="text-lg mb-1">👨‍⚕️</div>
                 Healthcare Staff
-              </button>
+              </button> */}
               <button
                 type="button"
                 onClick={() => setSignUpAs("PATIENT")}

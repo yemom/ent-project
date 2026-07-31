@@ -17,7 +17,7 @@ export function getRequiredRole(pathname: string): ClinicRole {
 }
 
 export function hasSession(request: NextRequest) {
-  return request.cookies.get('clinic.auth')?.value === '1';
+  return request.cookies.get('clinic.auth')?.value === '5';
 }
 
 export function getRole(request: NextRequest): ClinicRole | null {

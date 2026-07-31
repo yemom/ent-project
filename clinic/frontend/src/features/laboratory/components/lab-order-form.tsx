@@ -66,7 +66,7 @@ export function LabOrderForm({ patientId, doctorId, appointmentId, onSuccess }: 
       </div>
 
       <div>
-        <label className="block text-sm font-medium">Clinical Notes</label>
+        <label className="block text-sm font-medium">Clinical Note4s</label>
         <Textarea value={clinicalNotes} onChange={(e) => setClinicalNotes(e.target.value)} />
       </div>
 
