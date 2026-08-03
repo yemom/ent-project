@@ -21,10 +21,10 @@ import {
   updatePatient,
   updateUser,
 } from "@/services/api/admin";
-import { listUsers, listDoctors, listPatients } from '@/services/api/users';
+import { listUsers, listDoctors, searchDoctors, listPatients, searchPatients } from '@/services/api/users';
 import { listAppointments } from '@/services/api/appointments';
 import { listPrescriptionOrders, updatePrescriptionOrderStatus } from '@/features/prescriptions';
-import { listLaboratories, getLaboratory, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, getDoctorAvailabilityByLaboratory, createDoctorAvailability, updateDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
+import { listLaboratories, searchLaboratories, getLaboratory, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, getDoctorAvailabilityByLaboratory, createDoctorAvailability, updateDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
 import { labOrdersService } from '@/features/laboratory/services/lab-orders.service';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -68,23 +68,31 @@ function useUrlQuery() {
 
 function MetricCards() {
   const [stats, setStats] = useState({
+    users: '...',
+    doctors: '...',
     patients: '...',
-    appointments: '...',
-    revenue: '$14,200', // Still static as we don't have a revenue API
-    occupancy: '88%' // Still static
+    appointments: '...'
   });
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [patientsRes, appointmentsRes] = await Promise.all([
-          listPatients({ size: 1000 }),
-          listAppointments({ size: 1000 })
+        const [usersRes, doctorsRes, patientsRes, appointmentsRes] = await Promise.all([
+          listUsers({ size: 1 }),
+          listDoctors({ size: 1 }),
+          listPatients({ size: 1 }),
+          listAppointments({ size: 1 })
         ]);
+        const totalUsers = Number((usersRes as any)?.totalElements ?? (usersRes.content ?? []).length);
+        const totalDoctors = Number((doctorsRes as any)?.totalElements ?? (doctorsRes.content ?? []).length);
+        const totalPatients = Number((patientsRes as any)?.totalElements ?? (patientsRes.content ?? []).length);
+        const totalAppointments = Number((appointmentsRes as any)?.totalElements ?? (appointmentsRes.content ?? []).length);
         setStats(prev => ({
           ...prev,
-          patients: (patientsRes.content ?? []).length.toString(),
-          appointments: (appointmentsRes.content ?? []).length.toString()
+          users: totalUsers.toString(),
+          doctors: totalDoctors.toString(),
+          patients: totalPatients.toString(),
+          appointments: totalAppointments.toString()
         }));
       } catch (err) {
         // Silent fail - dashboard is non-blocking
@@ -94,10 +102,10 @@ function MetricCards() {
   }, []);
 
   const activity = [
-    { label: 'Total Patients', value: stats.patients, delta: '+12%' },
-    { label: 'Appointments', value: stats.appointments, delta: 'Today' },
-    { label: 'Daily Revenue', value: stats.revenue, delta: '+$2.4k' },
-    { label: 'Occupancy', value: stats.occupancy, delta: 'High' }
+    { label: 'Total Users', value: stats.users, delta: 'Live' },
+    { label: 'Doctors', value: stats.doctors, delta: 'Live' },
+    { label: 'Patients', value: stats.patients, delta: 'Live' },
+    { label: 'Appointments', value: stats.appointments, delta: 'Live' }
   ];
 
   return (
@@ -530,19 +538,13 @@ export function AdminDoctorsPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
-  const filteredDoctors = useMemo(() => {
-    if (!query.trim()) return doctors;
-    const q = query.toLowerCase();
-    return doctors.filter((doctor) =>
-      [doctor.name, doctor.email, doctor.role, doctor.status, doctor.specialization ?? ''].some((value) => value.toLowerCase().includes(q))
-    );
-  }, [doctors, query]);
-
   useEffect(() => {
     async function fetchData() {
       try {
         setIsLoading(true);
-        const data = await listDoctors({ size: 30 });
+        const data = query.trim()
+          ? await searchDoctors({ q: query.trim(), size: 30 })
+          : await listDoctors({ size: 30 });
         setDoctors((data.content ?? []).map((d) => ({
           name: d.fullName,
           email: d.email,
@@ -557,7 +559,7 @@ export function AdminDoctorsPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [query]);
 
   return (
     <div className="space-y-6">
@@ -583,10 +585,10 @@ export function AdminDoctorsPage() {
                 <Skeleton className="h-12 w-full rounded-2xl" />
                 <Skeleton className="h-12 w-full rounded-2xl" />
               </>
-            ) : filteredDoctors.length === 0 ? (
+            ) : doctors.length === 0 ? (
               <div className="text-sm text-muted-foreground">No doctors found.</div>
             ) : (
-              filteredDoctors.map((doc) => (
+              doctors.map((doc) => (
                 <div key={doc.name} className="rounded-2xl bg-muted/50 p-4">
                   <p className="font-semibold">{doc.name}</p>
                   <p className="text-sm text-muted-foreground">{doc.email}</p>
@@ -643,17 +645,13 @@ export function AdminPatientsPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
-  const filteredPatients = useMemo(() => {
-    if (!query.trim()) return patients;
-    const q = query.toLowerCase();
-    return patients.filter((patient) => [patient.name, patient.email, patient.status].some((value) => value.toLowerCase().includes(q)));
-  }, [patients, query]);
-
   // Fetch real patient data on component mount
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const data = await listPatients({ size: 30 });
+      const data = query.trim()
+        ? await searchPatients({ q: query.trim(), size: 30 })
+        : await listPatients({ size: 30 });
       setPatients((data.content ?? []).map((p) => ({
         id: p.id,
         name: p.fullName,
@@ -669,7 +667,7 @@ export function AdminPatientsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [query]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this patient?')) return;
@@ -808,7 +806,7 @@ export function AdminPatientsPage() {
               <Skeleton className="h-12 w-full rounded" />
               <Skeleton className="h-12 w-full rounded" />
             </div>
-          ) : filteredPatients.length === 0 ? (
+          ) : patients.length === 0 ? (
             <div className="text-sm text-muted-foreground">No patients found.</div>
           ) : (
             <Table>
@@ -821,7 +819,7 @@ export function AdminPatientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPatients.map((patient) => (
+                {patients.map((patient) => (
                   <TableRow key={patient.id}>
                     <TableCell className="font-medium">{patient.name}</TableCell>
                     <TableCell>{patient.email}</TableCell>
@@ -1587,16 +1585,12 @@ export function AdminLaboratoriesPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
-  const filteredLaboratories = useMemo(() => {
-    if (!query.trim()) return laboratories;
-    const q = query.toLowerCase();
-    return laboratories.filter((lab) => [lab.name, lab.location, lab.status].some((value) => value.toLowerCase().includes(q)));
-  }, [laboratories, query]);
-
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const data = await listLaboratories({ size: 30 });
+      const data = query.trim()
+        ? await searchLaboratories({ name: query.trim(), status: query.trim(), size: 30 })
+        : await listLaboratories({ size: 30 });
       setLaboratories((data.content ?? []).map((lab: any) => ({
         id: lab.id,
         name: lab.name,
@@ -1615,7 +1609,7 @@ export function AdminLaboratoriesPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [query]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1828,7 +1822,7 @@ export function AdminLaboratoriesPage() {
               <Skeleton className="h-12 w-full rounded" />
               <Skeleton className="h-12 w-full rounded" />
             </div>
-          ) : filteredLaboratories.length === 0 ? (
+          ) : laboratories.length === 0 ? (
             <div className="text-sm text-muted-foreground">No laboratories found.</div>
           ) : (
             <Table>
@@ -1843,7 +1837,7 @@ export function AdminLaboratoriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLaboratories.map((lab) => (
+                {laboratories.map((lab) => (
                   <TableRow key={lab.id}>
                     <TableCell className="font-medium">{lab.name}</TableCell>
                     <TableCell>{lab.location}</TableCell>

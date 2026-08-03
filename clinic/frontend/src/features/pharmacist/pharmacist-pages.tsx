@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { usePrescriptionOrders } from "@/hooks/usePrescriptionOrders";
+import { listPrescriptionOrders } from "@/features/prescriptions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { useAuthStore } from "@/store/auth-store";
@@ -113,14 +114,41 @@ function getQueueStyle(
 // ============================================================================
 export function PharmacistDashboardPage() {
   const { orders, isLoading, error } = usePrescriptionOrders();
+  const [stats, setStats] = useState({ total: 0, pending: 0, dispensed: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
 
-  const stats = useMemo(() => {
-    return {
-      total: orders.length,
-      pending: orders.filter((o) => o.status === "PENDING").length,
-      dispensed: orders.filter((o) => o.status === "DISPENSED").length,
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchStats() {
+      try {
+        setStatsLoading(true);
+        const [totalRes, pendingRes, dispensedRes] = await Promise.all([
+          listPrescriptionOrders({ size: 1 }),
+          listPrescriptionOrders({ status: 'PENDING', size: 1 }),
+          listPrescriptionOrders({ status: 'DISPENSED', size: 1 })
+        ]);
+
+        if (!mounted) return;
+
+        setStats({
+          total: Number((totalRes as any)?.totalElements ?? (totalRes.content ?? []).length),
+          pending: Number((pendingRes as any)?.totalElements ?? (pendingRes.content ?? []).length),
+          dispensed: Number((dispensedRes as any)?.totalElements ?? (dispensedRes.content ?? []).length)
+        });
+      } catch {
+        if (!mounted) return;
+      } finally {
+        if (mounted) setStatsLoading(false);
+      }
+    }
+
+    void fetchStats();
+
+    return () => {
+      mounted = false;
     };
-  }, [orders]);
+  }, []);
 
   const recentOrders = useMemo(() => {
     return orders.slice(0, 5);
@@ -144,40 +172,40 @@ export function PharmacistDashboardPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle>Total Orders</CardTitle>
-            <CardDescription>All prescription orders</CardDescription>
+            <CardDescription>Exact count from the prescription order API</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-teal-700">
-              {stats.total}
+              {statsLoading ? '...' : stats.total}
             </div>
             <Package className="mt-2 h-6 w-6 text-muted-foreground" />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle>Pending Orders</CardTitle>
-            <CardDescription>Awaiting fulfillment</CardDescription>
+            <CardDescription>Exact count of PENDING orders</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-amber-600">
-              {stats.pending}
+              {statsLoading ? '...' : stats.pending}
             </div>
             <Clock className="mt-2 h-6 w-6 text-muted-foreground" />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle>Dispensed Today</CardTitle>
-            <CardDescription>Completed orders</CardDescription>
+            <CardDescription>Exact count of DISPENSED orders</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">
-              {stats.dispensed}
+              {statsLoading ? '...' : stats.dispensed}
             </div>
             <Check className="mt-2 h-6 w-6 text-muted-foreground" />
           </CardContent>
@@ -263,9 +291,7 @@ export function PharmacistDashboardPage() {
                     <Button
                       variant="ghost"
                       className={`mt-2 px-0 font-bold ${style.accent}`}
-                      onClick={() => {
-                        window.location.href = "/pharmacist/orders";
-                      }}
+                      onClick={() => {}}
                     >
                       {style.action}
                       <ArrowRight className="h-4 w-4" />
@@ -322,17 +348,17 @@ export function PharmacistOrdersPage() {
   ) => {
     try {
       setUpdatingId(orderId);
+
       await apiClient.patch(`/prescription-orders/${orderId}/status`, {
         status: newStatus,
       });
+
       setStatus("success");
       setStatusMessage(
         `Order marked as ${newStatus.toLowerCase()} successfully!`,
       );
-      // Refresh the page or update state
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+
+      //window.location.href = "/pharmacist/dashboard";
     } catch (err) {
       setStatus("error");
       setStatusMessage(

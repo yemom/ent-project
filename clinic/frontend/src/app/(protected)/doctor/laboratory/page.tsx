@@ -1,5 +1,5 @@
-import { DoctorLaboratoryInvestigationsPage } from '@/features/doctor/doctor-pages';
+import { DoctorLabInvestigationsPage } from '@/features/doctor/doctor-pages';
 
 export default function Page() {
-  return <DoctorLaboratoryInvestigationsPage />;
+  return <DoctorLabInvestigationsPage />;
 }

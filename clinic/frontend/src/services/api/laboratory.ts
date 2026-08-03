@@ -1,5 +1,6 @@
 import { apiClient } from '@/services/api/client';
 import type { PageResponse } from '@/types/api';
+import { fetchAllPages } from './page-utils';
 
 export interface Laboratory {
   id: string;
@@ -35,8 +36,12 @@ export interface DoctorAvailability {
 
 // Laboratory API functions
 export async function listLaboratories(params?: { size?: number; page?: number; sort?: string }) {
-  const { data } = await apiClient.get<PageResponse<Laboratory>>('/laboratories', { params });
-  return data;
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<Laboratory>>('/laboratories', {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 export async function getLaboratory(id: string) {
@@ -59,14 +64,22 @@ export async function deleteLaboratory(id: string) {
 }
 
 export async function searchLaboratories(params?: { name?: string; status?: string; size?: number; page?: number }) {
-  const { data } = await apiClient.get<PageResponse<Laboratory>>('/laboratories/search', { params });
-  return data;
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<Laboratory>>('/laboratories/search', {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 // Doctor Availability API functions
 export async function listDoctorAvailability(params?: { size?: number; page?: number; sort?: string }) {
-  const { data } = await apiClient.get<PageResponse<DoctorAvailability>>('/doctor-availability', { params });
-  return data;
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<DoctorAvailability>>('/doctor-availability', {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 export async function getDoctorAvailability(id: string) {

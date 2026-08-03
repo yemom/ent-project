@@ -68,6 +68,7 @@ import { apiClient } from "@/services/api/client";
 import { useAuthStore } from "@/store/auth-store";
 import { StatusAlert, type StatusType } from "@/components/shared/status-alert";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
+import { getDoctorStats } from "@/services/api/doctor";
 import { labOrdersService } from "@/features/laboratory/services/lab-orders.service";
 import { labResultsService } from "@/features/laboratory/services/lab-results.service";
 import { LAB_TEST_TYPES, LAB_URGENCY } from "@/lib/constants";
@@ -82,6 +83,36 @@ import { LAB_TEST_TYPES, LAB_URGENCY } from "@/lib/constants";
 export function DoctorDashboardPage() {
   const router = useRouter();
   const { appointments, isLoading, error } = useAppointments();
+  const [doctorStats, setDoctorStats] = useState<{ todayAppointmentsCount: number; pendingNotesCount: number; prescriptionsSentCount: number } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchStats() {
+      try {
+        setStatsLoading(true);
+        const data = await getDoctorStats();
+        if (!mounted) return;
+        setDoctorStats(data);
+      } catch {
+        if (!mounted) return;
+        setDoctorStats({
+          todayAppointmentsCount: appointments.length,
+          pendingNotesCount: 0,
+          prescriptionsSentCount: 0,
+        });
+      } finally {
+        if (mounted) setStatsLoading(false);
+      }
+    }
+
+    void fetchStats();
+
+    return () => {
+      mounted = false;
+    };
+  }, [appointments.length]);
 
   return (
     <div className="space-y-6">
@@ -93,35 +124,42 @@ export function DoctorDashboardPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle>Today's Appointments</CardTitle>
-            <CardDescription>
-              {isLoading ? "..." : `${appointments.length} scheduled visits`}
-            </CardDescription>
+            <CardDescription>Exact count from the doctor stats endpoint</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Calendar className="h-8 w-8 text-primary" />
+          <CardContent className="flex items-end justify-between gap-3">
+            <div className="text-3xl font-bold text-teal-700">
+              {statsLoading || !doctorStats ? '...' : doctorStats.todayAppointmentsCount}
+            </div>
+            <Calendar className="h-8 w-8 text-teal-700" />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
           <CardHeader>
-            <CardTitle>Clinical Efficiency</CardTitle>
-            <CardDescription>Average visit duration: 18 min</CardDescription>
+            <CardTitle>Pending Notes</CardTitle>
+            <CardDescription>Records waiting for your review</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Clock3 className="h-8 w-8 text-primary" />
+          <CardContent className="flex items-end justify-between gap-3">
+            <div className="text-3xl font-bold text-sky-700">
+              {statsLoading || !doctorStats ? '...' : doctorStats.pendingNotesCount}
+            </div>
+            <FileText className="h-8 w-8 text-sky-700" />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
           <CardHeader>
-            <CardTitle>Patient Volume</CardTitle>
-            <CardDescription>85% capacity utilized</CardDescription>
+            <CardTitle>Prescriptions Sent</CardTitle>
+            <CardDescription>Exact doctor-issued orders</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Users className="h-8 w-8 text-primary" />
+          <CardContent className="flex items-end justify-between gap-3">
+            <div className="text-3xl font-bold text-violet-700">
+              {statsLoading || !doctorStats ? '...' : doctorStats.prescriptionsSentCount}
+            </div>
+            <PillBottle className="h-8 w-8 text-violet-700" />
           </CardContent>
         </Card>
       </div>
@@ -3229,11 +3267,9 @@ export function DoctorLaboratoryInvestigationsPage() {
         clinicalNotes: "",
       });
 
-      // // Refresh lab orders after 1 second
-      // setTimeout(() => {
-      //   window.location.reload();
-      // }, 1500);
-      
+      // Refresh lab orders after 1 second
+      //window.location.herf = "doctor/dashbord";
+
     } catch (err) {
       console.error("Failed to create order:", err);
       setStatus("error");
@@ -3731,6 +3767,9 @@ interface LabResultDetail {
 
 export function DoctorLabInvestigationsPage() {
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [orderSearch, setOrderSearch] = useState(searchParams.get("q") ?? "");
 
   // ── Order list state ──────────────────────────────────────────────────────
   const [orders, setOrders] = useState<LabOrderRow[]>([]);
@@ -3755,6 +3794,10 @@ export function DoctorLabInvestigationsPage() {
   const [result, setResult] = useState<LabResultDetail | null>(null);
   const [isLoadingResult, setIsLoadingResult] = useState(false);
   const [resultError, setResultError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrderSearch(searchParams.get("q") ?? "");
+  }, [searchParams]);
 
   // ── Fetch all lab orders for this doctor ─────────────────────────────────
   const fetchOrders = useCallback(async () => {
@@ -3801,6 +3844,15 @@ export function DoctorLabInvestigationsPage() {
     }
     loadPatients();
   }, []);
+
+  useEffect(() => {
+    const orderId = searchParams.get("orderId");
+    if (!orderId || orders.length === 0) return;
+    const matchedOrder = orders.find((order) => order.id === orderId);
+    if (matchedOrder && selectedOrder?.id !== matchedOrder.id) {
+      void openResultDetail(matchedOrder);
+    }
+  }, [orders, searchParams, selectedOrder?.id]);
 
   // ── Submit new lab order ──────────────────────────────────────────────────
   const handleCreateOrder = async (e: React.FormEvent) => {
@@ -3877,6 +3929,39 @@ export function DoctorLabInvestigationsPage() {
       prev.includes(test) ? prev.filter((t) => t !== test) : [...prev, test],
     );
   };
+
+  const updateOrderSearch = (value: string) => {
+    setOrderSearch(value);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (value.trim()) {
+      nextParams.set("q", value.trim());
+    } else {
+      nextParams.delete("q");
+    }
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `/doctor/laboratory?${nextQuery}` : "/doctor/laboratory");
+  };
+
+  const filteredOrders = useMemo(() => {
+    const query = orderSearch.trim().toLowerCase();
+    if (!query) return orders;
+
+    return orders.filter((order) => {
+      const searchableValues = [
+        order.patientName,
+        order.patientId,
+        order.doctorId,
+        order.urgency,
+        order.status,
+        order.clinicalNotes,
+        ...order.tests,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase());
+
+      return searchableValues.some((value) => value.includes(query));
+    });
+  }, [orderSearch, orders]);
 
   const urgencyBadge = (u: string): "destructive" | "warning" | "outline" => {
     if (u === "critical") return "destructive";
@@ -3968,6 +4053,7 @@ export function DoctorLabInvestigationsPage() {
                     );
                     if (filtered.length === 0) return null;
                     return (
+
                       <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-border rounded-xl shadow-lg divide-y divide-gray-100">
                         {filtered.map((p) => (
                           <div
@@ -4087,17 +4173,26 @@ export function DoctorLabInvestigationsPage() {
       {/* ── Orders Table ──────────────────────────────────────────── */}
       <Card className="overflow-hidden">
         <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-white">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-2">
               <FlaskConical className="h-5 w-5 text-teal-700" />
               <div>
                 <CardTitle>My Lab Orders</CardTitle>
                 <CardDescription>
-                  All investigation orders you have submitted
+                  Real-time orders and completed results from your laboratory workflow
                 </CardDescription>
               </div>
             </div>
-            <Badge variant="outline">{orders.length} total</Badge>
+            <Badge variant="outline">{filteredOrders.length} shown / {orders.length} total</Badge>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3 shadow-sm">
+            <Search className="h-5 w-5 text-muted-foreground" />
+            <Input
+              value={orderSearch}
+              onChange={(e) => updateOrderSearch(e.target.value)}
+              placeholder="Search patient, test, urgency, status, or notes..."
+              className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -4116,6 +4211,13 @@ export function DoctorLabInvestigationsPage() {
                 No lab orders found. Click "New Lab Order" to get started.
               </p>
             </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-14 text-muted-foreground">
+              <Search className="h-12 w-12 opacity-30" />
+              <p className="text-sm">
+                No lab orders match your search.
+              </p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -4129,7 +4231,7 @@ export function DoctorLabInvestigationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <TableRow key={order.id} className="hover:bg-muted/20">
                     <TableCell className="font-medium">
                       {order.patientName ?? order.patientId}

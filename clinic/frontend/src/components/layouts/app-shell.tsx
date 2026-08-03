@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { APP_NAME } from '@/lib/constants';
 import { ROUTES } from '@/lib/constants';
 import { useAuthStore } from '@/store/auth-store';
+import { LabNotificationBell } from '@/features/laboratory';
 
 const navByRole = {
   ADMIN: [
@@ -34,6 +35,7 @@ const navByRole = {
     { label: 'Patient History', href: '/doctor/patients', icon: UserRoundSearch },
     { label: 'Records', href: '/doctor/records/new', icon: ClipboardList },
     { label: 'Lab Investigations', href: '/doctor/laboratory', icon: Beaker },
+    { label: 'Lab Statistics', href: '/doctor/laboratory/statistics', icon: FileText },
     { label: 'Prescriptions', href: '/doctor/prescriptions/new', icon: PillBottle },
     { label: 'Availability', href: '/doctor/availability', icon: Activity },
     { label: 'Schedule', href: '/doctor/schedule', icon: CalendarDays },
@@ -194,6 +196,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 />
               </div>
               <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                {user?.role === 'DOCTOR' ? <LabNotificationBell /> : null}
                 <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                   <MoonStar className="h-5 w-5" />
                 </Button>

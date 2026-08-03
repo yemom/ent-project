@@ -1,5 +1,6 @@
 import { apiClient } from '@/services/api/client';
 import type { PageResponse } from '@/types/api';
+import { fetchAllPages } from './page-utils';
 
 export interface AppointmentItem {
   id: string;
@@ -11,15 +12,22 @@ export interface AppointmentItem {
 }
 
 export async function listAppointments(params: Record<string, string | number | undefined> = {}) {
-  // Use /search endpoint if we have filter params, otherwise use base /appointments
   const endpoint = Object.keys(params).length > 0 ? '/appointments/search' : '/appointments';
-  const { data } = await apiClient.get<PageResponse<AppointmentItem>>(endpoint, { params });
-  return data;
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<AppointmentItem>>(endpoint, {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 export async function searchAppointments(params: Record<string, string | number | undefined> = {}) {
-  const { data } = await apiClient.get<PageResponse<AppointmentItem>>('/appointments/search', { params });
-  return data;
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<AppointmentItem>>('/appointments/search', {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 export async function createAppointment(payload: Record<string, unknown>) {

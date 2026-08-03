@@ -12,7 +12,15 @@ export function useLabNotifications(userId?: string) {
 
   useEffect(() => {
     let mounted = true;
-    async function fetch() {
+
+    async function fetchNotifications() {
+      if (!userId) {
+        setNotifications([]);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
         const data = await labNotificationsService.list({ userId });
@@ -20,20 +28,34 @@ export function useLabNotifications(userId?: string) {
         setNotifications(data.content ?? []);
         setError(null);
       } catch (err) {
+        if (!mounted) return;
         setError(getFriendlyErrorMessage(err, 'Could not load notifications'));
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     }
-    if (userId) fetch();
+
+    void fetchNotifications();
+
+    const intervalId = userId
+      ? window.setInterval(() => {
+          void fetchNotifications();
+        }, 30000)
+      : undefined;
+
     return () => {
       mounted = false;
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
     };
   }, [userId]);
 
   const markRead = async (id: string) => {
     await labNotificationsService.markRead(id);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;

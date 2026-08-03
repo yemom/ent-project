@@ -1,4 +1,5 @@
 import apiClient from '@/lib/api-client';
+import { fetchAllPages } from '@/services/api/page-utils';
 
 export interface PrescriptionOrderItem {
   id: string;
@@ -34,14 +35,16 @@ export interface UpdatePrescriptionOrderPayload {
 }
 
 export async function listPrescriptionOrders(params?: { page?: number; size?: number; status?: 'PENDING' | 'DISPENSED' | 'REJECTED'; patientName?: string }) {
-  const query = new URLSearchParams();
-  if (params?.page) query.append('page', params.page.toString());
-  if (params?.size) query.append('size', params.size.toString());
-  if (params?.status) query.append('status', params.status);
-  if (params?.patientName) query.append('patientName', params.patientName);
+  return fetchAllPages(async (page, size) => {
+    const query = new URLSearchParams();
+    query.append('page', page.toString());
+    query.append('size', size.toString());
+    if (params?.status) query.append('status', params.status);
+    if (params?.patientName) query.append('patientName', params.patientName);
 
-  const response = await apiClient.get(`/prescription-orders${query.toString() ? `?${query.toString()}` : ''}`);
-  return response.data;
+    const response = await apiClient.get(`/prescription-orders${query.toString() ? `?${query.toString()}` : ''}`);
+    return response.data;
+  });
 }
 
 export async function getPrescriptionOrderById(id: string) {
@@ -50,12 +53,14 @@ export async function getPrescriptionOrderById(id: string) {
 }
 
 export async function listPrescriptionOrdersByDoctor(doctorId: string, params?: { page?: number; size?: number }) {
-  const query = new URLSearchParams();
-  if (params?.page) query.append('page', params.page.toString());
-  if (params?.size) query.append('size', params.size.toString());
+  return fetchAllPages(async (page, size) => {
+    const query = new URLSearchParams();
+    query.append('page', page.toString());
+    query.append('size', size.toString());
 
-  const response = await apiClient.get(`/prescription-orders/filter/by-doctor/${doctorId}${query.toString() ? `?${query.toString()}` : ''}`);
-  return response.data;
+    const response = await apiClient.get(`/prescription-orders/filter/by-doctor/${doctorId}${query.toString() ? `?${query.toString()}` : ''}`);
+    return response.data;
+  });
 }
 
 export async function createPrescriptionOrder(payload: CreatePrescriptionOrderPayload) {

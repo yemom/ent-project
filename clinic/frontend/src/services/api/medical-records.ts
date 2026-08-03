@@ -1,5 +1,6 @@
 import { apiClient } from '@/services/api/client';
 import type { PageResponse } from '@/types/api';
+import { fetchAllPages } from './page-utils';
 
 export interface MedicalRecordItem {
   id: string;
@@ -24,13 +25,21 @@ export async function getMedicalRecord(id: string) {
 }
 
 export async function listMedicalRecords(params: Record<string, string | number | undefined> = {}) {
-  const { data } = await apiClient.get<PageResponse<MedicalRecordItem>>('/medical-records', { params });
-  return data;
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<MedicalRecordItem>>('/medical-records', {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 export async function searchMedicalRecords(params: Record<string, string | number | undefined> = {}) {
-  const { data } = await apiClient.get<PageResponse<MedicalRecordItem>>('/medical-records/search', { params });
-  return data;
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<MedicalRecordItem>>('/medical-records/search', {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 export async function createMedicalRecord(payload: Record<string, unknown>) {

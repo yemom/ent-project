@@ -2,6 +2,7 @@ import axios from 'axios';
 import { toUserFacingError } from '@/lib/error-handler';
 import { useAuthStore } from '@/store/auth-store';
 import type { CreateLabOrderDto, LabOrder } from '../types';
+import { fetchAllPages } from '@/services/api/page-utils';
 
 // The lab-orders backend controller is at /api/lab-orders (no /v1 in path)
 // The main apiClient base URL is http://localhost:8080/api/v1, so we use
@@ -27,16 +28,18 @@ export const labOrdersService = {
   },
   list: async (params?: Record<string, any>): Promise<{ content: LabOrder[]; totalElements: number; totalPages: number }> => {
     try {
-      const queryParams = { ...params };
-      if (queryParams.status) {
-        queryParams.status = String(queryParams.status).toUpperCase();
-      }
-      const res = await axios.get(`${LAB_BASE}/api/lab-orders`, {
-        params: queryParams,
-        headers: { ...getAuthHeader() },
-        withCredentials: true
+      return fetchAllPages(async (page, size) => {
+        const queryParams = { ...params, page, size };
+        if (queryParams.status) {
+          queryParams.status = String(queryParams.status).toUpperCase();
+        }
+        const res = await axios.get(`${LAB_BASE}/api/lab-orders`, {
+          params: queryParams,
+          headers: { ...getAuthHeader() },
+          withCredentials: true
+        });
+        return res.data;
       });
-      return res.data;
     } catch (err) {
       throw toUserFacingError(err, 'Could not load lab orders.');
     }

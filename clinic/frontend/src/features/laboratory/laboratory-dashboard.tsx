@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLabOrders } from './hooks/use-lab-orders';
+import { labOrdersService } from './services/lab-orders.service';
 import { labResultsService } from './services/lab-results.service';
 import { useRouter } from 'next/navigation';
 import { LAB_ROUTES } from '@/lib/constants';
@@ -43,12 +44,8 @@ export function LaboratoryDashboardPage() {
   const { orders, isLoading, error } = useLabOrders();
   const [previewResult, setPreviewResult] = useState<LabResult | null>(null);
   const [resultLoading, setResultLoading] = useState(false);
-
-  // Metrics
-  const pendingCount = orders.filter(o => normalizeStatus(o.status) === 'pending').length;
-  const inProgressCount = orders.filter(o => normalizeStatus(o.status) === 'in_progress').length;
-  const completedCount = orders.filter(o => normalizeStatus(o.status) === 'completed').length;
-  const criticalCount = orders.filter(o => normalizeUrgency(o.urgency) === 'critical').length;
+  const [stats, setStats] = useState({ pending: 0, inProgress: 0, completed: 0, critical: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
 
   // Get active queue orders (non-completed)
   const activeOrders = orders.filter(o => normalizeStatus(o.status) !== 'completed');
@@ -59,6 +56,46 @@ export function LaboratoryDashboardPage() {
     [orders, activeOrders]
   );
   const previewFindings = findingsEntries(previewResult);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchStats() {
+      try {
+        setStatsLoading(true);
+        const pageSize = 100;
+        const allOrders: LabOrder[] = [];
+        let page = 0;
+
+        while (true) {
+          const response = await labOrdersService.list({ page, size: pageSize });
+          const batch = (response.content ?? []) as LabOrder[];
+          allOrders.push(...batch);
+          if ((response as any).last || batch.length < pageSize) break;
+          page += 1;
+        }
+
+        if (!mounted) return;
+
+        setStats({
+          pending: allOrders.filter((order) => normalizeStatus(order.status) === 'pending').length,
+          inProgress: allOrders.filter((order) => normalizeStatus(order.status) === 'in_progress').length,
+          completed: allOrders.filter((order) => normalizeStatus(order.status) === 'completed').length,
+          critical: allOrders.filter((order) => normalizeUrgency(order.urgency) === 'critical').length,
+        });
+      } catch {
+        if (!mounted) return;
+      } finally {
+        if (mounted) setStatsLoading(false);
+      }
+    }
+
+    void fetchStats();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -130,24 +167,24 @@ export function LaboratoryDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="rounded-2xl border-slate-100 shadow-sm p-4 bg-teal-50/20">
           <p className="text-xs font-semibold text-teal-800 uppercase tracking-wider">Pending Collection</p>
-          <p className="text-2xl font-bold text-teal-950 mt-2">{pendingCount}</p>
+          <p className="text-2xl font-bold text-teal-950 mt-2">{statsLoading ? '...' : stats.pending}</p>
         </Card>
         <Card className="rounded-2xl border-slate-100 shadow-sm p-4 bg-blue-50/20">
           <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider">Active Analysis</p>
-          <p className="text-2xl font-bold text-blue-950 mt-2">{inProgressCount}</p>
+          <p className="text-2xl font-bold text-blue-950 mt-2">{statsLoading ? '...' : stats.inProgress}</p>
         </Card>
         <Card className="rounded-2xl border-slate-100 shadow-sm p-4 bg-emerald-50/20">
           <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Completed Today</p>
-          <p className="text-2xl font-bold text-emerald-950 mt-2">{completedCount}</p>
+          <p className="text-2xl font-bold text-emerald-950 mt-2">{statsLoading ? '...' : stats.completed}</p>
         </Card>
         <Card className="rounded-2xl border-slate-100 shadow-sm p-4 bg-rose-50/20">
           <p className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Critical Alerts</p>
-          <p className="text-2xl font-bold text-rose-950 mt-2">{criticalCount}</p>
+          <p className="text-2xl font-bold text-rose-950 mt-2">{statsLoading ? '...' : stats.critical}</p>
         </Card>
       </div>
 
       {/* Critical Results Banner */}
-      {criticalCount > 0 && previewOrder && (
+      {stats.critical > 0 && previewOrder && (
         <div className="rounded-2xl border border-red-100 bg-red-50/30 overflow-hidden shadow-sm">
           <div className="bg-red-50/80 px-4 py-3 flex items-center gap-2 border-b border-red-100">
             <AlertCircle className="h-4 w-4 text-red-600" />
@@ -190,7 +227,7 @@ export function LaboratoryDashboardPage() {
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="rounded-md">All Orders</Badge>
                 <Badge className="bg-teal-50 text-teal-800 hover:bg-teal-100 border-none rounded-md">
-                  Pending Collection ({pendingCount})
+                  Pending Collection ({statsLoading ? '...' : stats.pending})
                 </Badge>
               </div>
             </div>
