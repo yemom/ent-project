@@ -63,6 +63,18 @@ services:
       timeout: 5s
       retries: 5
 
+  clinic-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clinic-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      clinic-app:
+        condition: service_healthy
+
 volumes:
   postgres_data:
     driver: local
