@@ -29,9 +29,9 @@ export const labOrdersService = {
   list: async (params?: Record<string, any>): Promise<{ content: LabOrder[]; totalElements: number; totalPages: number }> => {
     try {
       return fetchAllPages(async (page, size) => {
-        const queryParams = { ...params, page, size };
-        if (queryParams.status) {
-          queryParams.status = String(queryParams.status).toUpperCase();
+        const queryParams: Record<string, any> = { ...(params || {}), page, size };
+        if (params?.status) {
+          queryParams.status = String(params.status).toUpperCase();
         }
         const res = await axios.get(`${LAB_BASE}/api/lab-orders`, {
           params: queryParams,
