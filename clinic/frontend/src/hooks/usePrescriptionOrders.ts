@@ -10,6 +10,8 @@ interface UsePrescriptionOrdersOptions {
   enabled?: boolean;
 }
 
+type PrescriptionOrderListResponse = { content: PrescriptionOrderItem[]; totalElements: number; totalPages: number };
+
 export function usePrescriptionOrders(options: UsePrescriptionOrdersOptions = {}) {
   const [orders, setOrders] = useState<PrescriptionOrderItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,8 +24,8 @@ export function usePrescriptionOrders(options: UsePrescriptionOrdersOptions = {}
       setIsLoading(true);
       setError(null);
       try {
-        const data = await listPrescriptionOrders({ status: options.status });
-        setOrders(data.content || []);
+        const res = await listPrescriptionOrders({ status: options.status }) as PrescriptionOrderListResponse;
+        setOrders(res.content || []);
       } catch (err: any) {
         setError(getFriendlyErrorMessage(err, "We could not load prescription orders right now. Please try again."));
       } finally {
