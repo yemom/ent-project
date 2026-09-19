@@ -19,12 +19,12 @@ services:
 
   clinic-app:
     build:
-      context: ./clinic/backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: clinic-app
     restart: unless-stopped
     env_file:
-      - ./clinic/backend/.env
+      - ./backend/.env
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://clinic-postgres:5432/clinic_db
@@ -65,7 +65,7 @@ services:
 
   clinic-frontend:
     build:
-      context: ./clinic/frontend
+      context: ./frontend
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
