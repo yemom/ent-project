@@ -224,17 +224,3 @@ INSERT INTO users (
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ) ON CONFLICT (email) DO NOTHING;
-
--- =====================================================
--- PRIVILEGES (For multi-user database)
--- =====================================================
-
--- Grant appropriate privileges to application user
--- Note: Adjust 'clinic_user' to match your actual database user
-GRANT SELECT, INSERT, UPDATE, DELETE ON users TO clinic_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON appointments TO clinic_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON medical_records TO clinic_user;
-GRANT SELECT ON appointment_summaries TO clinic_user;
-GRANT SELECT ON patients TO clinic_user;
-GRANT SELECT ON doctors TO clinic_user;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO clinic_user;

@@ -185,11 +185,3 @@ GROUP BY p.id, p.full_name, p.email, p.phone;
 
 -- Index for materialized view
 CREATE INDEX idx_patient_summary_id ON patient_medical_summary(id);
-
--- =====================================================
--- GRANT PRIVILEGES FOR AUDIT TABLE
--- =====================================================
-
-GRANT SELECT, INSERT ON audit_logs TO clinic_user;
-GRANT SELECT ON doctor_appointment_stats TO clinic_user;
-GRANT SELECT ON patient_medical_summary TO clinic_user;
