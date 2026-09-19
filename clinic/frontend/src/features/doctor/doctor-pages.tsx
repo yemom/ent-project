@@ -247,3 +247,20 @@ function PatientLabOrders({ patientId }: { patientId: string }) {
   const { orders } = useLabOrders({ patientId });
   return <LabOrderList orders={orders} />;
 }
+// ── Re-export doctor page components ────────────────────────────────────────
+export { DoctorPatientDetailPage } from "./doctor-patient-detail-page";
+export { DoctorMedicalRecordDetailPage } from "./doctor-medical-record-detail-page";
+export { DoctorCreateAppointmentPage } from "./doctor-create-appointment-page";
+export { DoctorCreateRecordPage } from "./doctor-create-record-page";
+export { DoctorAppointmentsPage } from "./doctore-appointment-page";
+export { DoctorAvailabilityPage } from "./doctor-availablity-page";
+export { DoctorLabInvestigationsPage } from "./doctor-labinvestigation-page";
+export { DoctorPatientsPage } from "./doctor-patient-page";
+export { DoctorPrescriptionsPage } from "./doctor-presciption-page";
+export { DoctorPrescriptionManagementPage } from "./doctor-prescription-managment-page";
+export { DoctorOrderDrugPage } from "./doctor-order-drug-page";
+export { DoctorRecordsPage } from "./doctor-record-page";
+export { DoctorSchedulePage } from "./doctor-schedule-page";
+export { DoctorLabStatisticsPage } from "./doctor-lab-statistics-page";
+// Alias for missing Calendar page (if needed)
+export { DoctorSchedulePage as DoctorCalendarPage } from "./doctor-schedule-page";
