@@ -16,8 +16,11 @@ import java.net.URI;
 @Slf4j
 public class DatabaseConfig {
 
-    @Value("${spring.datasource.url:${DATABASE_URL:}}")
-    private String rawUrl;
+    @Value("${DATABASE_URL:}")
+    private String renderDatabaseUrl;
+
+    @Value("${spring.datasource.url:}")
+    private String springDatasourceUrl;
 
     @Value("${spring.datasource.username:}")
     private String username;
@@ -37,14 +40,38 @@ public class DatabaseConfig {
     @Value("${spring.datasource.hikari.connection-timeout:30000}")
     private long connectionTimeout;
 
+    private boolean isDummyDockerHost(String url) {
+        if (!StringUtils.hasText(url)) {
+            return false;
+        }
+        return url.contains("://postgres:") 
+                || url.contains("://postgres/") 
+                || url.contains("@postgres:") 
+                || url.contains("@postgres/");
+    }
+
     @Bean
     @Primary
     public DataSource dataSource() {
         HikariConfig config = new HikariConfig();
 
-        String resolvedUrl = rawUrl != null ? rawUrl.trim() : "";
+        String resolvedUrl = "";
         String resolvedUsername = username != null ? username.trim() : "";
         String resolvedPassword = password != null ? password.trim() : "";
+
+        // Smart URL resolution: if spring.datasource.url points to the docker host "postgres",
+        // but DATABASE_URL is available with the actual cloud database host, use DATABASE_URL.
+        if (StringUtils.hasText(renderDatabaseUrl) && !isDummyDockerHost(renderDatabaseUrl)) {
+            resolvedUrl = renderDatabaseUrl.trim();
+            log.info("Resolved database connection from DATABASE_URL");
+        } else if (StringUtils.hasText(springDatasourceUrl) && !isDummyDockerHost(springDatasourceUrl)) {
+            resolvedUrl = springDatasourceUrl.trim();
+            log.info("Resolved database connection from spring.datasource.url");
+        } else if (StringUtils.hasText(renderDatabaseUrl)) {
+            resolvedUrl = renderDatabaseUrl.trim();
+        } else if (StringUtils.hasText(springDatasourceUrl)) {
+            resolvedUrl = springDatasourceUrl.trim();
+        }
 
         if (StringUtils.hasText(resolvedUrl)) {
             // Automatically handle Render / Supabase postgres:// or postgresql:// URLs
@@ -75,9 +102,9 @@ public class DatabaseConfig {
                     if (uri.getQuery() != null) {
                         resolvedUrl += "?" + uri.getQuery();
                     }
-                    log.info("Converted cloud postgres URI to standard JDBC format: jdbc:postgresql://{}:{}/{}", uri.getHost(), port, dbPath);
+                    log.info("Converted cloud postgres URI to JDBC format: jdbc:postgresql://{}:{}/{}", uri.getHost(), port, dbPath);
                 } catch (Exception e) {
-                    log.warn("Could not parse postgres URI, falling back to direct string: {}", e.getMessage());
+                    log.warn("Could not parse postgres URI, falling back to raw string: {}", e.getMessage());
                 }
             }
         }
