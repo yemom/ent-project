@@ -2,9 +2,9 @@ spring:
   application:
     name: clinic
   datasource:
-    url: jdbc:postgresql://localhost:5432/clinic_db
-    username: clinic_user
-    password: clinic_secure_password_change_me
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/clinic_db}}
+    username: ${SPRING_DATASOURCE_USERNAME:clinic_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:clinic_secure_password_change_me}
     hikari:
       pool-name: ClinicHikariPool
       maximum-pool-size: 20
@@ -16,7 +16,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate:
         format_sql: true
@@ -33,7 +33,7 @@ spring:
     problemdetails:
       enabled: true
   cache:
-    type: redis
+    type: ${SPRING_CACHE_TYPE:simple}
     redis:
       time-to-live: 10m
       cache-null-values: false
@@ -63,7 +63,7 @@ management:
       show-details: when_authorized
   health:
     redis:
-      enabled: true
+      enabled: ${SPRING_REDIS_HEALTH_ENABLED:false}
 
 springdoc:
   swagger-ui:
@@ -80,9 +80,9 @@ logging:
 
 app:
   jwt:
-    secret: c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=
-    expiration-millis: 86400000
-    issuer: clinic
+    secret: ${APP_JWT_SECRET:c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=}
+    expiration-millis: ${APP_JWT_EXPIRATION_MILLIS:86400000}
+    issuer: ${APP_JWT_ISSUER:clinic}
   rate-limit:
     enabled: true
     requests: ${RATE_LIMIT_REQUESTS:120}
