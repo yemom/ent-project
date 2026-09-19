@@ -92,7 +92,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
+        configuration.setAllowedOrigins(Arrays.asList("https://yemom-hospital.vercel.app",
                 "http://localhost:3000",
                 "http://localhost:3001",
                 "http://localhost:3002",
