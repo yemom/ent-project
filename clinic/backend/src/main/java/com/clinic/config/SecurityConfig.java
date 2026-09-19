@@ -22,16 +22,36 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
-    @Value("${cors.allowed-origins}")
-    private String[] allowedOrigins;
-    
+    // Always-allowed origins (hardcoded production domains)
+    private static final List<String> DEFAULT_ALLOWED_ORIGINS = Arrays.asList(
+            "https://yemom-hospital.vercel.app",
+            "https://yemom-hospital-git-main-yemoms-projects.vercel.app",
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:3002",
+            "http://localhost:3003",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "http://192.168.137.1:3000",
+            "http://192.168.137.1:3001",
+            "http://192.168.20.27:3000",
+            "http://192.168.20.27:3001"
+    );
+
+    // Additional origins from environment / application.properties (e.g. CORS_ALLOWED_ORIGINS)
+    @Value("${cors.allowed-origins:}")
+    private String[] extraAllowedOrigins;
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApiRequestLoggingFilter apiRequestLoggingFilter;
     private final RateLimitingFilter rateLimitingFilter;
@@ -91,20 +111,18 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        // Merge hardcoded defaults with any extra origins from environment variables
+        List<String> allowedOrigins = new ArrayList<>(DEFAULT_ALLOWED_ORIGINS);
+        if (extraAllowedOrigins != null) {
+            for (String origin : extraAllowedOrigins) {
+                if (origin != null && !origin.isBlank() && !allowedOrigins.contains(origin.trim())) {
+                    allowedOrigins.add(origin.trim());
+                }
+            }
+        }
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("https://yemom-hospital.vercel.app",
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://localhost:3002",
-                "http://localhost:3003",
-                "http://127.0.0.1:3000",
-                "http://127.0.0.1:3001",
-                "http://127.0.0.1:3002",
-                "http://127.0.0.1:3003",
-                "http://192.168.137.1:3000",
-                "http://192.168.137.1:3001",
-                "http://192.168.20.27:3000",
-                "http://192.168.20.27:3001"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
