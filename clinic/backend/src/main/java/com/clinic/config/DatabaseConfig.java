@@ -84,11 +84,9 @@ public class DatabaseConfig {
                     URI uri = new URI(cleanUrl);
                     if (uri.getUserInfo() != null) {
                         String[] userInfo = uri.getUserInfo().split(":", 2);
-                        if (!StringUtils.hasText(resolvedUsername)) {
-                            resolvedUsername = userInfo[0];
-                        }
-                        if (userInfo.length > 1 && !StringUtils.hasText(resolvedPassword)) {
-                            resolvedPassword = userInfo[1];
+                        resolvedUsername = java.net.URLDecoder.decode(userInfo[0], java.nio.charset.StandardCharsets.UTF_8);
+                        if (userInfo.length > 1) {
+                            resolvedPassword = java.net.URLDecoder.decode(userInfo[1], java.nio.charset.StandardCharsets.UTF_8);
                         }
                     }
 
