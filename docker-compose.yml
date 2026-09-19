@@ -2,8 +2,8 @@
 # Multi‑service stack for the Clinic application
 # --------------------------------------------------------------
 #  • Nginx (load‑balancer) – exposes port 80
-#  • Two Front‑end instances (Next.js) – built from ../frontend
-#  • Two Back‑end instances (Spring) – built from ../backend
+#  • Two Front‑end instances (Next.js) – built from clinic/frontend
+#  • Two Back‑end instances (Spring) – built from clinic/backend
 #  • PostgreSQL
 #  • Redis
 # --------------------------------------------------------------
@@ -19,9 +19,7 @@ services:
     ports:
       - "80:80" # host 80 → container 80
     volumes:
-      # NOTE: Fixed the typo “negixs” → “nginx”. Adjust the path if your
-      # config lives elsewhere.
-      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./negixs/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - frontend_1
       - frontend_2
@@ -35,13 +33,13 @@ services:
   # ------------------------------------------------------------------
   frontend_1:
     build:
-      context: ../frontend # path relative to this file
+      context: ./clinic/frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost/api/v1
+        NEXT_PUBLIC_APP_URL: http://localhost
     container_name: clinic-frontend-1
     restart: unless-stopped
-    environment:
-      # The front‑end talks to the API through nginx
-      - NEXT_PUBLIC_API_URL=http://nginx/api
     expose:
       - "3000" # only reachable inside the network
     networks:
@@ -49,12 +47,13 @@ services:
 
   frontend_2:
     build:
-      context: ../frontend
+      context: ./clinic/frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost/api/v1
+        NEXT_PUBLIC_APP_URL: http://localhost
     container_name: clinic-frontend-2
     restart: unless-stopped
-    environment:
-      - NEXT_PUBLIC_API_URL=http://nginx/api
     expose:
       - "3000"
     networks:
@@ -65,12 +64,12 @@ services:
   # ------------------------------------------------------------------
   backend_1:
     build:
-      context: ../backend
+      context: ./clinic/backend
       dockerfile: Dockerfile
     container_name: clinic-backend-1
     restart: unless-stopped
     env_file:
-      - ../backend/.env # optional – keep DB credentials etc.
+      - ./clinic/backend/.env # optional – keep DB credentials etc.
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/clinic_db
@@ -98,12 +97,12 @@ services:
 
   backend_2:
     build:
-      context: ../backend
+      context: ./clinic/backend
       dockerfile: Dockerfile
     container_name: clinic-backend-2
     restart: unless-stopped
     env_file:
-      - ../backend/.env
+      - ./clinic/backend/.env
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/clinic_db
