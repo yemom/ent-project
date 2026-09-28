@@ -23,11 +23,18 @@ spec:
         com.docker.compose.service: clinic-app
         com.docker.compose.network.default: "true"
     spec:
-      restartPolicy: unless-stopped
+      restartPolicy: Always
       containers:
         - name: clinic-app
           image: clinic-clinic-app
           imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
           env:
             - name: ADMIN_EMAIL
               value: "12yemom@gmail.com"
