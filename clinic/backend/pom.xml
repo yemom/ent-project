@@ -61,6 +61,13 @@
             <scope>runtime</scope>
         </dependency>
 
+                <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-docker-compose</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- H2 for Testing -->
         <dependency>
             <groupId>com.h2database</groupId>
@@ -343,3 +350,4 @@
     </build>
 
 </project>
+
