@@ -8,9 +8,12 @@ import type { ApiErrorResponse } from '@/types/api';
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
   timeout: 60_000,
-  withCredentials: true
+  withCredentials: false,
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  },
 });
-
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const accessToken = useAuthStore.getState().accessToken ?? tokenStorage.getAccessToken();
   if (accessToken) {
