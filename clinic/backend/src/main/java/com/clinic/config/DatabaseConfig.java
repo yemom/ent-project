@@ -11,11 +11,11 @@ import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.net.URI;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
 @Slf4j
-@ConditionalOnProperty(name = "spring.datasource.driver-class-name", havingValue = "org.postgresql.Driver", matchIfMissing = true)
+@Profile("prod")
 public class DatabaseConfig {
 
     @Value("${DATABASE_URL:}")
