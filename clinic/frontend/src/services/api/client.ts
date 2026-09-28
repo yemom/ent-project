@@ -7,7 +7,7 @@ import type { ApiErrorResponse } from '@/types/api';
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
-  timeout: 20_000,
+  timeout: 60_000,
   withCredentials: true
 });
 
