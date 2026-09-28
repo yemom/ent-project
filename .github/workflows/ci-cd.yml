@@ -58,9 +58,11 @@ jobs:
 
       - name: Upload backend test reports
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-reports
+          if-no-files-found: warn
           path: |
             clinic/backend/target/surefire-reports
             clinic/backend/target/site/jacoco
