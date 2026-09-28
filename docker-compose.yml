@@ -1,36 +1,54 @@
 # --------------------------------------------------------------
-# Multi‑service stack for the Clinic application
+# Clinic Management System - Local Docker Stack
 # --------------------------------------------------------------
-#  • Nginx (load‑balancer) – exposes port 80
-#  • Two Front‑end instances (Next.js) – built from clinic/frontend
-#  • Two Back‑end instances (Spring) – built from clinic/backend
-#  • PostgreSQL
-#  • Redis
+#
+# Services:
+#   Nginx       -> Reverse proxy / load balancer
+#   Frontend 1  -> Next.js
+#   Frontend 2  -> Next.js
+#   Backend 1   -> Spring Boot
+#   Backend 2   -> Spring Boot
+#   PostgreSQL  -> Database
+#   Redis       -> Cache
+#
+# Access:
+#   Frontend: http://localhost
+#   Backend:  http://localhost/api/v1
+#
 # --------------------------------------------------------------
 
 services:
-  # ------------------------------------------------------------------
-  #  NGINX – reverse proxy / load‑balancer
-  # ------------------------------------------------------------------
+
+  # ============================================================
+  # NGINX
+  # ============================================================
   nginx:
     image: nginx:alpine
     container_name: clinic-nginx
     restart: unless-stopped
+
     ports:
-      - "80:80" # host 80 → container 80
+      - "80:80"
+
     volumes:
-      - ./negixs/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
     depends_on:
-      - frontend_1
-      - frontend_2
-      - backend_1
-      - backend_2
+      frontend_1:
+        condition: service_started
+      frontend_2:
+        condition: service_started
+      backend_1:
+        condition: service_started
+      backend_2:
+        condition: service_started
+
     networks:
       - clinic_network
 
-  # ------------------------------------------------------------------
-  #  FRONT‑END instances (Next.js)
-  # ------------------------------------------------------------------
+  # ============================================================
+  # FRONTEND 1
+  # ============================================================
   frontend_1:
     build:
       context: ./clinic/frontend
@@ -38,13 +56,19 @@ services:
       args:
         NEXT_PUBLIC_API_BASE_URL: http://localhost/api/v1
         NEXT_PUBLIC_APP_URL: http://localhost
+
     container_name: clinic-frontend-1
     restart: unless-stopped
+
     expose:
-      - "3000" # only reachable inside the network
+      - "3000"
+
     networks:
       - clinic_network
 
+  # ============================================================
+  # FRONTEND 2
+  # ============================================================
   frontend_2:
     build:
       context: ./clinic/frontend
@@ -52,137 +76,194 @@ services:
       args:
         NEXT_PUBLIC_API_BASE_URL: http://localhost/api/v1
         NEXT_PUBLIC_APP_URL: http://localhost
+
     container_name: clinic-frontend-2
     restart: unless-stopped
+
     expose:
       - "3000"
+
     networks:
       - clinic_network
 
-  # ------------------------------------------------------------------
-  #  BACK‑END instances (Spring Boot)
-  # ------------------------------------------------------------------
+  # ============================================================
+  # BACKEND 1
+  # ============================================================
   backend_1:
     build:
       context: ./clinic/backend
       dockerfile: Dockerfile
+
     container_name: clinic-backend-1
     restart: unless-stopped
+
     env_file:
-      - ./clinic/backend/.env # optional – keep DB credentials etc.
+      - ./clinic/backend/.env
+
     environment:
       SPRING_PROFILES_ACTIVE: prod
+
+      # Docker PostgreSQL service
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/clinic_db
       SPRING_DATASOURCE_USERNAME: clinic_user
       SPRING_DATASOURCE_PASSWORD: clinic_secure_password_change_me
+
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_ENABLED: "true"
+
+      # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      APP_JWT_SECRET: c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=
+
+      # JWT
       APP_JWT_EXPIRATION_MILLIS: 86400000
       APP_JWT_ISSUER: clinic
+
+      # CORS
+      CORS_ALLOWED_ORIGINS: http://localhost
+
+      # Actuator
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
-      CORS_ALLOWED_ORIGINS: http://localhost,http://nginx,http://192.168.20.27
+
     expose:
       - "8080"
+
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
     networks:
       - clinic_network
 
+  # ============================================================
+  # BACKEND 2
+  # ============================================================
   backend_2:
     build:
       context: ./clinic/backend
       dockerfile: Dockerfile
+
     container_name: clinic-backend-2
     restart: unless-stopped
+
     env_file:
       - ./clinic/backend/.env
+
     environment:
       SPRING_PROFILES_ACTIVE: prod
+
+      # Docker PostgreSQL service
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/clinic_db
       SPRING_DATASOURCE_USERNAME: clinic_user
       SPRING_DATASOURCE_PASSWORD: clinic_secure_password_change_me
+
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_ENABLED: "true"
+
+      # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      APP_JWT_SECRET: c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=
+
+      # JWT
       APP_JWT_EXPIRATION_MILLIS: 86400000
       APP_JWT_ISSUER: clinic
+
+      # CORS
+      CORS_ALLOWED_ORIGINS: http://localhost
+
+      # Actuator
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
-      CORS_ALLOWED_ORIGINS: http://localhost,http://nginx,http://192.168.20.27
+
     expose:
       - "8080"
+
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
     networks:
       - clinic_network
 
-  # ------------------------------------------------------------------
-  #  POSTGRES – database
-  # ------------------------------------------------------------------
+  # ============================================================
+  # POSTGRESQL
+  # ============================================================
   postgres:
     image: postgres:16-alpine
+
     container_name: clinic-postgres
     restart: unless-stopped
+
     environment:
       POSTGRES_USER: clinic_user
       POSTGRES_PASSWORD: clinic_secure_password_change_me
       POSTGRES_DB: clinic_db
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     expose:
       - "5432"
+
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U clinic_user -d clinic_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+
     networks:
       - clinic_network
 
-  # ------------------------------------------------------------------
-  #  REDIS – cache / session store
-  # ------------------------------------------------------------------
+  # ============================================================
+  # REDIS
+  # ============================================================
   redis:
     image: redis:7-alpine
+
     container_name: clinic-redis
     restart: unless-stopped
+
     command: [ "redis-server", "--appendonly", "yes" ]
+
     volumes:
       - redis_data:/data
+
     expose:
       - "6379"
+
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
+
     networks:
       - clinic_network
 
-# ----------------------------------------------------------------------
-#  Persistent storage
-# ----------------------------------------------------------------------
+# ==============================================================
+# PERSISTENT STORAGE
+# ==============================================================
+
 volumes:
+
   postgres_data:
     driver: local
+
   redis_data:
     driver: local
 
-# ----------------------------------------------------------------------
-#  Network (single bridge for all services)
-# ----------------------------------------------------------------------
+# ==============================================================
+# NETWORK
+# ==============================================================
+
 networks:
+
   clinic_network:
     driver: bridge

@@ -18,13 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class AdminUserInitializer implements ApplicationRunner {
 
-    @Value("${ADMIN_NAME:ESrom Basazinaw}")
+    @Value("${ADMIN_NAME:Esrom Basazinaw}")
     private String adminName;
 
     @Value("${ADMIN_EMAIL:12yemom@gmail.com}")
     private String adminEmail;
 
-    @Value("${ADMIN_PASSWORD:Admin123!}")
+    @Value("${ADMIN_PASSWORD:Fekerte@zegeye1221}")
     private String adminPassword;
 
     private final UserRepository userRepository;
@@ -33,7 +33,8 @@ public class AdminUserInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        // Only create admin if it does not already exist. Do not modify existing accounts on startup.
+        // Only create admin if it does not already exist. Do not modify existing
+        // accounts on startup.
         boolean exists = userRepository.findByEmail(adminEmail).isPresent();
         if (exists) {
             log.info("Admin account already exists for email={}; skipping creation.", adminEmail);
@@ -43,7 +44,7 @@ public class AdminUserInitializer implements ApplicationRunner {
         String passwordToUse = adminPassword != null && !adminPassword.isBlank() ? adminPassword : "Admin123!";
         if (!PasswordPolicy.isValid(passwordToUse)) {
             log.warn("ADMIN_PASSWORD does not meet policy requirements; using default strong password.");
-            passwordToUse = "Admin123!";
+            passwordToUse = "Fekerte@zegeye1221"; // Default strong password
         }
 
         Patient adminUser = Patient.builder()
