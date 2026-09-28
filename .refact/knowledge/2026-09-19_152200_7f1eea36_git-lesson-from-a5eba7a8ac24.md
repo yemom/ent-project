@@ -5,7 +5,7 @@ tags:
 - git
 - lesson
 created: 2026-09-19
-updated: 2026-09-20
+updated: 2026-09-28
 filenames:
 - clinic/backend/src/main/java/com/clinic/config/SecurityConfig.java
 links: []
@@ -13,7 +13,7 @@ kind: lesson
 status: proposed
 superseded_by: null
 deprecated_at: null
-review_after: 2026-09-20
+review_after: 2026-09-28
 source_chat_id: null
 created_at: 2026-09-19T12:22:00.974954700+00:00
 summary: null

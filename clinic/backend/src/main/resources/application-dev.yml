@@ -1,7 +1,6 @@
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:clinic_dev;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false}
-    driver-class-name: org.h2.Driver
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     hikari:
@@ -9,17 +8,10 @@ spring:
       minimum-idle: 2
   jpa:
     hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-        format_sql: false
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     open-in-view: false
   flyway:
-    enabled: false
-  sql:
-    init:
-      mode: always
+    enabled: ${SPRING_FLYWAY_ENABLED:false}
   jackson:
     serialization:
       write-dates-as-timestamps: false
