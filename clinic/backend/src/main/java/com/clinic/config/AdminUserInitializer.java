@@ -41,7 +41,9 @@ public class AdminUserInitializer implements ApplicationRunner {
             return;
         }
 
-        String passwordToUse = adminPassword != null && !adminPassword.isBlank() ? adminPassword : "Admin123!";
+        String passwordToUse = adminPassword != null && !adminPassword.isBlank() ? adminPassword : "Fekerte@zegeye1221"; // Default
+                                                                                                                         // strong
+                                                                                                                         // password
         if (!PasswordPolicy.isValid(passwordToUse)) {
             log.warn("ADMIN_PASSWORD does not meet policy requirements; using default strong password.");
             passwordToUse = "Fekerte@zegeye1221"; // Default strong password
