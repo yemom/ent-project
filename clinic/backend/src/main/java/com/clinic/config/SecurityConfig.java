@@ -36,6 +36,8 @@ public class SecurityConfig {
     private static final List<String> DEFAULT_ALLOWED_ORIGINS = Arrays.asList(
             "https://yemom-hospital.vercel.app",
             "https://yemom-hospital-git-main-yemoms-projects.vercel.app",
+            "https://hotel-managment-system.vercel.app",
+            "https://hotel-managment-system-git-main-yemoms-projects.vercel.app",
             "http://localhost:3000",
             "http://localhost:3001",
             "http://localhost:3002",

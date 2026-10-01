@@ -21,9 +21,10 @@ RUN chown -R clinic:clinic /app
 
 USER clinic
 
-EXPOSE 8080
+ENV PORT=8080
+EXPOSE ${PORT}
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
-  CMD curl -fsS http://localhost:8080/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
+  CMD curl -fsS http://localhost:${PORT}/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

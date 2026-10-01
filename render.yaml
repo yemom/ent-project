@@ -1,0 +1,42 @@
+services:
+  # ── Spring Boot backend ─────────────────────────────────────────────
+  - type: web
+    name: ent-project-backend
+    runtime: docker
+    dockerfilePath: ./clinic/backend/Dockerfile
+    dockerContext: ./clinic/backend
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: ADMIN_NAME
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: validate
+      - key: SPRING_FLYWAY_ENABLED
+        value: "true"
+      - key: APP_JWT_SECRET
+        sync: false
+      - key: APP_JWT_EXPIRATION_MILLIS
+        value: "86400000"
+      - key: APP_JWT_ISSUER
+        value: clinic
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://yemom-hospital.vercel.app,http://localhost:3000"
+      - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: health,info
+      - key: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+        value: "true"
+    healthCheckPath: /actuator/health

@@ -5,7 +5,7 @@ tags:
 - git
 - lesson
 created: 2026-09-28
-updated: 2026-09-28
+updated: 2026-09-29
 filenames:
 - clinic/backend/src/main/resources/application-dev.yml
 - clinic/backend/src/main/resources/application.yml
@@ -14,7 +14,7 @@ kind: lesson
 status: proposed
 superseded_by: null
 deprecated_at: null
-review_after: 2026-09-28
+review_after: 2026-09-29
 source_chat_id: null
 created_at: 2026-09-28T11:28:23.457382500+00:00
 summary: null
