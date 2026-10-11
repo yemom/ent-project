@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth-store';
 import type { PageResponse } from '@/types/api';
 import type { LabNotification } from '../types';
 
-const LAB_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1').replace(/\/api\/v1$/, '');
+const LAB_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8090/api/v1').replace(/\/api\/v1$/, '');
 
 function getAuthHeader() {
   const token = useAuthStore.getState().accessToken;

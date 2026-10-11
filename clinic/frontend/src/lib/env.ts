@@ -16,7 +16,7 @@ function normaliseBaseUrl(value: string | undefined, fallback: string): string {
 export const env = {
   apiBaseUrl: normaliseBaseUrl(
     process.env.NEXT_PUBLIC_API_BASE_URL,
-    'http://localhost:8080/api/v1'
+    'http://localhost:8090/api/v1'
   ),
   appUrl: normaliseBaseUrl(process.env.NEXT_PUBLIC_APP_URL, 'http://localhost:3000')
 } as const;

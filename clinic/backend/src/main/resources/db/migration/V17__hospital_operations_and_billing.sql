@@ -128,20 +128,32 @@ CREATE TABLE IF NOT EXISTS invoice_lines (
 
 CREATE INDEX IF NOT EXISTS idx_invoice_lines_invoice ON invoice_lines(invoice_id);
 
+-- Drop stale payments table (and its dependent receipts) if invoice_id column is missing.
+-- This handles partial/failed runs that left the table incomplete.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'payments')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name = 'payments' AND column_name = 'invoice_id') THEN
+        DROP TABLE IF EXISTS receipts CASCADE;
+        DROP TABLE IF EXISTS payments CASCADE;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS payments (
-    id            VARCHAR(36)   PRIMARY KEY,
-    created_at    TIMESTAMP     NOT NULL,
-    updated_at    TIMESTAMP     NOT NULL,
-    deleted       BOOLEAN       NOT NULL DEFAULT FALSE,
-    deleted_at    TIMESTAMP,
-    payment_ref   VARCHAR(40)   NOT NULL,
-    invoice_id    VARCHAR(36)   NOT NULL REFERENCES invoices(id) ON DELETE RESTRICT,
-    amount        DECIMAL(12,2) NOT NULL,
-    method        VARCHAR(20)   NOT NULL DEFAULT 'CASH',
-    status        VARCHAR(20)   NOT NULL DEFAULT 'COMPLETED',
+    id             VARCHAR(36)   PRIMARY KEY,
+    created_at     TIMESTAMP     NOT NULL,
+    updated_at     TIMESTAMP     NOT NULL,
+    deleted        BOOLEAN       NOT NULL DEFAULT FALSE,
+    deleted_at     TIMESTAMP,
+    payment_ref    VARCHAR(40)   NOT NULL,
+    invoice_id     VARCHAR(36)   NOT NULL REFERENCES invoices(id) ON DELETE RESTRICT,
+    amount         DECIMAL(12,2) NOT NULL,
+    method         VARCHAR(20)   NOT NULL DEFAULT 'CASH',
+    status         VARCHAR(20)   NOT NULL DEFAULT 'COMPLETED',
     received_by_id VARCHAR(36),
-    received_at   TIMESTAMP     NOT NULL,
-    notes         VARCHAR(500),
+    received_at    TIMESTAMP     NOT NULL,
+    notes          VARCHAR(500),
     CONSTRAINT uk_payments_ref UNIQUE (payment_ref),
     CONSTRAINT check_payments_amount CHECK (amount > 0),
     CONSTRAINT check_payments_method CHECK (method IN ('CASH', 'CARD', 'MOBILE', 'INSURANCE', 'BANK_TRANSFER')),

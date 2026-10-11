@@ -5,9 +5,10 @@ import type { CreateLabOrderDto, LabOrder } from '../types';
 import { fetchAllPages } from '@/services/api/page-utils';
 
 // The lab-orders backend controller is at /api/lab-orders (no /v1 in path)
-// The main apiClient base URL is http://localhost:8080/api/v1, so we use
+// The main apiClient base URL is http://localhost:8090/api/v1 in Docker-backed
+// local development, so we use
 // the raw base without the /v1 suffix for these endpoints.
-const LAB_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1').replace(/\/api\/v1$/, '');
+const LAB_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8090/api/v1').replace(/\/api\/v1$/, '');
 
 function getAuthHeader() {
   const token = useAuthStore.getState().accessToken;

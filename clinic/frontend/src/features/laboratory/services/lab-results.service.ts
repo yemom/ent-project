@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth-store';
 import type { LabResult, SubmitLabResultDto } from '../types';
 
 // The lab-results backend controller is at /api/lab-results (no /v1 in path)
-const LAB_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1').replace(/\/api\/v1$/, '');
+const LAB_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8090/api/v1').replace(/\/api\/v1$/, '');
 
 function getAuthHeader() {
   const token = useAuthStore.getState().accessToken;

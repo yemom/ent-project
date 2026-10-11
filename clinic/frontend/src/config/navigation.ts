@@ -175,7 +175,6 @@ export const NAVIGATION_CONFIG: Record<string, NavGroup[]> = {
       icon: CalendarDays,
       children: [
         { label: 'Appointments', href: '/doctor/appointments' },
-        { label: 'Calendar', href: '/doctor/schedule' },
         { label: 'Schedule', href: '/doctor/schedule' },
         { label: 'Availability', href: '/doctor/availability' },
       ],

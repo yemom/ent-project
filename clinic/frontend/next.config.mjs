@@ -43,6 +43,7 @@ const nextConfig = {
   allowedDevOrigins: [
     'localhost',
     '127.0.0.1',
+    '10.200.13.137',
     '*.local',
   ],
   webpack: (config) => {

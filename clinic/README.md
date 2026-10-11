@@ -107,8 +107,10 @@ Environment variables (common)
   - `SPRING_DATASOURCE_URL` — JDBC URL for PostgreSQL
   - `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`
   - `APP_JWT_SECRET` (or `spring.security.jwt.secret`) — JWT signing secret
-- Frontend: in `env` or `next.config.ts` / runtime environment. Typical variables:
-  - `NEXT_PUBLIC_API_BASE` — API base URL (e.g. `http://localhost:8080`)
+- Frontend: in `frontend/.env.local` for local development or build args/runtime
+  environment for Docker/deployments. Typical variables:
+  - `NEXT_PUBLIC_API_BASE_URL` — API base URL including `/api/v1` (for the
+    default Docker Compose setup use `http://localhost:8090/api/v1`)
 
 Notes, tips and gotchas
 
