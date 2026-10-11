@@ -4,6 +4,38 @@
 -- rooms, admissions, invoices/payments/receipts, and nurse observations.
 -- Additive only — nothing existing is dropped or retyped.
 
+-- Drop any tables left in a partial/broken state from a prior failed run of this
+-- migration. Detect by checking for columns that should exist but don't.
+-- Tables are dropped in reverse-dependency order so FK constraints are satisfied.
+DO $$
+BEGIN
+    -- Check if departments was created without 'name' (partial state)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'departments')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name = 'departments' AND column_name = 'name') THEN
+        DROP TABLE IF EXISTS nurse_observations CASCADE;
+        DROP TABLE IF EXISTS receipts           CASCADE;
+        DROP TABLE IF EXISTS payments           CASCADE;
+        DROP TABLE IF EXISTS invoice_lines      CASCADE;
+        DROP TABLE IF EXISTS invoices           CASCADE;
+        DROP TABLE IF EXISTS admissions         CASCADE;
+        DROP TABLE IF EXISTS rooms              CASCADE;
+        DROP TABLE IF EXISTS wards              CASCADE;
+        DROP TABLE IF EXISTS departments        CASCADE;
+    END IF;
+
+    -- Check if invoices was created without 'invoice_number' (partial state)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'invoices')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name = 'invoices' AND column_name = 'invoice_number') THEN
+        DROP TABLE IF EXISTS nurse_observations CASCADE;
+        DROP TABLE IF EXISTS receipts           CASCADE;
+        DROP TABLE IF EXISTS payments           CASCADE;
+        DROP TABLE IF EXISTS invoice_lines      CASCADE;
+        DROP TABLE IF EXISTS invoices           CASCADE;
+    END IF;
+END $$;
+
 -- =====================================================
 -- 1. DEPARTMENTS / WARDS / ROOMS / ADMISSIONS
 -- =====================================================

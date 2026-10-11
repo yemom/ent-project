@@ -14,6 +14,20 @@
 --   * `stock_movements` is append-only: the audit triggers from V3 are extended to
 --     it in the same migration so history cannot be edited away.
 
+-- Drop stale pharmacy tables (in dependency order) if suppliers.name is missing.
+-- This handles partial/failed runs that left the tables incomplete.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'suppliers')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name = 'suppliers' AND column_name = 'name') THEN
+        DROP TABLE IF EXISTS stock_movements CASCADE;
+        DROP TABLE IF EXISTS stock_batches    CASCADE;
+        DROP TABLE IF EXISTS medicines        CASCADE;
+        DROP TABLE IF EXISTS suppliers        CASCADE;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS suppliers (
     id           VARCHAR(36)  PRIMARY KEY,
     created_at   TIMESTAMP    NOT NULL,
