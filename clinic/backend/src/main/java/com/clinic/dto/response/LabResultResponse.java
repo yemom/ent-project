@@ -10,6 +10,8 @@ public record LabResultResponse(
         String findings,
         String fileUrl,
         LabResultStatus status,
+        /** Whether the technician flagged this result as clinically critical. */
+        boolean critical,
         LocalDateTime submittedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {

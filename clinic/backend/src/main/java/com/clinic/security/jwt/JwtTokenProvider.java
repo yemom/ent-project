@@ -11,8 +11,14 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,6 +26,8 @@ import java.util.stream.Collectors;
 
 @Component
 public class JwtTokenProvider {
+
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final JwtProperties properties;
     private final SecretKey secretKey;
@@ -50,6 +58,30 @@ public class JwtTokenProvider {
                 .claim("roles", roles)
                 .signWith(secretKey, Jwts.SIG.HS512)
                 .compact();
+    }
+
+    /**
+     * Opaque, high-entropy refresh token. Not a JWT on purpose: it is only ever
+     * verified against the stored hash, which keeps revocation authoritative.
+     */
+    public String generateRefreshToken() {
+        byte[] bytes = new byte[48];
+        RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /** SHA-256 of the token; only this is persisted. */
+    public String hashRefreshToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
+    public Duration refreshTokenTtl() {
+        return Duration.ofMillis(properties.refreshExpirationMillis());
     }
 
     public String getUsernameFromToken(String token) {

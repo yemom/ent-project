@@ -61,4 +61,55 @@ public abstract class User extends BaseEntity {
     @Builder.Default
     private Boolean active = true;
 
+    /**
+     * Owning branch for staff accounts. Patient rows carry their own branch_id.
+     * Every scoped query filters on this so a branch never sees another branch's
+     * records; a null value means "unscoped" and is only possible for the
+     * platform-level super admin.
+     */
+    @Column(name = "branch_id", length = 36)
+    private String branchId;
+
+    @Column(name = "department", length = 100)
+    private String department;
+
+    @Column(name = "ward", length = 100)
+    private String ward;
+
+    /**
+     * Forces a password change on the next sign-in.
+     *
+     * <p>Set when an administrator issues a temporary credential. Without it a
+     * handed-out password would remain valid indefinitely, which is how shared
+     * "initial passwords" quietly become permanent ones.
+     */
+    @Builder.Default
+    @Column(name = "must_change_password", nullable = false)
+    private Boolean mustChangePassword = false;
+
+    /**
+     * Why this account was deactivated. Required on deactivation.
+     *
+     * <p>Recorded so "when did this clinician lose access, and who decided" is
+     * answerable later without reconstructing it from log files.
+     */
+    @Column(name = "deactivation_reason", length = 500)
+    private String deactivationReason;
+
+    @Column(name = "deactivated_at")
+    private java.time.LocalDateTime deactivatedAt;
+
+    /** Clears the deactivation trail when an account is reactivated. */
+    public void activate() {
+        this.active = true;
+        this.deactivationReason = null;
+        this.deactivatedAt = null;
+    }
+
+    public void deactivate(String reason) {
+        this.active = false;
+        this.deactivationReason = reason;
+        this.deactivatedAt = java.time.LocalDateTime.now();
+    }
+
 }

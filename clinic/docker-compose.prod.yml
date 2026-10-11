@@ -63,6 +63,17 @@ services:
       # CORS
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
 
+      # Super Admin bootstrap.
+      #
+      # Required rather than optional on purpose. Without SUPER_ADMIN_PASSWORD the
+      # initializer generates a random password, logs that it did, and produces a
+      # deployment nobody can sign into — and a container is restarted from scratch,
+      # so there is no second chance to read it out of a log. Failing loudly at boot
+      # is the better outcome.
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:?set SUPER_ADMIN_NAME}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:?set SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?set SUPER_ADMIN_PASSWORD}
+
       # Actuator
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:-health,info}
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: ${MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED:-true}

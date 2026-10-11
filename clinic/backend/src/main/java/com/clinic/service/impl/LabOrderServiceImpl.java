@@ -5,17 +5,20 @@ import com.clinic.dto.request.UpdateLabOrderStatusRequest;
 import com.clinic.dto.response.LabOrderResponse;
 import com.clinic.entity.LabOrder;
 import com.clinic.entity.LabOrderStatus;
+import com.clinic.entity.NotificationType;
 import com.clinic.entity.User;
+import com.clinic.entity.UserRole;
 import com.clinic.exception.ResourceNotFoundException;
 import com.clinic.mapper.LabOrderMapper;
 import com.clinic.repository.LabOrderRepository;
 import com.clinic.repository.UserRepository;
 import com.clinic.service.LabOrderService;
+import com.clinic.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,11 +35,16 @@ public class LabOrderServiceImpl implements LabOrderService {
 
     private final LabOrderRepository labOrderRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final LabOrderMapper mapper;
 
-    public LabOrderServiceImpl(LabOrderRepository labOrderRepository, UserRepository userRepository, LabOrderMapper mapper) {
+    public LabOrderServiceImpl(LabOrderRepository labOrderRepository,
+                               UserRepository userRepository,
+                               NotificationService notificationService,
+                               LabOrderMapper mapper) {
         this.labOrderRepository = labOrderRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
         this.mapper = mapper;
     }
 
@@ -45,7 +53,17 @@ public class LabOrderServiceImpl implements LabOrderService {
     public LabOrderResponse create(CreateLabOrderRequest request) {
         LabOrder order = mapper.toEntity(request);
         LabOrder saved = labOrderRepository.save(order);
-        log.info("Created lab order id={}", saved.getId());
+        log.info("Created lab order id={} for patient={}", saved.getId(), saved.getPatientId());
+
+        // Lab staff and the pharmacy need to know an investigation was requested.
+        notificationService.notifyRoles(
+                Set.of(UserRole.LAB_TECHNICIAN, UserRole.LABORATORY, UserRole.PHARMACIST),
+                NotificationType.LAB_ORDER_CREATED,
+                "New lab order",
+                String.format("Lab order %s was created for patient %s (%s urgency).",
+                        saved.getId(), saved.getPatientId(), saved.getUrgency()),
+                saved.getId(),
+                "/laboratory/orders/" + saved.getId());
         return mapper.toResponse(saved);
     }
 
@@ -107,6 +125,10 @@ public class LabOrderServiceImpl implements LabOrderService {
         return page.map(order -> mapper.toResponse(order, userNamesById));
     }
 
+    /**
+     * Loads patient/doctor display names for the whole page in one query.
+     * This replaces a per-row lookup that made list endpoints N+1.
+     */
     private Map<String, String> loadUserNames(Page<LabOrder> page) {
         Set<String> userIds = page.getContent().stream()
                 .flatMap(order -> java.util.stream.Stream.of(order.getPatientId(), order.getDoctorId()))

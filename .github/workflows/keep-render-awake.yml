@@ -1,0 +1,49 @@
+name: Keep Render awake
+
+# Render free instances spin down after ~15 minutes of inactivity. A 10-minute
+# ping to the public, DB-free liveness endpoint keeps the container hot so the
+# first real user request (especially POST /auth/login) never hits a cold start.
+on:
+  schedule:
+    # Every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-render-awake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping backend liveness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping backend health endpoint
+        env:
+          # Repository secret, e.g. https://ent-project-backend.onrender.com
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "::notice::BACKEND_URL secret is not configured; skipping keep-alive."
+            exit 0
+          fi
+
+          # Give a cold instance room to boot before deciding it failed.
+          MAX_ATTEMPTS=4
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${BACKEND_URL%/}/api/v1/health" || true)
+            if [ "$code" = "200" ]; then
+              echo "Backend healthy (attempt ${attempt}, HTTP ${code})."
+              exit 0
+            fi
+            echo "Attempt ${attempt}/${MAX_ATTEMPTS}: HTTP ${code:-000} - retrying in 15s..."
+            sleep 15
+          done
+
+          echo "::warning::Backend did not report healthy after ${MAX_ATTEMPTS} attempts."
+          exit 0

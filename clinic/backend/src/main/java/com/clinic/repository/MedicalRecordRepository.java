@@ -38,4 +38,7 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, St
 
     @EntityGraph(attributePaths = {"patient", "doctor", "appointment"})
     Page<MedicalRecord> findByRecordDateBetween(LocalDate from, LocalDate to, Pageable pageable);
+
+    /** Signed records are immutable; this counts that immutable subset. */
+    long countBySignedAtIsNotNull();
 }

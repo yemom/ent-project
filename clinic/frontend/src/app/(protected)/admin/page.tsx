@@ -1,5 +1,5 @@
-import { AdminDashboardPage } from '@/features/admin/admin-pages';
+import { SuperAdminDashboardPage } from '@/features/admin/super-admin-dashboard';
 
 export default function Page() {
-  return <AdminDashboardPage />;
+  return <SuperAdminDashboardPage />;
 }

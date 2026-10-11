@@ -77,6 +77,19 @@ export function toUserFacingError(err: unknown, fallback?: string) {
   return new Error(getFriendlyErrorMessage(err, fallback));
 }
 
+/**
+ * The backend's own message, unmodified.
+ *
+ * <p>Use this when the message has to be interpreted rather than displayed — mapping
+ * a validation failure back onto a specific form field, for instance.
+ * {@link getFriendlyErrorMessage} deliberately rewrites wording ("invalid…" becomes
+ * "Please review the form fields"), which is right for a banner but destroys the
+ * information needed to decide which input is at fault.
+ */
+export function getApiErrorMessage(err: unknown): string {
+  return String(parseApiError(err).message ?? '').trim();
+}
+
 function hasMessage(err: unknown): err is { message: string } {
   return Boolean(
     err
@@ -92,4 +105,4 @@ function getBackendErrorMessage(data: unknown) {
   return typeof body.message === 'string' ? body.message : undefined;
 }
 
-export default { parseApiError, getFriendlyErrorMessage, isAxiosError, getRetryAfterSeconds, toRateLimitMessage, toUserFacingError };
+export default { parseApiError, getApiErrorMessage, getFriendlyErrorMessage, isAxiosError, getRetryAfterSeconds, toRateLimitMessage, toUserFacingError };

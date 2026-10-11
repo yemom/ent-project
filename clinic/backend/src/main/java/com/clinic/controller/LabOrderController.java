@@ -30,20 +30,20 @@ public class LabOrderController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasAuthority('PERM_lab_order:create')")
     public ResponseEntity<LabOrderResponse> create(@Valid @RequestBody CreateLabOrderRequest request) {
         log.info("Create lab order request received for doctor={}", request.doctorId());
         return ResponseEntity.status(HttpStatus.CREATED).body(labOrderService.create(request));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'LABORATORY', 'ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_lab_order:read')")
     public ResponseEntity<LabOrderResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(labOrderService.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'LABORATORY', 'ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_lab_order:read')")
     public ResponseEntity<PageResponse<LabOrderResponse>> getAll(
             @RequestParam(required = false) String doctorId,
             @RequestParam(required = false) String patientId,
@@ -64,7 +64,7 @@ public class LabOrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('LABORATORY')")
+    @PreAuthorize("hasAuthority('PERM_lab_result:write')")
     public ResponseEntity<LabOrderResponse> updateStatus(
             @PathVariable String id,
             @Valid @RequestBody UpdateLabOrderStatusRequest request
@@ -74,7 +74,7 @@ public class LabOrderController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_lab_result:validate')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         labOrderService.delete(id);
         return ResponseEntity.noContent().build();

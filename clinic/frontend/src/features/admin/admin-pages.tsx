@@ -1,6 +1,6 @@
 'use client';
-import { ArrowLeft, Building2, CalendarCheck, CheckCircle2, Filter, KeyRound, PillBottle, Search, Shield, ShieldCheck, Sparkles, UserPlus, Users, XCircle, Beaker, Clock } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Building2, CalendarCheck, CheckCircle2, Filter, KeyRound, Search, Shield, ShieldCheck, Sparkles, UserPlus, XCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ROUTES } from '@/lib/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,23 +8,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusAlert, type StatusType } from '@/components/shared/status-alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { OverviewChart } from '@/components/charts/overview-chart';
+import { OverviewChart } from '@/components/layouts/lazy-components';
 import { PageHeader } from '@/components/layouts/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePrefetchDashboard } from '@/components/layouts/prefetch-link';
+import { useHospitalStats } from '@/features/admin/use-hospital-stats';
+import { PharmacyDashboardPage } from '@/features/pharmacy/pharmacy-pages';
 import { getFriendlyErrorMessage } from '@/lib/error-handler';
 import {
-  createDoctor,
-  createPatient,
   deletePatient,
   deleteUser,
-  inviteUser,
   updatePatient,
   updateUser,
 } from "@/services/api/admin";
 import { listUsers, listDoctors, searchDoctors, listPatients, searchPatients } from '@/services/api/users';
 import { listAppointments } from '@/services/api/appointments';
-import { listPrescriptionOrders, updatePrescriptionOrderStatus } from '@/features/prescriptions';
-import { listLaboratories, searchLaboratories, getLaboratory, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, getDoctorAvailabilityByLaboratory, createDoctorAvailability, updateDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
+import { listLaboratories, searchLaboratories, getLaboratory, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, getDoctorAvailabilityByLaboratory, createDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
 import { labOrdersService } from '@/features/laboratory/services/lab-orders.service';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -66,46 +65,27 @@ function useUrlQuery() {
   return searchParams.get('q') ?? '';
 }
 
+/**
+ * Real totals from `GET /api/v1/stats/hospital`.
+ * Replaces four separate `size: 1` list calls that only read a total, plus the
+ * previous hardcoded "Live" labels.
+ */
 function MetricCards() {
-  const [stats, setStats] = useState({
-    users: '...',
-    doctors: '...',
-    patients: '...',
-    appointments: '...'
-  });
+  const { data, isLoading, error } = useHospitalStats();
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const [usersRes, doctorsRes, patientsRes, appointmentsRes] = await Promise.all([
-          listUsers({ size: 1 }),
-          listDoctors({ size: 1 }),
-          listPatients({ size: 1 }),
-          listAppointments({ size: 1 })
-        ]);
-        const totalUsers = Number((usersRes as any)?.totalElements ?? (usersRes.content ?? []).length);
-        const totalDoctors = Number((doctorsRes as any)?.totalElements ?? (doctorsRes.content ?? []).length);
-        const totalPatients = Number((patientsRes as any)?.totalElements ?? (patientsRes.content ?? []).length);
-        const totalAppointments = Number((appointmentsRes as any)?.totalElements ?? (appointmentsRes.content ?? []).length);
-        setStats(prev => ({
-          ...prev,
-          users: totalUsers.toString(),
-          doctors: totalDoctors.toString(),
-          patients: totalPatients.toString(),
-          appointments: totalAppointments.toString()
-        }));
-      } catch (err) {
-        // Silent fail - dashboard is non-blocking
-      }
-    }
-    fetchStats();
-  }, []);
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        Could not load statistics. {getFriendlyErrorMessage(error)}
+      </div>
+    );
+  }
 
   const activity = [
-    { label: 'Total Users', value: stats.users, delta: 'Live' },
-    { label: 'Doctors', value: stats.doctors, delta: 'Live' },
-    { label: 'Patients', value: stats.patients, delta: 'Live' },
-    { label: 'Appointments', value: stats.appointments, delta: 'Live' }
+    { label: 'Total Users', value: data?.totalUsers },
+    { label: 'Doctors', value: data?.totalDoctors },
+    { label: 'Patients', value: data?.totalPatients },
+    { label: 'Appointments today', value: data?.appointmentsToday },
   ];
 
   return (
@@ -115,10 +95,14 @@ function MetricCards() {
           <CardHeader className="space-y-4 pb-3">
             <div className="flex items-center justify-between text-sm text-primary">
               <Sparkles className="h-4 w-4" />
-              <span>{item.delta}</span>
+              <span className="text-xs text-muted-foreground">
+                {isLoading || item.value === undefined ? 'Loading' : 'Live'}
+              </span>
             </div>
             <CardDescription className="text-xs uppercase tracking-[0.18em]">{item.label}</CardDescription>
-            <CardTitle className="text-3xl">{item.value}</CardTitle>
+            <CardTitle className="text-3xl">
+              {isLoading || item.value === undefined ? '...' : item.value}
+            </CardTitle>
           </CardHeader>
         </Card>
       ))}
@@ -257,6 +241,13 @@ function OnSiteSpecialistsPanel() {
 // Currently, some data is static but can be wired up to an admin stats endpoint.
 // ============================================================================
 export function AdminDashboardPage() {
+  const prefetchDashboard = usePrefetchDashboard();
+
+  // Warm the dashboard queries so the panels below paint from cache.
+  React.useEffect(() => {
+    prefetchDashboard();
+  }, [prefetchDashboard]);
+
   return (
     <div className="space-y-6">
       <PageHeader title="Admin Dashboard" description="Monitor clinic operations, providers, and patient throughput in one command center." actionLabel="Add New User" actionHref={ROUTES.adminInviteUser} />
@@ -268,38 +259,72 @@ export function AdminDashboardPage() {
         </div>
         <div className="space-y-6">
           <OnSiteSpecialistsPanel />
-          <Card>
-            <CardHeader>
-              <CardTitle>System Health</CardTitle>
-              <CardDescription>Live operational summary and policy controls.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
-                <div>
-                  <p className="text-sm font-medium">JWT Auth</p>
-                  <p className="text-xs text-muted-foreground">Refresh rotation enabled</p>
-                </div>
-                <Badge variant="success">Healthy</Badge>
-              </div>
-              <div className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
-                <div>
-                  <p className="text-sm font-medium">Appointments</p>
-                  <p className="text-xs text-muted-foreground">No conflict spikes detected</p>
-                </div>
-                <Badge variant="warning">Watch</Badge>
-              </div>
-              <div className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
-                <div>
-                  <p className="text-sm font-medium">Audit Events</p>
-                  <p className="text-xs text-muted-foreground">Role permissions synchronized</p>
-                </div>
-                <Badge variant="outline">Synced</Badge>
-              </div>
-            </CardContent>
-          </Card>
+          <OperationalSummaryCard />
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Replaces the previous hardcoded "System Health" card.
+ *
+ * <p>Every row is a real count from the database, and each badge reflects the
+ * actual number rather than a fixed "Healthy / Watch / Synced" label.
+ */
+function OperationalSummaryCard() {
+  const { data, isLoading } = useHospitalStats();
+
+  const rows = [
+    {
+      label: 'Pending lab orders',
+      detail: 'Awaiting specimen processing',
+      value: data?.pendingLabOrders,
+      tone: (value?: number) =>
+        value === undefined ? 'outline' : value === 0 ? 'success' : value > 10 ? 'destructive' : 'warning',
+    },
+    {
+      label: 'Pending prescriptions',
+      detail: 'Awaiting pharmacy verification',
+      value: data?.pendingPrescriptions,
+      tone: (value?: number) =>
+        value === undefined ? 'outline' : value === 0 ? 'success' : value > 10 ? 'warning' : 'outline',
+    },
+    {
+      label: 'Refunds awaiting approval',
+      detail: 'Require a second privileged approver',
+      value: data?.refundsPendingApproval,
+      tone: (value?: number) =>
+        value === undefined ? 'outline' : value === 0 ? 'success' : 'warning',
+    },
+    {
+      label: 'Signed clinical records',
+      detail: `${data?.medicalRecords ?? 0} total records · immutable`,
+      value: data?.signedMedicalRecords,
+      tone: () => 'outline' as const,
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Operational Summary</CardTitle>
+        <CardDescription>Live counts from the database.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
+            <div>
+              <p className="text-sm font-medium">{row.label}</p>
+              <p className="text-xs text-muted-foreground">{row.detail}</p>
+            </div>
+            <Badge variant={isLoading ? 'outline' : row.tone(row.value)}>
+              {isLoading || row.value === undefined ? '...' : row.value}
+            </Badge>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -371,11 +396,14 @@ export function AdminUsersPage() {
     e.preventDefault();
     if (!editingUser) return;
     try {
+      // `active` is deliberately not sent. Status now lives behind the audited
+      // status endpoint, which requires a reason to deactivate; a profile save
+      // must not be able to quietly suspend somebody. The unified directory
+      // (UserAccountsPage) is the screen that handles activation.
       await updateUser(editingUser.id, {
         fullName: editingUser.name,
         email: editingUser.email,
         phone: editingUser.phone || undefined,
-        active: editingUser.active,
       });
       setEditingUser(null);
       setStatus('success');
@@ -941,241 +969,14 @@ export function AdminAppointmentsPage() {
 // ============================================================================
 // AdminPharmacyPage
 //
-// Gives admins a live pharmacy overview with pharmacist accounts and the
-// current prescription queue pulled from the backend.
+// Gives admins a live pharmacy overview: stock levels derived from the batch
+// ledger, alerts, and the movement history.
 // ============================================================================
 export function AdminPharmacyPage() {
-  const urlQuery = useUrlQuery();
-  const [pharmacists, setPharmacists] = useState<Array<{ id: string; name: string; email: string; status: string }>>([]);
-  const [orders, setOrders] = useState<Array<{ id: string; patientName: string; doctorName: string; drugName: string; dosage: string; status: 'PENDING' | 'DISPENSED' | 'REJECTED'; orderedAt: string }>>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [query, setQuery] = useState(urlQuery);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [status, setStatus] = useState<StatusType>(null);
-  const [statusMessage, setStatusMessage] = useState('');
-
-  useEffect(() => {
-    setQuery(urlQuery);
-  }, [urlQuery]);
-
-  async function fetchData() {
-    try {
-      setIsLoading(true);
-      const usersData = await listUsers({ size: 100 });
-      let ordersData: any = { content: [] };
-      try {
-        ordersData = await listPrescriptionOrders({ size: 100 });
-      } catch (err) {
-        setStatus('error');
-        setStatusMessage(getFriendlyErrorMessage(err, 'Could not load prescription orders'));
-      }
-      setPharmacists((usersData.content ?? [])
-        .filter((user) => user.role === 'PHARMACIST')
-        .map((user) => ({
-          id: user.id,
-          name: user.fullName,
-          email: user.email,
-          status: user.status ?? 'ACTIVE'
-        })));
-      setOrders((ordersData.content ?? []).map((order: any) => ({
-        id: order.id,
-        patientName: order.patientName,
-        doctorName: order.doctorName,
-        drugName: order.drugName,
-        dosage: order.dosage,
-        status: order.status,
-        orderedAt: order.orderedAt
-      })));
-    } catch (err) {
-      setStatus('error');
-      setStatusMessage(getFriendlyErrorMessage(err, 'Could not load pharmacy data'));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const filteredPharmacists = useMemo(() => {
-    if (!query.trim()) return pharmacists;
-    const q = query.toLowerCase();
-    return pharmacists.filter((pharmacist) => [pharmacist.name, pharmacist.email, pharmacist.status].some((value) => value.toLowerCase().includes(q)));
-  }, [pharmacists, query]);
-
-  const filteredOrders = useMemo(() => {
-    if (!query.trim()) return orders;
-    const q = query.toLowerCase();
-    return orders.filter((order) =>
-      [order.patientName, order.doctorName, order.drugName, order.dosage, order.status].some((value) => value.toLowerCase().includes(q))
-    );
-  }, [orders, query]);
-
-  const pendingCount = orders.filter((order) => order.status === 'PENDING').length;
-  const dispensedCount = orders.filter((order) => order.status === 'DISPENSED').length;
-
-  const handleOrderStatus = async (id: string, nextStatus: 'DISPENSED' | 'REJECTED') => {
-    try {
-      setUpdatingId(id);
-      await updatePrescriptionOrderStatus(id, { status: nextStatus });
-      setOrders((current) => current.map((order) => order.id === id ? { ...order, status: nextStatus } : order));
-      setStatus('success');
-      setStatusMessage(`Prescription marked as ${nextStatus.toLowerCase()}.`);
-    } catch (err) {
-      setStatus('error');
-      setStatusMessage(getFriendlyErrorMessage(err, 'We could not update the prescription order right now.'));
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Pharmacy Management"
-        description="Manage pharmacist accounts and monitor the live prescription queue."
-        actionLabel="Add Pharmacist"
-        actionHref={ROUTES.adminInviteUser}
-      />
-
-      <StatusAlert
-        status={status}
-        message={statusMessage}
-        onDismiss={() => setStatus(null)}
-        autoDismiss
-        autoDismissMs={3500}
-      />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Pharmacists</CardTitle>
-            <CardDescription>Real pharmacy staff accounts</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold text-teal-700">{pharmacists.length}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Queue</CardTitle>
-            <CardDescription>Awaiting fulfillment</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold text-amber-600">{pendingCount}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Dispensed</CardTitle>
-            <CardDescription>Completed prescription orders</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold text-green-600">{dispensedCount}</CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
-          <div>
-            <CardTitle>Pharmacy Search</CardTitle>
-            <CardDescription>Search pharmacists, prescriptions, patients, doctors, or order status.</CardDescription>
-          </div>
-          <div className="flex min-w-72 gap-3 rounded-2xl border border-input bg-background p-3">
-            <Search className="h-5 w-5 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-              placeholder="Search pharmacy..."
-            />
-          </div>
-        </CardHeader>
-      </Card>
-
-      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Pharmacist Directory</CardTitle>
-            <CardDescription>Accounts with pharmacy access.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {isLoading ? (
-              <>
-                <Skeleton className="h-16 w-full rounded-2xl" />
-                <Skeleton className="h-16 w-full rounded-2xl" />
-              </>
-            ) : filteredPharmacists.length === 0 ? (
-              <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">No pharmacists found.</div>
-            ) : (
-              filteredPharmacists.map((pharmacist) => (
-                <div key={pharmacist.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
-                  <div>
-                    <p className="font-semibold">{pharmacist.name}</p>
-                    <p className="text-sm text-muted-foreground">{pharmacist.email}</p>
-                  </div>
-                  <Badge variant={pharmacist.status === 'ACTIVE' ? 'success' : 'secondary'}>{pharmacist.status}</Badge>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Prescription Queue</CardTitle>
-            <CardDescription>Real prescription orders from doctors.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-12 w-full rounded" />
-                <Skeleton className="h-12 w-full rounded" />
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">No prescription orders found.</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Medication</TableHead>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOrders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.patientName}</TableCell>
-                      <TableCell>{order.drugName} {order.dosage}</TableCell>
-                      <TableCell>{order.doctorName}</TableCell>
-                      <TableCell>
-                        <Badge variant={order.status === 'PENDING' ? 'warning' : order.status === 'DISPENSED' ? 'success' : 'destructive'}>
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {order.status === 'PENDING' ? (
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" disabled={updatingId === order.id} onClick={() => handleOrderStatus(order.id, 'DISPENSED')}>
-                              Dispense
-                            </Button>
-                            <Button size="sm" variant="destructive" disabled={updatingId === order.id} onClick={() => handleOrderStatus(order.id, 'REJECTED')}>
-                              Reject
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">{new Date(order.orderedAt).toLocaleDateString()}</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+  // Replaced by the real inventory dashboard. The previous version kept
+  // pharmacists and prescription orders in local component state, which meant the
+  // admin pharmacy screen showed no stock data at all and could not record any.
+  return <PharmacyDashboardPage />;
 }
 
 // ============================================================================
@@ -1185,31 +986,67 @@ export function AdminPharmacyPage() {
 // (Currently uses mock data for the OverviewChart)
 // ============================================================================
 export function AdminAnalyticsPage() {
+  const { data, isLoading, error } = useHospitalStats();
+
+  const statusRows = Object.entries(data?.appointmentsByStatus ?? {}).filter(([, count]) => count > 0);
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Analytics Dashboard" description="Operational trends, revenue, and utilization visualized for executives." />
+      <PageHeader title="Analytics Dashboard" description="Operational volume computed from live records." />
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-        <OverviewChart />
-        <Card>
-          <CardHeader>
-            <CardTitle>Key Signals</CardTitle>
-            <CardDescription>Snapshot across clinic KPIs</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span>Appointment fill rate</span>
-              <Badge variant="success">92%</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>No-show rate</span>
-              <Badge variant="warning">4.1%</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Avg. wait time</span>
-              <Badge variant="outline">12 min</Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <OverviewChart title="Appointment Volume" />
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appointment Status</CardTitle>
+              <CardDescription>Breakdown from the appointments table</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {error ? (
+                <p className="text-sm text-destructive">{getFriendlyErrorMessage(error)}</p>
+              ) : isLoading ? (
+                <Skeleton className="h-24 w-full rounded-2xl" />
+              ) : statusRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No appointments recorded yet.</p>
+              ) : (
+                statusRows.map(([status, count]) => (
+                  <div key={status} className="flex items-center justify-between rounded-2xl bg-muted/50 p-3">
+                    <span className="text-sm">{status.replace(/_/g, ' ').toLowerCase()}</span>
+                    <Badge variant="outline">{count}</Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Care Volume</CardTitle>
+              <CardDescription>Counts across the clinical tables</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoading ? (
+                <Skeleton className="h-32 w-full rounded-2xl" />
+              ) : (
+                <>
+                  {[
+                    { label: 'Clinical records', value: data?.medicalRecords },
+                    { label: 'Signed (immutable)', value: data?.signedMedicalRecords },
+                    { label: 'Lab orders', value: data?.labOrders },
+                    { label: 'Lab results', value: data?.labResults },
+                    { label: 'Prescriptions', value: data?.prescriptionOrders },
+                    { label: 'Active assignments', value: data?.activeAssignments },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center justify-between text-sm">
+                      <span>{row.label}</span>
+                      <span className="font-semibold">{row.value ?? 0}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -1642,6 +1479,37 @@ export function AdminLaboratoriesPage() {
     }
   };
 
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLab) return;
+    try {
+      await updateLaboratory(editingLab.id, {
+        ...formData,
+        capacity: formData.capacity ? parseInt(formData.capacity) : undefined
+      });
+      setStatus('success');
+      setStatusMessage('Laboratory updated successfully!');
+      setShowForm(false);
+      setEditingLab(null);
+      setFormData({
+        name: '',
+        location: '',
+        phone: '',
+        email: '',
+        status: 'ACTIVE',
+        operatingHoursStart: '',
+        operatingHoursEnd: '',
+        equipment: '',
+        capacity: '',
+        description: ''
+      });
+      setTimeout(() => { fetchData(); }, 1000);
+    } catch (err) {
+      setStatus('error');
+      setStatusMessage(getFriendlyErrorMessage(err, 'Could not update laboratory'));
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this laboratory?')) return;
     try {
@@ -1663,7 +1531,11 @@ export function AdminLaboratoriesPage() {
         title="Laboratory Management"
         description="Manage laboratory facilities, equipment, and operational hours."
         actionLabel="Add Laboratory"
-        onAction={() => setShowForm(true)}
+        onAction={() => {
+          setEditingLab(null);
+          setFormData({ name: '', location: '', phone: '', email: '', status: 'ACTIVE', operatingHoursStart: '', operatingHoursEnd: '', equipment: '', capacity: '', description: '' });
+          setShowForm(true);
+        }}
       />
 
       <StatusAlert
@@ -1677,10 +1549,10 @@ export function AdminLaboratoriesPage() {
       {showForm && (
         <Card className="border-primary">
           <CardHeader>
-            <CardTitle>Add Laboratory</CardTitle>
+            <CardTitle>{editingLab ? 'Edit Laboratory' : 'Add Laboratory'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={editingLab ? handleUpdate : handleCreate} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Laboratory Name</label>
@@ -1772,8 +1644,8 @@ export function AdminLaboratoriesPage() {
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
-                <Button type="submit">Create Laboratory</Button>
+                <Button variant="outline" type="button" onClick={() => { setShowForm(false); setEditingLab(null); setFormData({ name: '', location: '', phone: '', email: '', status: 'ACTIVE', operatingHoursStart: '', operatingHoursEnd: '', equipment: '', capacity: '', description: '' }); }}>Cancel</Button>
+                <Button type="submit">{editingLab ? 'Update Laboratory' : 'Create Laboratory'}</Button>
               </div>
             </form>
           </CardContent>
@@ -1812,7 +1684,17 @@ export function AdminLaboratoriesPage() {
           </div>
           <div className="flex gap-2">
             <Input className="max-w-xs" placeholder="Search laboratories..." value={query} onChange={(e) => setQuery(e.target.value)} />
-            <Button onClick={() => setShowForm(!showForm)}><Building2 className="h-4 w-4 mr-2" /> {showForm ? 'Cancel' : 'Add Lab'}</Button>
+            <Button onClick={() => {
+                if (showForm) {
+                  setShowForm(false);
+                  setEditingLab(null);
+                  setFormData({ name: '', location: '', phone: '', email: '', status: 'ACTIVE', operatingHoursStart: '', operatingHoursEnd: '', equipment: '', capacity: '', description: '' });
+                } else {
+                  setEditingLab(null);
+                  setFormData({ name: '', location: '', phone: '', email: '', status: 'ACTIVE', operatingHoursStart: '', operatingHoursEnd: '', equipment: '', capacity: '', description: '' });
+                  setShowForm(true);
+                }
+              }}><Building2 className="h-4 w-4 mr-2" /> {showForm ? 'Cancel' : 'Add Lab'}</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -1850,6 +1732,22 @@ export function AdminLaboratoriesPage() {
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button variant="outline" size="sm" onClick={() => (window.location.href = `/admin/laboratories/${lab.id}`)}>View</Button>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setEditingLab(lab);
+                        setFormData({
+                          name: lab.name,
+                          location: lab.location,
+                          phone: lab.phone ?? '',
+                          email: lab.email ?? '',
+                          status: lab.status,
+                          operatingHoursStart: (lab as any).operatingHoursStart ?? '',
+                          operatingHoursEnd: (lab as any).operatingHoursEnd ?? '',
+                          equipment: (lab as any).equipment ?? '',
+                          capacity: (lab as any).capacity?.toString() ?? '',
+                          description: (lab as any).description ?? ''
+                        });
+                        setShowForm(true);
+                      }}>Edit</Button>
                       <Button variant="destructive" size="sm" onClick={() => handleDelete(lab.id)}>Delete</Button>
                     </TableCell>
                   </TableRow>

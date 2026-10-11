@@ -19,6 +19,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Lab results. Write and validation are lab-technician permissions; doctors and
+ * pharmacists only get read access. No role here can diagnose or prescribe.
+ */
 @RestController
 @RequestMapping("/api/lab-results")
 @Slf4j
@@ -31,20 +35,20 @@ public class LabResultController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('LABORATORY')")
+    @PreAuthorize("hasAuthority('PERM_lab_result:write')")
     public ResponseEntity<LabResultResponse> create(@Valid @RequestBody CreateLabResultRequest request) {
         log.info("Create lab result request received for order={}", request.labOrderId());
         return ResponseEntity.status(HttpStatus.CREATED).body(labResultService.create(request));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'LABORATORY', 'ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_lab_order:read') or hasAuthority('PERM_lab_result:write')")
     public ResponseEntity<LabResultResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(labResultService.getById(id));
     }
 
     @GetMapping("/order/{orderId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'LABORATORY', 'ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_lab_order:read') or hasAuthority('PERM_lab_result:write')")
     public ResponseEntity<LabResultResponse> getByLabOrderId(@PathVariable String orderId) {
         return labResultService.getByLabOrderId(orderId)
                 .map(ResponseEntity::ok)
@@ -52,7 +56,7 @@ public class LabResultController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'LABORATORY', 'ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_lab_order:read') or hasAuthority('PERM_lab_result:write')")
     public ResponseEntity<PageResponse<LabResultResponse>> getAll(
             @RequestParam(required = false) LabResultStatus status,
             @RequestParam(required = false) String labTechnicianId,
@@ -70,27 +74,26 @@ public class LabResultController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('LABORATORY')")
+    @PreAuthorize("hasAuthority('PERM_lab_result:write')")
     public ResponseEntity<LabResultResponse> update(
             @PathVariable String id,
-            @Valid @RequestBody UpdateLabResultRequest request
-    ) {
+            @Valid @RequestBody UpdateLabResultRequest request) {
         log.info("Update lab result request id={}", id);
         return ResponseEntity.ok(labResultService.update(id, request));
     }
 
+    /** Validation is the terminal step: only lab technicians can validate. */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('LABORATORY')")
+    @PreAuthorize("hasAuthority('PERM_lab_result:validate')")
     public ResponseEntity<LabResultResponse> updateStatus(
             @PathVariable String id,
-            @Valid @RequestBody UpdateLabResultStatusRequest request
-    ) {
+            @Valid @RequestBody UpdateLabResultStatusRequest request) {
         log.info("Update lab result status request id={} status={}", id, request.status());
         return ResponseEntity.ok(labResultService.updateStatus(id, request));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_lab_result:validate')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         labResultService.delete(id);
         return ResponseEntity.noContent().build();

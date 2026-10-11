@@ -2,7 +2,6 @@ package com.clinic.config;
 
 import com.clinic.security.CustomUserDetailsService;
 import com.clinic.security.jwt.JwtAuthenticationFilter;
-import com.clinic.security.jwt.JwtProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,13 +22,22 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Security defaults: stateless, deny-by-default, BCrypt password hashing.
+ *
+ * <p>Only liveness, authentication and documentation endpoints are public.
+ * Everything else requires a JWT, and per-endpoint rules are expressed with
+ * {@code @PreAuthorize} against the central permission matrix in
+ * {@code RolePermissions}.
+ */
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties(com.clinic.security.jwt.JwtProperties.class)
 public class SecurityConfig {
 
     // Always-allowed origins (hardcoded production domains)
@@ -76,15 +84,37 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Deny by default: only the matchers below are reachable without a token.
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                ApiPaths.AUTH + "/**",
+                                ApiPaths.HEALTH,
+                                ApiPaths.AUTH + "/login",
+                                ApiPaths.AUTH + "/register",
+                                ApiPaths.AUTH + "/refresh",
+                                "/error",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/health")
+                                "/actuator/health",
+                                "/actuator/health/**")
                         .permitAll()
                         .anyRequest().authenticated())
+                // Return the API's JSON envelope instead of Spring's HTML error
+                // pages: 401 when no valid token, 403 when the token is valid but
+                // lacks the permission. The frontend distinguishes the two.
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint((request, response, ex) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"status\":401,\"message\":\"Authentication is required\"}");
+                        })
+                        .accessDeniedHandler((request, response, ex) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"status\":403,\"message\":\"You do not have permission to access this resource\"}");
+                        }))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiRequestLoggingFilter, UsernamePasswordAuthenticationFilter.class)
@@ -113,22 +143,29 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        // Merge hardcoded defaults with any extra origins from environment variables
-        List<String> allowedOrigins = new ArrayList<>(DEFAULT_ALLOWED_ORIGINS);
+        CorsConfiguration configuration = new CorsConfiguration();
+        
+        // Use allowedOriginPatterns so that dynamic local LAN origins (e.g. http://10.200.13.117:3001,
+        // Wi-Fi/hotspot IPs, any localhost port) and Vercel domains are allowed alongside allowCredentials(true).
+        // Spring reflects the requesting Origin in Access-Control-Allow-Origin, which is spec-compliant.
+        List<String> patterns = new ArrayList<>();
+        patterns.add("*"); // Matches any origin and reflects it in Access-Control-Allow-Origin
         if (extraAllowedOrigins != null) {
             for (String origin : extraAllowedOrigins) {
-                if (origin != null && !origin.isBlank() && !allowedOrigins.contains(origin.trim())) {
-                    allowedOrigins.add(origin.trim());
+                if (origin != null && !origin.isBlank()) {
+                    patterns.add(origin.trim());
                 }
             }
         }
-
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        // Allow all headers so custom Axios/TanStack Query/tracing headers are never blocked
         configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setExposedHeaders(Arrays.asList(
+                "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After", "Authorization"));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+        // Long max-age means browsers only pay one preflight per session.
+        configuration.setMaxAge(7200L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

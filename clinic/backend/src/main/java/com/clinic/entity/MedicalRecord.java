@@ -87,4 +87,27 @@ public class MedicalRecord extends BaseEntity {
     @Builder.Default
     private Boolean isConfidential = false;
 
+    // ========== Signature & immutability ==========
+
+    /** When set, the record is signed and further edits create amendment rows. */
+    @Column(name = "signed_at")
+    private java.time.LocalDateTime signedAt;
+
+    @Column(name = "signed_by_id", length = 36)
+    private String signedById;
+
+    /** Incremented on every accepted amendment. */
+    @jakarta.persistence.Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Integer version = 1;
+
+    public boolean isSigned() {
+        return signedAt != null;
+    }
+
+    public void sign(String signerId) {
+        this.signedAt = java.time.LocalDateTime.now();
+        this.signedById = signerId;
+    }
 }

@@ -30,17 +30,19 @@ export async function fetchAllPages<T>(
   return {
     ...(lastResponse ?? {
       content: [],
-      page: 0,
-      size: pageSize,
+      pageNumber: 0,
+      pageSize,
       totalElements: 0,
       totalPages: 0,
+      first: true,
       last: true,
     }),
     content,
-    page: 0,
-    size: content.length,
+    pageNumber: 0,
+    pageSize: content.length,
     totalElements,
     totalPages,
+    first: true,
     last: true,
   };
 }

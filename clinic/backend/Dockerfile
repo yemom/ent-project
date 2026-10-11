@@ -24,7 +24,16 @@ USER clinic
 ENV PORT=8080
 EXPOSE ${PORT}
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
-  CMD curl -fsS http://localhost:${PORT}/actuator/health || exit 1
+# Container-level liveness. Uses the DB-free /api/v1/health endpoint so a slow or
+# unreachable database never causes the container to be killed and restarted.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
+  CMD curl -fsS "http://localhost:${PORT}/api/v1/health" > /dev/null || exit 1
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# -XX:+UseSerialGC and TieredStopAtLevel=1 cut JVM start-up time and footprint,
+# which matters most on the free Render plan where instances sleep and wake.
+ENTRYPOINT ["java", \
+  "-XX:+UseSerialGC", \
+  "-XX:TieredStopAtLevel=1", \
+  "-Xshare:auto", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "/app/app.jar"]

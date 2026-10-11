@@ -1,6 +1,8 @@
 package com.clinic.controller;
 
+import com.clinic.entity.UserRole;
 import com.clinic.service.PatientService;
+import com.clinic.security.CurrentUser;
 import com.clinic.security.jwt.JwtTokenProvider;
 import com.clinic.repository.TokenBlacklistRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +21,7 @@ import java.util.UUID;
 
 import static com.clinic.support.TestFixtures.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +46,21 @@ class PatientControllerTest {
 
     @MockBean
     private TokenBlacklistRepository tokenBlacklistRepository;
+
+    /** Controller reads the caller's identity from the security context. */
+    @MockBean
+    private CurrentUser currentUser;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubCaller() {
+        // Default caller is an admin so existing assertions stay valid; the
+        // per-endpoint scope rules are covered in the RBAC test suite.
+        when(currentUser.role()).thenReturn(UserRole.ADMIN);
+        when(currentUser.userId()).thenReturn("admin-1");
+        when(currentUser.is(any(UserRole.class))).thenReturn(false);
+        when(patientService.patientsAssignedTo(anyString(), any()))
+                .thenReturn(new PageImpl<>(List.of()));
+    }
 
     @Test
     void createReturnsCreated() throws Exception {

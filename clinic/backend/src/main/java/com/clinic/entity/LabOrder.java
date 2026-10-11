@@ -20,9 +20,9 @@ import java.util.List;
  */
 @Entity
 @Table(name = "lab_orders", indexes = {
-        @Index(name = "idx_patient_id", columnList = "patient_id"),
-        @Index(name = "idx_doctor_id", columnList = "doctor_id"),
-        @Index(name = "idx_status", columnList = "status")
+        @Index(name = "idx_lab_orders_patient_id", columnList = "patient_id"),
+        @Index(name = "idx_lab_orders_doctor_id", columnList = "doctor_id"),
+        @Index(name = "idx_lab_orders_status", columnList = "status")
 })
 @Data
 @NoArgsConstructor

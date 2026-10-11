@@ -9,8 +9,10 @@ import com.clinic.mapper.MedicalRecordMapper;
 import com.clinic.mapper.UserMapper;
 import com.clinic.repository.AppointmentRepository;
 import com.clinic.repository.DoctorRepository;
+import com.clinic.repository.MedicalRecordAmendmentRepository;
 import com.clinic.repository.MedicalRecordRepository;
 import com.clinic.repository.PatientRepository;
+import com.clinic.security.CurrentUser;
 import com.clinic.service.impl.MedicalRecordServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,15 +36,18 @@ import static org.mockito.Mockito.*;
 class MedicalRecordServiceImplTest {
 
     @Mock private MedicalRecordRepository medicalRecordRepository;
+    @Mock private MedicalRecordAmendmentRepository amendmentRepository;
     @Mock private PatientRepository patientRepository;
     @Mock private DoctorRepository doctorRepository;
     @Mock private AppointmentRepository appointmentRepository;
+    @Mock private CurrentUser currentUser;
     private final MedicalRecordMapper medicalRecordMapper = new MedicalRecordMapper(new AppointmentMapper(new UserMapper()), new UserMapper());
     private MedicalRecordServiceImpl medicalRecordService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        medicalRecordService = new MedicalRecordServiceImpl(medicalRecordRepository, patientRepository, doctorRepository, appointmentRepository, medicalRecordMapper);
+        medicalRecordService = new MedicalRecordServiceImpl(medicalRecordRepository, amendmentRepository,
+                patientRepository, doctorRepository, appointmentRepository, medicalRecordMapper, currentUser);
     }
 
     @Test
@@ -104,6 +109,49 @@ class MedicalRecordServiceImplTest {
         var page = medicalRecordService.search(medicalRecordSearchRequest(patientId, doctorId, appointmentId), PageRequest.of(0, 20));
 
         assertEquals(1, page.getTotalElements());
+    }
+
+    @Test
+    void amendWritesImmutableHistoryInsteadOfSilentUpdate() {
+        UUID patientId = UUID.randomUUID();
+        UUID doctorId = UUID.randomUUID();
+        UUID recordId = UUID.randomUUID();
+        Patient patient = patientEntity(patientId);
+        Doctor doctor = doctorEntity(doctorId);
+        MedicalRecord record = medicalRecordEntity(recordId, patient, doctor, null);
+
+        when(medicalRecordRepository.findById(recordId.toString())).thenReturn(Optional.of(record));
+        when(amendmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(medicalRecordRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(currentUser.userId()).thenReturn("doctor-1");
+        when(currentUser.require())
+                .thenReturn(new com.clinic.security.CustomUserPrincipal(doctor));
+
+        var response = medicalRecordService.amend(recordId.toString(), medicalRecordAmendRequest());
+
+        assertEquals("Updated Diagnosis", response.diagnosis());
+        var amendmentCaptor = org.mockito.ArgumentCaptor.forClass(
+                com.clinic.entity.MedicalRecordAmendment.class);
+        verify(amendmentRepository).save(amendmentCaptor.capture());
+        var amendment = amendmentCaptor.getValue();
+        assertTrue(amendment.getFields().contains("diagnosis"));
+        assertTrue(amendment.getPreviousValues().contains("diagnosis=Diagnosis"));
+        assertEquals("Correcting the diagnosis after review", amendment.getReason());
+    }
+
+    @Test
+    void signedRecordCannotBeUpdatedDirectly() {
+        UUID recordId = UUID.randomUUID();
+        MedicalRecord record = medicalRecordEntity(recordId, patientEntity(UUID.randomUUID()),
+                doctorEntity(UUID.randomUUID()), null);
+        record.sign("doctor-1");
+
+        when(medicalRecordRepository.findById(recordId.toString())).thenReturn(Optional.of(record));
+
+        assertThrows(com.clinic.exception.BadRequestException.class, () -> medicalRecordService.update(
+                recordId.toString(),
+                medicalRecordUpdateRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID())));
+        verifyNoInteractions(amendmentRepository);
     }
 
     @Test

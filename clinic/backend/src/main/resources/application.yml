@@ -1,33 +1,65 @@
 spring:
   application:
     name: clinic
+  config:
+    # Local development overrides, loaded from `.env.local` (git-ignored).
+    #
+    # This exists because `mvn spring-boot:run` and IDE runs receive NO environment
+    # variables: the app then boots against the empty in-memory H2 database with no
+    # SUPER_ADMIN_EMAIL, creates a `super.admin@clinic.local` account with a random
+    # password, and sign-in as the real owner fails with a bare 401. Putting the
+    # Super Admin identity in `.env.local` makes local runs behave predictably.
+    #
+    # Deliberately NOT `.env`: that file holds the production datasource and profile,
+    # and importing it here would silently redirect every local run at production
+    # Postgres. Production values are injected by Render's environment, not a file.
+    #
+    # `optional:` so an environment with no `.env.local` still starts.
+    import: "optional:file:.env.local[.properties]"
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  main:
+    banner-mode: off
+  lifecycle:
+    # Start serving HTTP before the JPA/Flyway work finishes so the liveness probe
+    # can answer during a Render cold start. Flyway still runs before the app is
+    # marked ready, so this only helps the "is the listener up" question.
+    timeout-per-shutdown-phase: 20s
   datasource:
     url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/clinic_db}}
     username: ${SPRING_DATASOURCE_USERNAME:clinic_user}
     password: ${SPRING_DATASOURCE_PASSWORD:clinic_secure_password_change_me}
     hikari:
       pool-name: ClinicHikariPool
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:1}
       idle-timeout: 300000
       max-lifetime: 1800000
-      connection-timeout: 30000
-      validation-timeout: 5000
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:10000}
+      validation-timeout: 3000
+      # Do not block startup on the first connection; fail fast per-request instead.
+      initialization-fail-timeout: 1
+      connection-test-query: SELECT 1
   jpa:
     open-in-view: false
+    defer-datasource-initialization: false
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         default_batch_fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
         jdbc:
           time_zone: UTC
+          batch_size: 50
   flyway:
     enabled: true
     baseline-on-migrate: true
+    connect-retries: 5
+    connect-retries-interval: 3
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -44,6 +76,9 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2s
+      connect-timeout: 2s
+      repositories:
+        enabled: false
 
 server:
   port: ${PORT:8080}
@@ -52,6 +87,13 @@ server:
     enabled: true
     mime-types: application/json,application/xml,text/html,text/xml,text/plain,text/css,text/javascript,application/javascript
     min-response-size: 1024
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_MAX_THREADS:60}
+      min-spare: 8
+    max-connections: 2000
+    accept-count: 100
+    connection-timeout: 20s
 
 management:
   endpoints:
@@ -63,6 +105,10 @@ management:
       probes:
         enabled: true
       show-details: when_authorized
+      # The liveness probe must not depend on DB/Redis.
+      group:
+        liveness:
+          include: livenessState
   health:
     redis:
       enabled: ${SPRING_REDIS_HEALTH_ENABLED:false}
@@ -76,15 +122,20 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.clinic: DEBUG
+    com.clinic: ${LOG_LEVEL_CLINIC:INFO}
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
 
 app:
   jwt:
     secret: ${APP_JWT_SECRET:c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=}
-    expiration-millis: ${APP_JWT_EXPIRATION_MILLIS:86400000}
+    # Short-lived access token; the frontend refreshes through rotation.
+    expiration-millis: ${APP_JWT_EXPIRATION_MILLIS:900000}
+    refresh-expiration-millis: ${APP_JWT_REFRESH_EXPIRATION_MILLIS:604800000}
     issuer: ${APP_JWT_ISSUER:clinic}
+  security:
+    # Refunds above this amount need approval from a second privileged user.
+    refund-approval-threshold: ${APP_REFUND_APPROVAL_THRESHOLD:500.00}
   rate-limit:
     enabled: true
     requests: ${RATE_LIMIT_REQUESTS:120}

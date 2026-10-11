@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -20,7 +21,23 @@ public class CustomUserPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+        // Role authorities (new name plus legacy alias) drive hasRole(...) checks.
+        List<GrantedAuthority> authorities = new ArrayList<>(
+                RolePermissions.authoritiesFor(user.getRole()).stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .toList());
+
+        // Permission authorities drive hasAuthority('PERM_...') checks, so a new
+        // role never requires editing a @PreAuthorize expression.
+        RolePermissions.forRole(user.getRole()).stream()
+                .map(permission -> new SimpleGrantedAuthority("PERM_" + permission))
+                .forEach(authorities::add);
+
+        return List.copyOf(authorities);
+    }
+
+    public String getUserId() {
+        return user.getId();
     }
 
     @Override

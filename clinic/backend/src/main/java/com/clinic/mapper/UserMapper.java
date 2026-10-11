@@ -21,6 +21,14 @@ public class UserMapper {
         );
     }
 
+    /**
+     * Copies profile fields onto an entity.
+     *
+     * <p>Deliberately does not touch {@code active}. Account status is a
+     * consequential, audited action that requires a recorded reason, so it goes
+     * through the dedicated status endpoint. Letting a routine profile save flip it
+     * would bypass both the audit trail and the self-protection rules.
+     */
     public void updateEntity(User user, UpdateUserRequest request) {
         if (user == null || request == null) {
             return;
@@ -33,9 +41,6 @@ public class UserMapper {
         }
         if (request.phone() != null) {
             user.setPhone(request.phone());
-        }
-        if (request.active() != null) {
-            user.setActive(request.active());
         }
     }
 }

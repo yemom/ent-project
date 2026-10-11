@@ -2,51 +2,55 @@
 
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ROUTES } from '@/lib/constants';
 import { useAuthStore } from '@/store/auth-store';
+import { canAccessArea, ROLE_HOME } from '@/features/auth/permissions';
+import { ROUTES } from '@/lib/constants';
 
-function resolveArea(pathname: string) {
-  if (pathname.startsWith('/admin')) return 'ADMIN';
-  if (pathname.startsWith('/doctor')) return 'DOCTOR';
-  if (pathname.startsWith('/patient')) return 'PATIENT';
-  if (pathname.startsWith('/pharmacist')) return 'PHARMACIST';
-  return null;
-}
-
-function dashboardForRole(role?: string | null) {
-  if (role === 'DOCTOR') return ROUTES.doctorDashboard;
-  if (role === 'PATIENT') return ROUTES.patientDashboard;
-  if (role === 'PHARMACIST') return ROUTES.pharmacistDashboard;
-  if (role === 'LABORATORY') return ROUTES.laboratoryRoot;
-  return ROUTES.adminDashboard;
-}
-
+/**
+ * Client-side route guard.
+ *
+ * <p>Complements (never replaces) backend authorisation: it stops a signed-in
+ * user from landing on a page their role cannot use, and sends them to their own
+ * dashboard instead. The API remains the authority — this is UX, not security.
+ */
 export function ProtectedGate({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter();
   const pathname = usePathname();
   const isHydrated = useAuthStore((state) => state.isHydrated);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const role = useAuthStore((state) => state.user?.role);
   const accessToken = useAuthStore((state) => state.accessToken);
   const clearSession = useAuthStore((state) => state.clearSession);
-  const requiredArea = resolveArea(pathname);
-  const isAreaAuthorized = !requiredArea || requiredArea === role;
+
+  const home = ROLE_HOME[role ?? ''] ?? ROUTES.adminDashboard;
+  const isAreaAuthorized = canAccessArea(pathname, role);
+
+  /**
+   * Whether a usable session exists.
+   *
+   * <p>Derived from the token and profile rather than read from the store's
+   * `isAuthenticated` flag. That flag is not persisted (it is deliberately left out
+   * of `partialize`, so it is rebuilt on rehydration), which left the gate reading
+   * `false` on the first render after a reload — while the token and profile were
+   * already restored. The gate then called `clearSession()`, wiping a perfectly good
+   * session and bouncing a signed-in user to /login on any full page load.
+   */
+  const hasSession = Boolean(role && accessToken);
 
   useEffect(() => {
     if (!isHydrated) return;
 
-    if (!isAuthenticated || !role || !accessToken) {
+    if (!hasSession) {
       clearSession();
       router.replace(ROUTES.login);
       return;
     }
 
     if (!isAreaAuthorized) {
-      router.replace(dashboardForRole(role));
+      router.replace(home);
     }
-  }, [accessToken, clearSession, isAreaAuthorized, isAuthenticated, isHydrated, pathname, role, router]);
+  }, [accessToken, clearSession, hasSession, home, isAreaAuthorized, isHydrated, role, router]);
 
-  if (!isHydrated || !isAuthenticated || !role || !accessToken || !isAreaAuthorized) {
+  if (!isHydrated || !hasSession || !isAreaAuthorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
         Loading your workspace...
@@ -56,3 +60,5 @@ export function ProtectedGate({ children }: Readonly<{ children: React.ReactNode
 
   return <>{children}</>;
 }
+
+export default ProtectedGate;

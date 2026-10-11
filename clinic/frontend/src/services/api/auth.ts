@@ -32,8 +32,13 @@ export async function forgotPassword(email: string) {
   return data;
 }
 
-export async function getMe() {
-  const { data } = await apiClient.get<AuthUser>('/auth/me');
+/** `/auth/me` returns the caller's profile plus the permissions the API enforces. */
+export interface CurrentUserResponse extends AuthUser {
+  permissions: string[];
+}
+
+export async function getMe(): Promise<CurrentUserResponse> {
+  const { data } = await apiClient.get<CurrentUserResponse>('/auth/me');
   return data;
 }
 

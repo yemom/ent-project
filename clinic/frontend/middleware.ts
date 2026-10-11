@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dashboardForRole, getRequiredRole, getRole, hasSession, isProtectedPath } from './src/middleware/auth';
+import {
+  dashboardForRole,
+  isRoleAllowed,
+  getRole,
+  hasSession,
+  isProtectedPath,
+} from './src/middleware/auth';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,9 +19,8 @@ export function middleware(request: NextRequest) {
   }
 
   const activeRole = getRole(request);
-  const requiredRole = getRequiredRole(pathname);
 
-  if (activeRole && activeRole !== requiredRole) {
+  if (activeRole && !isRoleAllowed(activeRole, pathname)) {
     return NextResponse.redirect(new URL(dashboardForRole(activeRole), request.url));
   }
 
@@ -23,5 +28,15 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/doctor/:path*', '/patient/:path*', '/pharmacist/:path*', '/laboratory/:path*']
+  matcher: [
+    '/admin/:path*',
+    '/hospital/:path*',
+    '/doctor/:path*',
+    '/nurse/:path*',
+    '/reception/:path*',
+    '/laboratory/:path*',
+    '/pharmacist/:path*',
+    '/cashier/:path*',
+    '/patient/:path*',
+  ],
 };

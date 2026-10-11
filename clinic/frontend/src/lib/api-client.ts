@@ -1,69 +1,19 @@
-import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { env } from '@/lib/env';
-import { getFriendlyErrorMessage } from '@/lib/error-handler';
-import { tokenStorage } from '@/lib/token-storage';
-import { useAuthStore } from '@/store/auth-store';
-import type { ApiErrorResponse, AuthTokens } from '@/types/api';
-
-export const apiClient = axios.create({
-  baseURL: env.apiBaseUrl,
-  timeout: 20_000,
-  withCredentials: true
-});
-
-apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const accessToken = useAuthStore.getState().accessToken ?? tokenStorage.getAccessToken();
-  if (accessToken) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${accessToken}`;
-  }
-  return config;
-});
-
-let refreshPromise: Promise<AuthTokens> | null = null;
-
-async function refreshSession() {
-  if (!refreshPromise) {
-    refreshPromise = axios
-      .post<AuthTokens>(`${env.apiBaseUrl}/auth/refresh`, {}, { withCredentials: true })
-      .then((response) => response.data)
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
-}
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError<ApiErrorResponse>) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean } | undefined;
-
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const tokens = await refreshSession();
-        useAuthStore.setState((state) => ({
-          ...state,
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken ?? state.refreshToken,
-          isAuthenticated: Boolean(state.user && tokens.accessToken)
-        }));
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
-        }
-        return apiClient(originalRequest);
-      } catch {
-        useAuthStore.getState().clearSession();
-      }
-    }
-
-    if (error.response?.status === 429) {
-      error.message = getFriendlyErrorMessage(error);
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-export default apiClient;
+/**
+ * Backwards-compatible re-export of the shared API client.
+ *
+ * The retry / wake-up / refresh logic now lives in a single place
+ * (`@/services/api/client`) so every caller gets the same behaviour.
+ * This file previously held a divergent duplicate client with its own
+ * interceptors, which meant only this import got token refresh.
+ */
+export { default } from '@/services/api/client';
+export {
+  apiClient,
+  wakeUpServer,
+  isServerAwake,
+  subscribeServerStatus,
+  isWakeUpFailure,
+  API_TIMEOUT_MS,
+  COLD_START_TIMEOUT_MS,
+  TRANSIENT_STATUS_CODES,
+} from '@/services/api/client';

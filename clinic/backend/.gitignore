@@ -67,6 +67,14 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Test-harness byproducts. e2e-secret.txt holds a generated JWT signing key, and the
+# e2e-*.log files capture startup output that includes request URLs. Neither belongs
+# in version control.
+e2e-secret.txt
+e2e-backend.log
+e2e-backend.err
+run-dbg.log
+
 # Maven
 pom.xml.tag
 pom.xml.releaseBackup

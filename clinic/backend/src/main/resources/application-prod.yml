@@ -1,16 +1,38 @@
 spring:
+  main:
+    # Cold-start optimisation on Render: components are created on first use.
+    # Flyway and the AdminUserInitializer ApplicationRunner still run at startup,
+    # so the schema is migrated and the admin exists before readiness flips.
+    lazy-initialization: true
   datasource:
     url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/clinic_db}}
     username: ${SPRING_DATASOURCE_USERNAME:clinic_user}
     password: ${SPRING_DATASOURCE_PASSWORD:clinic_secure_password_change_me}
     hikari:
-      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:20}
-      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:2}
-      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:30000}
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:1}
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:10000}
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     show-sql: false
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+  cache:
+    type: ${SPRING_CACHE_TYPE:simple}
+
+# Swagger/OpenAPI scanning is a measurable chunk of boot time and is not needed in prod.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
 
 logging:
   level:

@@ -1,6 +1,8 @@
 package com.clinic.controller;
 
 import com.clinic.dto.response.AuthResponse;
+import com.clinic.mapper.UserMapper;
+import com.clinic.security.CurrentUser;
 import com.clinic.service.AuthService;
 import com.clinic.security.jwt.JwtTokenProvider;
 import com.clinic.repository.TokenBlacklistRepository;
@@ -20,7 +22,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AuthController.class)
+@WebMvcTest(value = AuthController.class,
+        includeFilters = @org.springframework.context.annotation.ComponentScan.Filter(
+                type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE,
+                classes = UserMapper.class))
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {
 
@@ -38,6 +43,19 @@ class AuthControllerTest {
 
     @MockBean
     private TokenBlacklistRepository tokenBlacklistRepository;
+
+    /** The controller derives the caller's identity from the security context. */
+    @MockBean
+    private CurrentUser currentUser;
+
+    private final UserMapper userMapper = new UserMapper();
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubCaller() {
+        when(currentUser.userId()).thenReturn("user-1");
+        when(currentUser.require()).thenReturn(
+                new com.clinic.security.CustomUserPrincipal(patientEntity(java.util.UUID.randomUUID())));
+    }
 
     @Test
     void registerReturnsCreated() throws Exception {

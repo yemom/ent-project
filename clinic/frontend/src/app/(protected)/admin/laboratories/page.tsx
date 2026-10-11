@@ -1,10 +1,5 @@
-import { AdminLaboratoriesPage } from '@/features/admin/admin-pages';
+import { redirect } from 'next/navigation';
 
-export const metadata = {
-  title: 'Laboratory Management | Clinic',
-  description: 'Manage laboratory facilities and operations'
-};
-
-export default function LaboratoriesPage() {
-  return <AdminLaboratoriesPage />;
+export default function AdminLaboratoriesRedirect() {
+  redirect('/admin/laboratory');
 }

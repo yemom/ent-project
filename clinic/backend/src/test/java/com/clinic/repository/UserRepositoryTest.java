@@ -37,4 +37,34 @@ class UserRepositoryTest {
         assertTrue(userRepository.findById(saved.getId()).isEmpty());
         assertTrue(userRepository.findByEmailAndActiveTrue("patient@example.com").isEmpty());
     }
+
+    @Test
+    void searchHandlesAllNullFiltersWithoutException() {
+        Patient patient = patientEntity(UUID.randomUUID());
+        userRepository.save(patient);
+
+        org.springframework.data.domain.Page<com.clinic.entity.User> page = userRepository.search(
+                null, null, null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 10));
+
+        assertNotNull(page);
+        assertFalse(page.isEmpty());
+    }
+
+    @Test
+    void searchFiltersByRoleAndDepartment() {
+        Patient patient = patientEntity(UUID.randomUUID());
+        patient.setDepartment("cardiology");
+        userRepository.save(patient);
+
+        org.springframework.data.domain.Page<com.clinic.entity.User> match = userRepository.search(
+                com.clinic.entity.UserRole.PATIENT, true, null, "cardiology", null,
+                org.springframework.data.domain.PageRequest.of(0, 10));
+        assertFalse(match.isEmpty());
+
+        org.springframework.data.domain.Page<com.clinic.entity.User> noMatch = userRepository.search(
+                com.clinic.entity.UserRole.CASHIER, null, null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 10));
+        assertTrue(noMatch.isEmpty());
+    }
 }

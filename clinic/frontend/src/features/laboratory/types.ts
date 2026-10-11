@@ -24,6 +24,8 @@ export interface LabResult {
   findings: Record<string, string> | string;
   fileUrl?: string | null;
   status: LabResultStatus;
+  /** Flagged by the technician as needing urgent clinician attention. */
+  critical?: boolean;
   submittedAt?: string | null;
   updatedAt?: string | null;
 }
@@ -54,4 +56,6 @@ export interface SubmitLabResultDto {
   findings: Record<string, string> | string;
   fileUrl?: string | null;
   status: LabResultStatus;
+  /** Set when the result needs urgent clinician attention. */
+  critical?: boolean;
 }

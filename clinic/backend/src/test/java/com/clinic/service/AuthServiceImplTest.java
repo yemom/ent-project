@@ -2,6 +2,7 @@ package com.clinic.service;
 
 import com.clinic.entity.UserRole;
 import com.clinic.mapper.UserMapper;
+import com.clinic.repository.RefreshTokenRepository;
 import com.clinic.repository.TokenBlacklistRepository;
 import com.clinic.repository.UserRepository;
 import com.clinic.security.jwt.JwtTokenProvider;
@@ -28,13 +29,16 @@ class AuthServiceImplTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserRepository userRepository;
     @Mock private TokenBlacklistRepository tokenBlacklistRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private JwtTokenProvider jwtTokenProvider;
+    @Mock private AuditLogService auditLogService;
     private final UserMapper userMapper = new UserMapper();
     private AuthServiceImpl authService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        authService = new AuthServiceImpl(authenticationManager, passwordEncoder, userRepository, tokenBlacklistRepository, jwtTokenProvider, userMapper);
+        authService = new AuthServiceImpl(authenticationManager, passwordEncoder, userRepository,
+                tokenBlacklistRepository, refreshTokenRepository, jwtTokenProvider, userMapper, auditLogService);
     }
 
     @Test
@@ -44,9 +48,14 @@ class AuthServiceImplTest {
         when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(jwtTokenProvider.generateToken(any())).thenReturn("test-token");
         when(jwtTokenProvider.getExpiration("test-token")).thenReturn(java.time.Instant.now().plusSeconds(3600));
+        when(jwtTokenProvider.generateRefreshToken()).thenReturn("refresh-token");
+        when(jwtTokenProvider.hashRefreshToken(any())).thenReturn("hash");
 
         var response = authService.register(registerRequest());
 
         assertEquals(UserRole.PATIENT, response.user().role());
+        // The permission set travels with the session so the frontend can gate UI.
+        assertTrue(response.permissions().contains("appointment:manage"));
+        assertEquals("refresh-token", response.refreshToken());
     }
 }

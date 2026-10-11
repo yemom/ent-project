@@ -82,6 +82,80 @@ public final class TestFixtures {
         return new MedicalRecordUpdateRequest(patientId.toString(), doctorId.toString(), appointmentId.toString(), "Updated Diagnosis", "Updated Treatment", "Updated Prescription", "Updated Tests", "BP 110/70", false, null, "Updated Notes", LocalDate.now(), "FOLLOW_UP", false);
     }
 
+    public static MedicalRecordAmendRequest medicalRecordAmendRequest() {
+        return new MedicalRecordAmendRequest(
+                "Correcting the diagnosis after review",
+                "Updated Diagnosis",
+                "Updated Treatment",
+                null,
+                null,
+                null,
+                "Updated Notes",
+                false,
+                null,
+                "FOLLOW_UP",
+                false);
+    }
+
+    public static BreakGlassAccessRequest breakGlassAccessRequest() {
+        return new BreakGlassAccessRequest("Emergency trauma case, patient unconscious on arrival");
+    }
+
+    public static RegisterPatientRequest registerPatientRequest() {
+        return new RegisterPatientRequest(
+                "Jane New", "jane.new@example.com", null, "+15550010",
+                "1992-04-05", "FEMALE", "A+", "John Doe", "+15550011",
+                "branch-1", null);
+    }
+
+    public static AssignPatientRequest assignPatientRequest(String doctorId) {
+        return new AssignPatientRequest(doctorId, null, "Cardiology", "Walk-in referral");
+    }
+
+    /** Same, but with a nurse named alongside the doctor. */
+    public static AssignPatientRequest assignPatientRequest(String doctorId, String nurseId) {
+        return new AssignPatientRequest(doctorId, nurseId, "Cardiology", "Walk-in referral");
+    }
+
+    public static CheckInPatientRequest checkInPatientRequest() {
+        return new CheckInPatientRequest(true, null, "Arrived at reception");
+    }
+
+    public static PatientDemographicsResponse patientDemographicsResponse(UUID id) {
+        return new PatientDemographicsResponse(
+                id.toString(), "REG-1234", "John Patient", "patient@example.com", "+15550001",
+                LocalDate.of(1990, 1, 1), "MALE", "O+", "Jane Patient", "+15550002",
+                "branch-1", true, LocalDateTime.now().toString(), "doctor-1", "Dr Smith");
+    }
+
+    public static PatientAssignmentResponse patientAssignmentResponse(UUID patientId, UUID doctorId) {
+        return new PatientAssignmentResponse(
+                UUID.randomUUID().toString(), patientId.toString(), "John Patient",
+                doctorId.toString(), "Dr Smith", null, "Cardiology", 1,
+                "reception-1", "Front Desk", "Walk-in referral", true,
+                Instant.now(), null);
+    }
+
+    public static NotificationResponse notificationResponse(String id, NotificationType type) {
+        return new NotificationResponse(id, type.name(), "Lab result ready",
+                "A result is ready for review", "ref-1", "/doctor/laboratory",
+                null, false, Instant.now());
+    }
+
+    public static AuditLog auditLogEntity(UUID id, AuditAction action) {
+        return AuditLog.builder()
+                .id(id.toString())
+                .actorId("actor-1")
+                .actorEmail("actor@example.com")
+                .actorRole(UserRole.DOCTOR)
+                .action(action)
+                .targetType("MEDICAL_RECORD")
+                .targetId("record-1")
+                .reason("Reviewed")
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
     public static MedicalRecordSearchRequest medicalRecordSearchRequest(UUID patientId, UUID doctorId, UUID appointmentId) {
         return new MedicalRecordSearchRequest(patientId.toString(), doctorId.toString(), appointmentId.toString(), LocalDate.now().minusDays(1), LocalDate.now().plusDays(1), true, "diag");
     }

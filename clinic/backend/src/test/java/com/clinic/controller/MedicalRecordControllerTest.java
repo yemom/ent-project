@@ -1,5 +1,7 @@
 package com.clinic.controller;
 
+import com.clinic.service.AuditLogService;
+import com.clinic.service.BreakGlassService;
 import com.clinic.service.MedicalRecordService;
 import com.clinic.security.jwt.JwtTokenProvider;
 import com.clinic.repository.TokenBlacklistRepository;
@@ -43,6 +45,12 @@ class MedicalRecordControllerTest {
 
     @MockBean
     private TokenBlacklistRepository tokenBlacklistRepository;
+
+    @MockBean
+    private BreakGlassService breakGlassService;
+
+    @MockBean
+    private AuditLogService auditLogService;
 
     @Test
     void createReturnsCreated() throws Exception {
@@ -94,19 +102,20 @@ class MedicalRecordControllerTest {
     }
 
     @Test
-    void updateReturnsOk() throws Exception {
+    void amendReturnsOk() throws Exception {
         UUID patientId = UUID.randomUUID();
         UUID doctorId = UUID.randomUUID();
         UUID appointmentId = UUID.randomUUID();
         String id = UUID.randomUUID().toString();
-        when(medicalRecordService.update(eq(id), any())).thenReturn(medicalRecordResponse(UUID.fromString(id), patientId, doctorId, appointmentId));
+        when(medicalRecordService.amend(eq(id), any()))
+                .thenReturn(medicalRecordResponse(UUID.fromString(id), patientId, doctorId, appointmentId));
 
         mockMvc.perform(put("/api/v1/medical-records/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(medicalRecordUpdateRequest(patientId, doctorId, appointmentId))))
+                        .content(objectMapper.writeValueAsString(medicalRecordAmendRequest())))
                 .andExpect(status().isOk());
 
-        verify(medicalRecordService).update(eq(id), any());
+        verify(medicalRecordService).amend(eq(id), any());
     }
 
     @Test

@@ -1,17 +1,17 @@
 "use client";
 
-import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
-import { useState } from 'react';
 import { AuthHydrator } from './auth-hydrator';
 import { QueryProvider } from './query-provider';
+import { ServerWakeUp } from './server-wakeup';
 
 export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <QueryProvider>
         <AuthHydrator />
+        <ServerWakeUp />
         {children}
         <Toaster position="top-right" richColors closeButton />
       </QueryProvider>

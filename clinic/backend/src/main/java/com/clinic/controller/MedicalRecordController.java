@@ -1,13 +1,17 @@
 package com.clinic.controller;
 
 import com.clinic.config.ApiPaths;
-import com.clinic.dto.request.MedicalRecordSearchRequest;
-import com.clinic.dto.request.MedicalRecordUpdateRequest;
-import com.clinic.dto.request.MedicalRecordCreateRequest;
-import com.clinic.dto.response.MedicalRecordResponse;
+import com.clinic.dto.request.BreakGlassAccessRequest;
+import com.clinic.dto.request.MedicalRecordAmendRequest;
+import com.clinic.dto.response.MedicalRecordAmendmentResponse;
 import com.clinic.dto.response.PageResponse;
+import com.clinic.dto.response.MedicalRecordResponse;
+import com.clinic.service.AuditLogService;
+import com.clinic.service.BreakGlassService;
 import com.clinic.service.MedicalRecordService;
+import com.clinic.entity.AuditAction;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,31 +31,64 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
+/**
+ * Clinical records.
+ *
+ * <p>Only roles holding {@code diagnosis:write} can create or amend a record;
+ * nurses and pharmacists get read-only access. Reads are audited, and a signed
+ * record is never silently overwritten — it is amended with history.
+ */
 @RestController
 @RequestMapping(ApiPaths.MEDICAL_RECORDS)
+@Slf4j
 public class MedicalRecordController {
 
     private final MedicalRecordService medicalRecordService;
+    private final BreakGlassService breakGlassService;
+    private final AuditLogService auditLogService;
 
-    public MedicalRecordController(MedicalRecordService medicalRecordService) {
+    public MedicalRecordController(MedicalRecordService medicalRecordService,
+                                   BreakGlassService breakGlassService,
+                                   AuditLogService auditLogService) {
         this.medicalRecordService = medicalRecordService;
+        this.breakGlassService = breakGlassService;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
-    public ResponseEntity<MedicalRecordResponse> create(@Valid @RequestBody MedicalRecordCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(medicalRecordService.create(request));
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
+    public ResponseEntity<MedicalRecordResponse> create(@Valid @RequestBody com.clinic.dto.request.MedicalRecordCreateRequest request) {
+        MedicalRecordResponse created = medicalRecordService.create(request);
+        auditLogService.record(AuditAction.RECORD_CREATED, "MEDICAL_RECORD", created.id(), "Created clinical record");
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write') or hasAuthority('PERM_vital:write')")
     public ResponseEntity<MedicalRecordResponse> getById(@PathVariable String id) {
+        MedicalRecordResponse record = medicalRecordService.getById(id);
+        auditLogService.record(AuditAction.RECORD_VIEWED, "MEDICAL_RECORD", id, "Viewed clinical record");
+        return ResponseEntity.ok(record);
+    }
+
+    /**
+     * Emergency access. Requires an explicit reason, is fully audited, and is the
+     * only way to read a record outside your assigned panel.
+     */
+    @GetMapping("/{id}/break-glass")
+    @PreAuthorize("hasAuthority('PERM_patient:demographics:read')")
+    public ResponseEntity<MedicalRecordResponse> breakGlass(
+            @PathVariable String id,
+            @Valid @RequestBody BreakGlassAccessRequest request) {
+        log.warn("Break-glass access to medical record {} by {}", id, "clinical staff");
+        breakGlassService.recordAccess(id, request.reason());
         return ResponseEntity.ok(medicalRecordService.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
     public ResponseEntity<PageResponse<MedicalRecordResponse>> getAll(
             @PageableDefault(size = 20, sort = "recordDate", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
     ) {
@@ -60,7 +97,7 @@ public class MedicalRecordController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
     public ResponseEntity<PageResponse<MedicalRecordResponse>> search(
             @RequestParam(required = false) String patientId,
             @RequestParam(required = false) String doctorId,
@@ -71,27 +108,40 @@ public class MedicalRecordController {
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "recordDate", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
     ) {
-        MedicalRecordSearchRequest request = new MedicalRecordSearchRequest(
-                patientId,
-                doctorId,
-                appointmentId,
-                fromDate,
-                toDate,
-                confidential,
-                keyword
-        );
+        var request = new com.clinic.dto.request.MedicalRecordSearchRequest(
+                patientId, doctorId, appointmentId, fromDate, toDate, confidential, keyword);
         Page<MedicalRecordResponse> page = medicalRecordService.search(request, pageable);
         return ResponseEntity.ok(PageResponse.of(page));
     }
 
+    /**
+     * Amends a record. A mandatory reason is required and the previous values are
+     * stored as an immutable amendment row.
+     */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
-    public ResponseEntity<MedicalRecordResponse> update(@PathVariable String id, @Valid @RequestBody MedicalRecordUpdateRequest request) {
-        return ResponseEntity.ok(medicalRecordService.update(id, request));
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
+    public ResponseEntity<MedicalRecordResponse> update(@PathVariable String id,
+                                                        @Valid @RequestBody MedicalRecordAmendRequest request) {
+        MedicalRecordResponse updated = medicalRecordService.amend(id, request);
+        auditLogService.record(AuditAction.RECORD_AMENDED, "MEDICAL_RECORD", id,
+                "Amended clinical record: " + request.reason());
+        return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/{id}/amendments")
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
+    public ResponseEntity<List<MedicalRecordAmendmentResponse>> amendments(@PathVariable String id) {
+        return ResponseEntity.ok(medicalRecordService.amendmentHistory(id));
+    }
+
+    @PostMapping("/{id}/sign")
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
+    public ResponseEntity<MedicalRecordResponse> sign(@PathVariable String id) {
+        return ResponseEntity.ok(medicalRecordService.sign(id));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
+    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         medicalRecordService.delete(id);
         return ResponseEntity.noContent().build();

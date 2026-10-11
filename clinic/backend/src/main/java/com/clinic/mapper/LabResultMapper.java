@@ -36,6 +36,7 @@ public class LabResultMapper {
                 entity.getFindings(),
                 entity.getFileUrl(),
                 entity.getStatus(),
+                Boolean.TRUE.equals(entity.getCritical()),
                 entity.getSubmittedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()

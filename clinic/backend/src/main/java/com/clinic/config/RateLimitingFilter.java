@@ -22,6 +22,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final String AUTH_PATH_PREFIX = "/api/v1/auth";
     private static final String LEGACY_AUTH_PATH_PREFIX = "/api/auth";
+    /** Never rate-limited: liveness/keep-alive traffic must always be answerable. */
+    private static final String HEALTH_PATH_PREFIX = "/api/v1/health";
 
     private final RateLimitProperties properties;
     private final ObjectMapper objectMapper;
@@ -39,6 +41,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
 
         String path = request.getRequestURI();
+        if (path.startsWith(HEALTH_PATH_PREFIX)) {
+            return true;
+        }
         return properties.getProtectedPathPrefixes().stream().noneMatch(path::startsWith);
     }
 

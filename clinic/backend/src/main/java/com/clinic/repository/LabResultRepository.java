@@ -29,4 +29,15 @@ public interface LabResultRepository extends JpaRepository<LabResult, String>, J
 
     @EntityGraph(attributePaths = {"labOrder"})
     Page<LabResult> findByLabTechnicianId(String labTechnicianId, Pageable pageable);
+
+    /** Validated result count - the laboratory's signed-off output. */
+    long countByStatus(LabResultStatus status);
+
+    /**
+     * Results flagged critical.
+     *
+     * <p>Counted separately from validation because a critical result needs urgent
+     * clinician attention whether or not it has been formally validated yet.
+     */
+    long countByCriticalTrue();
 }

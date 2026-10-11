@@ -1,4 +1,34 @@
-export type UserRole = 'ADMIN' | 'DOCTOR' | 'PATIENT' | 'PHARMACIST' | 'LABORATORY';
+/**
+ * Roles returned by the API. `ADMIN` and `LABORATORY` are legacy values kept so
+ * previously issued tokens keep working; the backend maps them onto SUPER_ADMIN
+ * and LAB_TECHNICIAN respectively.
+ */
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'HOSPITAL_ADMIN'
+  | 'DOCTOR'
+  | 'NURSE'
+  | 'RECEPTIONIST'
+  | 'LAB_TECHNICIAN'
+  | 'PHARMACIST'
+  | 'CASHIER'
+  | 'PATIENT'
+  | 'ADMIN'
+  | 'LABORATORY';
+
+/**
+ * Canonical role: collapses the legacy aliases. Mirrors `UserRole#canonical()`
+ * on the backend so client-side gating matches server-side authorisation.
+ */
+export const CANONICAL_ROLE: Record<string, UserRole> = {
+  ADMIN: 'SUPER_ADMIN',
+  LABORATORY: 'LAB_TECHNICIAN',
+};
+
+export function canonicalRole(role?: string | null): UserRole | null {
+  if (!role) return null;
+  return (CANONICAL_ROLE[role] ?? role) as UserRole;
+}
 
 // Appointment
 export interface Appointment {
@@ -40,10 +70,11 @@ export interface ApiErrorResponse {
 
 export interface PageResponse<T> {
   content: T[];
-  page: number;
-  size: number;
+  pageNumber: number;
+  pageSize: number;
   totalElements: number;
   totalPages: number;
+  first: boolean;
   last: boolean;
 }
 
@@ -61,4 +92,58 @@ export interface AuthUser {
   role: UserRole;
   phone?: string;
   avatarUrl?: string;
+  /**
+   * Permission strings from the backend's central matrix. The frontend only
+   * hides UI the caller cannot use; the API remains the authority.
+   */
+  permissions?: string[];
+}
+
+// Front desk / assignment
+export interface PatientDemographics {
+  id: string;
+  registrationNumber: string | null;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  bloodType: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  branchId: string | null;
+  checkedIn: boolean;
+  checkedInAt: string | null;
+  assignedDoctorId: string | null;
+  assignedDoctorName: string | null;
+}
+
+export interface PatientAssignment {
+  id: string;
+  patientId: string;
+  patientName: string | null;
+  doctorId: string;
+  doctorName: string | null;
+  departmentId: string | null;
+  queuePosition: number | null;
+  assignedById: string | null;
+  assignedByName: string | null;
+  reason: string | null;
+  active: boolean;
+  assignedAt: string;
+  releasedAt: string | null;
+}
+
+export interface RegisterPatientPayload {
+  fullName: string;
+  email: string;
+  password?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  bloodType?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  branchId?: string;
+  registrationNumber?: string;
 }

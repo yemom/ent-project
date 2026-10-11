@@ -72,6 +72,7 @@ import { getDoctorStats } from "@/services/api/doctor";
 import { labOrdersService } from "@/features/laboratory/services/lab-orders.service";
 import { labResultsService } from "@/features/laboratory/services/lab-results.service";
 import { LAB_TEST_TYPES, LAB_URGENCY } from "@/lib/constants";
+import { usePrefetchDashboard } from "@/components/layouts/prefetch-link";
 
 // ============================================================================
 // DoctorDashboardPage
@@ -83,6 +84,12 @@ import { LAB_TEST_TYPES, LAB_URGENCY } from "@/lib/constants";
 export function DoctorDashboardPage() {
   const router = useRouter();
   const { appointments, isLoading, error } = useAppointments();
+  const prefetchDashboard = usePrefetchDashboard();
+
+  // Warm the dashboard's appointments query before first paint.
+  useEffect(() => {
+    prefetchDashboard();
+  }, [prefetchDashboard]);
   const [doctorStats, setDoctorStats] = useState<{
     todayAppointmentsCount: number;
     pendingNotesCount: number;

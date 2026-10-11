@@ -8,7 +8,6 @@ import { useForm } from "react-hook-form";
 import {
   ArrowLeft,
   CheckCircle2,
-  Shield,
   UserRoundPlus,
   BadgeCheck,
   Search,
@@ -36,6 +35,7 @@ import {
 } from "@/lib/doctor-availability";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { passwordFormRules } from "@/lib/password-policy";
+import { RoleSelect, requiredFieldsFor } from "@/features/admin/role-select";
 import type { UserRole } from "@/types/api";
 import type { ReactNode } from "react";
 
@@ -128,6 +128,7 @@ export function InviteUserPage() {
     phone: string;
     specialization: string;
     licenseNumber: string;
+    employeeNumber: string;
     role: UserRole;
   }>({
     defaultValues: {
@@ -138,6 +139,7 @@ export function InviteUserPage() {
       phone: "",
       specialization: "",
       licenseNumber: "",
+      employeeNumber: "",
       role: "PATIENT",
     },
   });
@@ -250,23 +252,33 @@ export function InviteUserPage() {
                     return;
                   }
 
-                  if (values.role === "LABORATORY") {
+                  if (values.role === "LAB_TECHNICIAN") {
                     await inviteUser({
                       fullName,
                       email: values.email,
                       password: values.password,
                       phone: values.phone || undefined,
-                      role: "LABORATORY",
+                      role: "LAB_TECHNICIAN",
                     });
-                    setStatus("Laboratory user created successfully.");
+                    setStatus("Lab technician created successfully.");
                     setTimeout(() => router.push(ROUTES.adminLaboratories), 700);
                     return;
                   }
 
-                  setIsError(true);
-                  setStatus(
-                    "Admin accounts are not supported from this screen yet. Choose Doctor, Patient, Pharmacist, or Laboratory.",
-                  );
+                  // Every remaining role (nurse, receptionist, cashier, hospital
+                  // admin, super admin) goes through the generic account
+                  // endpoint. Privileged roles are refused there and must go
+                  // through a dual-approved role-change request — the server's
+                  // message is surfaced verbatim rather than being swallowed.
+                  await inviteUser({
+                    fullName,
+                    email: values.email,
+                    password: values.password,
+                    phone: values.phone || undefined,
+                    role: values.role,
+                  });
+                  setStatus(`${values.role.replace(/_/g, ' ')} account created successfully.`);
+                  setTimeout(() => router.push(ROUTES.adminUsers), 700);
                 } catch (err) {
                   setIsError(true);
                   setStatus(
@@ -315,99 +327,55 @@ export function InviteUserPage() {
                     className="h-11 rounded-xl"
                   />
                 </Field>
-                <Field label="Preferred language">
-                  <select className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
-                    <option>English (US)</option>
-                    <option>Spanish (US)</option>
-                    <option>French</option>
-                  </select>
-                </Field>
               </div>
 
-              <Card className="border-muted/60 bg-muted/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Shield className="h-4 w-4" /> Professional Credentials
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="NPI Number">
-                      <Input
-                        placeholder="10-digit NPI"
-                        className="h-11 rounded-xl"
-                      />
-                    </Field>
-                    <Field label="Medical license number">
-                      <Input
-                        {...form.register("licenseNumber")}
-                        placeholder="ST-12345678"
-                        className="h-11 rounded-xl"
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Primary specialty">
-                    <Input
-                      {...form.register("specialization")}
-                      placeholder="Cardiology"
-                      className="h-11 rounded-xl"
-                    />
-                  </Field>
-                </CardContent>
-              </Card>
+              {/* Specialization and license number render here, and only for
+                  doctor accounts. The previous always-visible "Professional
+                  Credentials" card duplicated those inputs and showed them to
+                  every role regardless of the selection. */}
 
               <Card className="border-muted/60 bg-muted/20">
                 <CardHeader>
                   <CardTitle className="text-base">Role Assignment</CardTitle>
+                  <CardDescription>
+                    Permissions are applied on the server. Super Admin and Hospital Admin need a second
+                    privileged approver before the role takes effect.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-2">
-                  {[
-                    {
-                      value: "DOCTOR",
-                      label: "Doctor",
-                      description:
-                        "Full clinical access, prescribing authority, and diagnosis.",
-                    },
-                    {
-                      value: "PATIENT",
-                      label: "Patient",
-                      description:
-                        "Portal access for visits, records, and prescriptions.",
-                    },
-                    {
-                      value: "PHARMACIST",
-                      label: "Pharmacist",
-                      description:
-                        "Pharmacy access, order fulfillment, and inventory.",
-                    },
-                    {
-                      value: "LABORATORY",
-                      label: "Laboratory",
-                      description:
-                        "Access to lab orders, results entry, and processing.",
-                    },
-                    {
-                      value: "ADMIN",
-                      label: "Admin",
-                      description:
-                        "Billing access, scheduling, and system configuration.",
-                    },
-                  ].map((item) => (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() =>
-                        form.setValue("role", item.value as UserRole)
-                      }
-                      disabled={item.value === "ADMIN"}
-                      className={`rounded-2xl border p-4 text-left transition ${form.watch("role") === item.value ? "border-primary bg-primary/5" : "border-border bg-background"} ${item.value === "ADMIN" ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      <p className="font-semibold">{item.label}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.description}
-                      </p>
-                    </button>
-                  ))}
+                <CardContent className="space-y-4">
+                  <RoleSelect
+                    value={form.watch("role")}
+                    onChange={(role) => form.setValue("role", role)}
+                  />
+
+                  {form.watch("role") === "DOCTOR" ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Medical license number">
+                        <Input
+                          {...form.register("licenseNumber")}
+                          placeholder="ST-12345678"
+                          className="h-11 rounded-xl"
+                        />
+                      </Field>
+                      <Field label="Primary specialty">
+                        <Input
+                          {...form.register("specialization")}
+                          placeholder="Cardiology"
+                          className="h-11 rounded-xl"
+                        />
+                      </Field>
+                    </div>
+                  ) : null}
+
+                  {requiredFieldsFor(form.watch("role")).employeeNumber ? (
+                    <Field label="Employee number">
+                      <Input
+                        {...form.register("employeeNumber")}
+                        placeholder="EMP-0001"
+                        className="h-11 rounded-xl"
+                      />
+                    </Field>
+                  ) : null}
                 </CardContent>
               </Card>
 

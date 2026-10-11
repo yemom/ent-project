@@ -22,6 +22,16 @@ public class GlobalExceptionHandler {
                 .body(new ApiErrorResponse(Instant.now(), 404, ex.getMessage(), request.getRequestURI()));
     }
 
+    /**
+     * Conflict is handled here rather than relying solely on {@code @ResponseStatus},
+     * so the body keeps the same shape as every other error response.
+     */
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiErrorResponse(Instant.now(), 409, ex.getMessage(), request.getRequestURI()));
+    }
+
     @ExceptionHandler({BadRequestException.class, IllegalArgumentException.class})
     public ResponseEntity<ApiErrorResponse> handleBadRequest(RuntimeException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

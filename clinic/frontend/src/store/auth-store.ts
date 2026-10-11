@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthTokens, AuthUser, UserRole } from '@/types/api';
 import { tokenStorage } from '@/lib/token-storage';
+import { permissionsForRole } from '@/features/auth/permissions';
 
 interface AuthState {
   user: AuthUser | null;
@@ -16,6 +17,7 @@ interface AuthState {
   clearSession: () => void;
   setHydrated: (value: boolean) => void;
   hasRole: (roles: UserRole[]) => boolean;
+  hasPermission: (permission: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -39,6 +41,14 @@ export const useAuthStore = create<AuthState>()(
       hasRole: (roles) => {
         const role = get().user?.role;
         return Boolean(role && roles.includes(role));
+      },
+      hasPermission: (permission) => {
+        const user = get().user;
+        if (!user) return false;
+        // The server-provided list is authoritative when present.
+        if (user.permissions?.length) return user.permissions.includes(permission);
+        // Fallback for a session restored from storage without permissions.
+        return (permissionsForRole(user.role) as readonly string[]).includes(permission);
       }
     }),
     {
@@ -50,16 +60,19 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state.setHydrated(true);
+          // `isAuthenticated` is derived here rather than persisted, so it always
+          // agrees with the token and profile that were just restored. Recomputing
+          // it in one place means no consumer has to know it was not persisted.
           const validSession = Boolean(state.user && state.accessToken);
+
           if (!validSession) {
             state.clearSession();
           } else {
             tokenStorage.setSession(state.accessToken!, state.user!, state.refreshToken ?? undefined);
-            if (!state.isAuthenticated) {
-              useAuthStore.setState((current) => ({ ...current, isAuthenticated: true }));
-            }
+            useAuthStore.setState({ isAuthenticated: true });
           }
+
+          state.setHydrated(true);
         }
       }
     }

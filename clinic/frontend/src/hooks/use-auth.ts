@@ -2,19 +2,35 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useEffect, useMemo } from 'react';
 import { login, logout, register, getMe } from '@/services/api/auth';
 import { useAuthStore } from '@/store/auth-store';
 import { ROUTES } from '@/lib/constants';
+import { ROLE_HOME, permissionsForRole } from '@/features/auth/permissions';
 import type { UserRole } from '@/types/api';
 
+/**
+ * Keeps the stored profile (and its permission list) in sync with the server.
+ * Runs once per authenticated session; the API stays the source of truth.
+ */
 export function useCurrentUser() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const setUser = useAuthStore((state) => state.setUser);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: getMe,
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    staleTime: 5 * 60_000,
   });
+
+  useEffect(() => {
+    if (query.data) {
+      setUser(query.data);
+    }
+  }, [query.data, setUser]);
+
+  return query;
 }
 
 export function useLogin() {
@@ -23,16 +39,7 @@ export function useLogin() {
     mutationFn: login,
     onSuccess: (data) => {
       useAuthStore.getState().setSession(data);
-      const target = data.user.role === 'DOCTOR'
-        ? ROUTES.doctorDashboard
-        : data.user.role === 'PATIENT'
-          ? ROUTES.patientDashboard
-          : data.user.role === 'PHARMACIST'
-            ? ROUTES.pharmacistDashboard
-            : data.user.role === 'LABORATORY'
-              ? ROUTES.laboratoryRoot
-              : ROUTES.adminDashboard;
-      router.push(target);
+      router.push(ROLE_HOME[data.user.role] ?? ROUTES.adminDashboard);
     }
   });
 }
@@ -43,16 +50,7 @@ export function useRegister() {
     mutationFn: register,
     onSuccess: (data) => {
       useAuthStore.getState().setSession(data);
-      const target = data.user.role === 'DOCTOR'
-        ? ROUTES.doctorDashboard
-        : data.user.role === 'PATIENT'
-          ? ROUTES.patientDashboard
-          : data.user.role === 'PHARMACIST'
-            ? ROUTES.pharmacistDashboard
-            : data.user.role === 'LABORATORY'
-              ? ROUTES.laboratoryRoot
-              : ROUTES.adminDashboard;
-      router.push(target);
+      router.push(ROLE_HOME[data.user.role] ?? ROUTES.adminDashboard);
     }
   });
 }
@@ -70,4 +68,23 @@ export function useLogout() {
 
 export function useHasRole(roles: UserRole[]) {
   return useAuthStore((state) => state.hasRole(roles));
+}
+
+/**
+ * True when the signed-in role holds `permission`.
+ *
+ * Prefers the permission list the server returned with the session, so the UI
+ * matches the API exactly; falls back to the local matrix when a session was
+ * restored from storage before `/auth/me` was fetched.
+ */
+export function useHasPermission(permission: string) {
+  const serverPermissions = useAuthStore((state) => state.user?.permissions);
+  const role = useAuthStore((state) => state.user?.role);
+
+  return useMemo(() => {
+    if (serverPermissions?.length) {
+      return serverPermissions.includes(permission);
+    }
+    return permissionsForRole(role).includes(permission as never);
+  }, [permission, role, serverPermissions]);
 }

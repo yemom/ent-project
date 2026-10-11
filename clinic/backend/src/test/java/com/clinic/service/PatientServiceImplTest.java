@@ -1,10 +1,15 @@
 package com.clinic.service;
 
+import com.clinic.entity.Doctor;
 import com.clinic.entity.Patient;
 import com.clinic.exception.BadRequestException;
+import com.clinic.exception.ResourceNotFoundException;
 import com.clinic.mapper.PatientMapper;
+import com.clinic.repository.DoctorRepository;
+import com.clinic.repository.PatientAssignmentRepository;
 import com.clinic.repository.PatientRepository;
 import com.clinic.repository.UserRepository;
+import com.clinic.security.CurrentUser;
 import com.clinic.service.impl.PatientServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +33,11 @@ class PatientServiceImplTest {
 
     @Mock private PatientRepository patientRepository;
     @Mock private UserRepository userRepository;
+    @Mock private DoctorRepository doctorRepository;
+    @Mock private PatientAssignmentRepository assignmentRepository;
+    @Mock private CurrentUser currentUser;
+    @Mock private NotificationService notificationService;
+    @Mock private AuditLogService auditLogService;
     private final PatientMapper patientMapper = new PatientMapper();
     @Mock private PasswordEncoder passwordEncoder;
 
@@ -35,7 +45,9 @@ class PatientServiceImplTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        patientService = new PatientServiceImpl(patientRepository, userRepository, patientMapper, passwordEncoder);
+        patientService = new PatientServiceImpl(patientRepository, userRepository, doctorRepository,
+                assignmentRepository, patientMapper, passwordEncoder, currentUser,
+                notificationService, auditLogService);
     }
 
     @Test
@@ -56,6 +68,84 @@ class PatientServiceImplTest {
 
         assertThrows(BadRequestException.class, () -> patientService.create(patientCreateRequest()));
         verifyNoInteractions(patientRepository);
+    }
+
+    @Test
+    void assignToDoctorNotifiesThatDoctor() {
+        UUID patientId = UUID.randomUUID();
+        UUID doctorId = UUID.randomUUID();
+        Patient patient = patientEntity(patientId);
+        Doctor doctor = doctorEntity(doctorId);
+
+        when(patientRepository.findById(patientId.toString())).thenReturn(Optional.of(patient));
+        when(doctorRepository.findById(doctorId.toString())).thenReturn(Optional.of(doctor));
+        when(assignmentRepository.findByPatientIdAndReleasedAtIsNull(patientId.toString()))
+                .thenReturn(Optional.empty());
+        when(assignmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(currentUser.userId()).thenReturn("reception-1");
+        when(currentUser.require()).thenReturn(new com.clinic.security.CustomUserPrincipal(patient));
+
+        var response = patientService.assignToDoctor(patientId.toString(), assignPatientRequest(doctorId.toString()));
+
+        assertEquals(doctorId.toString(), response.doctorId());
+        assertTrue(response.active());
+        verify(notificationService).createForUser(eq(doctorId.toString()),
+                any(com.clinic.entity.NotificationType.class), anyString(), anyString(),
+                eq(patientId.toString()), anyString());
+    }
+
+    @Test
+    void assignRejectsInactiveDoctor() {
+        UUID patientId = UUID.randomUUID();
+        UUID doctorId = UUID.randomUUID();
+        Patient patient = patientEntity(patientId);
+        Doctor doctor = doctorEntity(doctorId);
+        doctor.setActive(false);
+
+        when(patientRepository.findById(patientId.toString())).thenReturn(Optional.of(patient));
+        when(doctorRepository.findById(doctorId.toString())).thenReturn(Optional.of(doctor));
+
+        assertThrows(BadRequestException.class,
+                () -> patientService.assignToDoctor(patientId.toString(), assignPatientRequest(doctorId.toString())));
+    }
+
+    @Test
+    void branchScopedCallerCannotReadAnotherBranchsPatient() {
+        UUID patientId = UUID.randomUUID();
+        Patient patient = patientEntity(patientId);
+        patient.setBranchId("branch-a");
+
+        when(patientRepository.findById(patientId.toString())).thenReturn(Optional.of(patient));
+        when(currentUser.isBranchScoped()).thenReturn(true);
+        when(currentUser.branchId()).thenReturn("branch-b");
+
+        // Cross-branch access resolves as "not found" so the id is not confirmed.
+        assertThrows(ResourceNotFoundException.class, () -> patientService.getById(patientId.toString()));
+    }
+
+    @Test
+    void branchScopedCallerCanReadTheirOwnBranchsPatient() {
+        UUID patientId = UUID.randomUUID();
+        Patient patient = patientEntity(patientId);
+        patient.setBranchId("branch-a");
+
+        when(patientRepository.findById(patientId.toString())).thenReturn(Optional.of(patient));
+        when(currentUser.isBranchScoped()).thenReturn(true);
+        when(currentUser.branchId()).thenReturn("branch-a");
+
+        assertEquals(patientId.toString(), patientService.getById(patientId.toString()).id());
+    }
+
+    @Test
+    void superAdminWithoutABranchIsUnscoped() {
+        UUID patientId = UUID.randomUUID();
+        Patient patient = patientEntity(patientId);
+        patient.setBranchId("branch-a");
+
+        when(patientRepository.findById(patientId.toString())).thenReturn(Optional.of(patient));
+        when(currentUser.isBranchScoped()).thenReturn(false);
+
+        assertEquals(patientId.toString(), patientService.getById(patientId.toString()).id());
     }
 
 }

@@ -32,20 +32,20 @@ public class PrescriptionOrderController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasAuthority('PERM_prescription:write')")
     public ResponseEntity<PrescriptionOrderResponse> create(@Valid @RequestBody CreatePrescriptionOrderRequest request) {
         log.info("Create prescription order request received for doctor={}", request.doctorId());
         return ResponseEntity.status(HttpStatus.CREATED).body(prescriptionOrderService.create(request));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAuthority('PERM_prescription:verify') or hasAuthority('PERM_prescription:write') or hasAuthority('PERM_report:read')")
     public ResponseEntity<PrescriptionOrderResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(prescriptionOrderService.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAuthority('PERM_prescription:verify') or hasAuthority('PERM_prescription:write') or hasAuthority('PERM_report:read')")
     public ResponseEntity<PageResponse<PrescriptionOrderResponse>> getAll(
             @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
     ) {
@@ -54,7 +54,7 @@ public class PrescriptionOrderController {
     }
 
     @GetMapping("/filter/by-status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAuthority('PERM_prescription:verify') or hasAuthority('PERM_prescription:write') or hasAuthority('PERM_report:read')")
     public ResponseEntity<PageResponse<PrescriptionOrderResponse>> getByStatus(
             @RequestParam PrescriptionOrderStatus status,
             @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
@@ -64,7 +64,7 @@ public class PrescriptionOrderController {
     }
 
     @GetMapping("/filter/by-doctor/{doctorId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAuthority('PERM_prescription:verify') or hasAuthority('PERM_prescription:write') or hasAuthority('PERM_report:read')")
     public ResponseEntity<PageResponse<PrescriptionOrderResponse>> getByDoctorId(
             @PathVariable String doctorId,
             @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
@@ -74,7 +74,7 @@ public class PrescriptionOrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('PHARMACIST')")
+    @PreAuthorize("hasAuthority('PERM_prescription:dispense')")
     public ResponseEntity<PrescriptionOrderResponse> updateStatus(
             @PathVariable String id,
             @Valid @RequestBody UpdatePrescriptionOrderStatusRequest request
@@ -84,7 +84,7 @@ public class PrescriptionOrderController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAuthority('PERM_prescription:write')")
     public ResponseEntity<PrescriptionOrderResponse> update(
             @PathVariable String id,
             @Valid @RequestBody UpdatePrescriptionOrderRequest request
@@ -94,7 +94,7 @@ public class PrescriptionOrderController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'PHARMACIST')")
+    @PreAuthorize("hasAuthority('PERM_prescription:write')")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         prescriptionOrderService.delete(id);
         return ResponseEntity.noContent().build();

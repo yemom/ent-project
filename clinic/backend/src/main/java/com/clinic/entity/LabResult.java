@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Table(name = "lab_results", indexes = {
         @Index(name = "idx_lab_order_id", columnList = "lab_order_id"),
         @Index(name = "idx_lab_technician_id", columnList = "lab_technician_id"),
-        @Index(name = "idx_status", columnList = "status")
+        @Index(name = "idx_lab_results_status", columnList = "status")
 })
 @Data
 @NoArgsConstructor
@@ -48,6 +48,20 @@ public class LabResult extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
     private LabResultStatus status = LabResultStatus.DRAFT;
+
+    /**
+     * Whether this result is clinically critical and needs urgent attention.
+     *
+     * <p>Set prospectively by the technician recording the result; existing rows
+     * default to {@code false} rather than being backfilled, because guessing
+     * whether a historical result was critical would raise alerts nobody reviewed.
+     *
+     * <p>Independent of {@link #status}: a critical result needs attention whether
+     * or not it has been submitted yet.
+     */
+    @Builder.Default
+    @Column(name = "is_critical", nullable = false)
+    private Boolean critical = false;
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;

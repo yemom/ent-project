@@ -1,19 +1,16 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, type FormEvent } from "react";
-import { Mail, Lock, Chrome, KeyRound, Eye, EyeOff } from "lucide-react";
-import {
-  loginSchema,
-  registerSchema,
-  forgotPasswordSchema,
-} from "@/features/auth/schemas";
+import { useEffect, useState } from 'react';
+import { isServerAwake, subscribeServerStatus, wakeUpServer } from '@/services/api/client';
+import { getFriendlyErrorMessage } from '@/lib/error-handler';
+import { useLogin, useRegister } from '@/hooks/use-auth';
+import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertTriangle, Mail, Lock, Chrome, KeyRound, Eye, EyeOff, Loader2, Server } from 'lucide-react';
+import { loginSchema, registerSchema, forgotPasswordSchema } from "@/features/auth/schemas";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useLogin, useRegister } from "@/hooks/use-auth";
-import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import type { z } from "zod";
 
 function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -101,24 +98,53 @@ function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   );
 }
 
+/**
+ * Tracks whether the backend is reachable.
+ * `true`  = answered the health ping
+ * `false` = still booting (Render cold start) or unreachable
+ * `null`  = not checked yet
+ */
+function useServerStatus() {
+  const [awake, setAwake] = useState<boolean | null>(() => isServerAwake());
+
+  useEffect(() => {
+    setAwake(isServerAwake());
+    void wakeUpServer();
+    // `subscribeServerStatus` returns a Set.delete, which is a boolean; wrap it
+    // so React sees a proper cleanup function.
+    const unsubscribe = subscribeServerStatus(setAwake);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  return awake;
+}
+
 export function LoginPage() {
   const login = useLogin();
   const [userType, setUserType] = useState<"staff" | "patient">("staff");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const serverAwake = useServerStatus();
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const isValid = await form.trigger();
     if (isValid) {
       login.mutate(form.getValues());
     }
   };
+
+  // Surface "still booting" as a distinct, friendly state instead of a raw
+  // `timeout of 60000ms exceeded`.
+  const loginFailedWithWakeUp = login.isError && serverAwake === false;
+  const isWakingUp = login.isPending && serverAwake === false;
 
   return (
     <AuthLayout>
@@ -156,30 +182,58 @@ export function LoginPage() {
           </button>
         </div> */}
 
+        {serverAwake === false ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          >
+            <Server className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">Server is waking up, please wait…</p>
+              <p className="text-xs text-amber-700">
+                The clinic server was idle and is starting up. This usually takes
+                under a minute — your sign-in will continue automatically.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {login.error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {getFriendlyErrorMessage(
-                login.error,
-                "Unable to sign in. Please check your email and password.",
-              )}
+            // role="alert" so assistive technology announces the failure as soon as it
+            // appears, rather than leaving a rejected sign-in silently on screen.
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {loginFailedWithWakeUp
+                ? "The server is taking longer than usual to start. Please wait a moment and try again."
+                : getFriendlyErrorMessage(
+                    login.error,
+                    "Unable to sign in. Please check your email and password.",
+                  )}
             </div>
           ) : null}
 
           {/* Email/Medical ID Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
+            {/* htmlFor/id pair: a wrapping <label> is not exposed as an accessible
+                name by every screen reader, and it leaves getByLabel unusable in
+                the end-to-end tests. An explicit association works for both. */}
+            <label
+              htmlFor="login-email"
+              className="block text-sm font-medium text-gray-900 mb-2"
+            >
               {userType === "staff" ? "Email Address" : "Medical ID or Email"}
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
               <Input
+                id="login-email"
                 type="email"
-                placeholder={
-                  userType === "staff"
-                    ? "dr.smith@clinic.com"
-                    : "dr.smith@clinic.com"
-                }
+                autoComplete="email"
+                placeholder="dr.smith@clinic.com"
                 className="pl-10 h-11 border-gray-300 rounded-lg"
                 {...form.register("email")}
               />
@@ -193,13 +247,18 @@ export function LoginPage() {
 
           {/* Password Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
+            <label
+              htmlFor="login-password"
+              className="block text-sm font-medium text-gray-900 mb-2"
+            >
               Security Password
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
               <Input
+                id="login-password"
                 type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
                 placeholder="••••••••"
                 className="pl-10 pr-10 h-11 border-gray-300 rounded-lg"
                 {...form.register("password")}
@@ -253,8 +312,30 @@ export function LoginPage() {
             disabled={login.isPending}
             className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
-            {login.isPending ? "Signing in..." : "Sign In →"}
+            {login.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {isWakingUp ? "Server is waking up…" : "Signing in..."}
+              </>
+            ) : (
+              "Sign In →"
+            )}
           </Button>
+
+          {loginFailedWithWakeUp ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void wakeUpServer();
+                login.reset();
+              }}
+              className="w-full h-10 rounded-lg"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Check server status
+            </Button>
+          ) : null}
         </form>
 
         {/* Divider */}
@@ -312,13 +393,14 @@ export function RegisterPage() {
   const register = useRegister();
   const [signUpAs, setSignUpAs] = useState<"DOCTOR" | "PATIENT">("DOCTOR");
   const [showPassword, setShowPassword] = useState(false);
+  const serverAwake = useServerStatus();
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: { fullName: "", email: "", password: "", role: signUpAs },
   });
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const isValid = await form.trigger();
     if (isValid) {
@@ -338,6 +420,16 @@ export function RegisterPage() {
             Start managing your healthcare journey today.
           </p>
         </div>
+
+        {serverAwake === false ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          >
+            Server is waking up, please wait…
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Full Name */}
@@ -503,7 +595,7 @@ export function ForgotPasswordPage() {
     defaultValues: { email: "" },
   });
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await form.trigger();
   };
@@ -512,9 +604,9 @@ export function ForgotPasswordPage() {
     <AuthLayout>
       <div className="w-full max-w-md">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Reset password
-          </h1>
+          </h2>
           <p className="text-sm text-gray-600">
             We’ll send a secure reset link to your email address.
           </p>
