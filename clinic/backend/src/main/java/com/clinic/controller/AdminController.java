@@ -49,23 +49,16 @@ public class AdminController {
         this.auditLogService = auditLogService;
     }
 
-    @GetMapping("/users")
-    @PreAuthorize("hasAuthority('PERM_user:manage')")
-    public ResponseEntity<PageResponse<UserResponse>> listUsers(
-            @RequestParam(required = false) UserRole role,
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) Boolean status,
-            @RequestParam(required = false) String department,
-            @RequestParam(required = false) String branchId,
-            @RequestParam(required = false) String q,
-            @RequestParam(required = false) String search,
-            @ParameterObject Pageable pageable) {
-        Boolean activeFilter = active != null ? active : status;
-        String searchFilter = search != null && !search.isBlank() ? search : q;
-        log.debug("Admin listing users role={} active={} dept={} search={}", role, activeFilter, department, searchFilter);
-        return ResponseEntity.ok(adminService.searchUsers(role, activeFilter, branchId, department, searchFilter, pageable));
-    }
-
+    /**
+     * The account directory.
+     *
+     * <p>This is the canonical list endpoint; {@code GET /users} is a backwards
+     * compatible alias for it, because both existed and callers use both.
+     *
+     * <p>{@code active} and {@code status} are accepted as synonyms, as are
+     * {@code search} and {@code q}: the older screen sent one pair, the newer the
+     * other, and rejecting either would break a caller for no benefit.
+     */
     @GetMapping("/users/search")
     @PreAuthorize("hasAuthority('PERM_user:manage')")
     public ResponseEntity<PageResponse<UserResponse>> searchUsers(
@@ -77,7 +70,27 @@ public class AdminController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String search,
             @ParameterObject Pageable pageable) {
-        return listUsers(role, active, status, department, branchId, q, search, pageable);
+        Boolean activeFilter = active != null ? active : status;
+        String searchFilter = search != null && !search.isBlank() ? search : q;
+        log.debug("Admin listing users role={} active={} dept={} search={}",
+                role, activeFilter, department, searchFilter);
+        return ResponseEntity.ok(adminService.searchUsers(
+                role, activeFilter, branchId, department, searchFilter, pageable));
+    }
+
+    /** Alias for {@link #searchUsers}; kept because existing callers use this path. */
+    @GetMapping("/users")
+    @PreAuthorize("hasAuthority('PERM_user:manage')")
+    public ResponseEntity<PageResponse<UserResponse>> listUsers(
+            @RequestParam(required = false) UserRole role,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String branchId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String search,
+            @ParameterObject Pageable pageable) {
+        return searchUsers(role, active, status, department, branchId, q, search, pageable);
     }
 
     @GetMapping("/users/{id}")
@@ -86,34 +99,55 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getUser(id));
     }
 
-    @PostMapping("/users")
+    /**
+     * Creates an account for any role, with that role's profile fields.
+     *
+     * <p>This is the canonical create endpoint. {@code POST /users} is an alias.
+     *
+     * <p>Both return {@link CreateUserResponse}, which wraps the user and, when the
+     * caller supplied no password, the generated one. The wrapper is a deliberate
+     * contract change from the previous flat {@code UserSummaryResponse}: a
+     * generated credential has to be returned somehow, and nesting it under
+     * {@code user} keeps it from ever being mistaken for a field of the account.
+     */
+    @PostMapping("/users/accounts")
     @PreAuthorize("hasAuthority('PERM_user:manage')")
-    public ResponseEntity<CreateUserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
-        log.info("Admin creating user with email={} role={}", request.email(), request.role());
+    public ResponseEntity<CreateUserResponse> createAccount(
+            @Valid @RequestBody CreateUserRequest request) {
+        log.info("Admin creating {} account for {}", request.role(), request.email());
         return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createAccount(request));
     }
 
-    @PostMapping("/users/accounts")
+    /** Alias for {@link #createAccount}; kept because existing callers use this path. */
+    @PostMapping("/users")
     @PreAuthorize("hasAuthority('PERM_user:manage')")
-    public ResponseEntity<CreateUserResponse> createAccount(@Valid @RequestBody CreateUserRequest request) {
-        return createUser(request);
+    public ResponseEntity<CreateUserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
+        return createAccount(request);
     }
 
-    @PutMapping("/users/{id}")
-    @PreAuthorize("hasAuthority('PERM_user:manage')")
-    public ResponseEntity<UserResponse> updateUser(
-            @PathVariable String id,
-            @Valid @RequestBody UpdateUserRequest request) {
-        log.info("Admin updating user id={}", id);
-        return ResponseEntity.ok(adminService.updateProfile(id, request));
-    }
-
+    /**
+     * Edits an account's profile. This is the canonical endpoint;
+     * {@code PUT /users/{id}} is an alias.
+     *
+     * <p>The role cannot be changed here -- it goes through the audited
+     * {@code PATCH /users/{id}/role} endpoint.
+     */
     @PutMapping("/users/{id}/profile")
     @PreAuthorize("hasAuthority('PERM_user:manage')")
     public ResponseEntity<UserResponse> updateProfile(
             @PathVariable String id,
             @Valid @RequestBody UpdateUserRequest request) {
-        return updateUser(id, request);
+        log.info("Admin updating profile for id={}", id);
+        return ResponseEntity.ok(adminService.updateProfile(id, request));
+    }
+
+    /** Alias for {@link #updateProfile}; kept because existing callers use this path. */
+    @PutMapping("/users/{id}")
+    @PreAuthorize("hasAuthority('PERM_user:manage')")
+    public ResponseEntity<UserResponse> updateUser(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateUserRequest request) {
+        return updateProfile(id, request);
     }
 
     @PatchMapping("/users/{id}/role")

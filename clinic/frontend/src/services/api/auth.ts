@@ -1,5 +1,9 @@
 import { apiClient } from '@/services/api/client';
+import { toSession, type AuthResponse } from '@/lib/auth-session';
 import type { AuthTokens, AuthUser, UserRole } from '@/types/api';
+
+export type { AuthResponse };
+export { toSession };
 
 export interface LoginRequest {
   email: string;
@@ -13,18 +17,16 @@ export interface RegisterRequest {
   role: UserRole;
 }
 
-export interface AuthResponse extends AuthTokens {
-  user: AuthUser;
-}
-
-export async function login(request: LoginRequest) {
+export async function login(request: LoginRequest): Promise<AuthTokens & { user: AuthUser }> {
   const { data } = await apiClient.post<AuthResponse>('/auth/login', request);
-  return data;
+  return toSession(data);
 }
 
-export async function register(request: RegisterRequest) {
+export async function register(
+  request: RegisterRequest
+): Promise<AuthTokens & { user: AuthUser }> {
   const { data } = await apiClient.post<AuthResponse>('/auth/register', request);
-  return data;
+  return toSession(data);
 }
 
 export async function forgotPassword(email: string) {

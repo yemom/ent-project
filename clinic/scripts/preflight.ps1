@@ -15,23 +15,50 @@
 param()
 
 $ErrorActionPreference = "Stop"
+# This file lives in <repo>/clinic/scripts, so the parent is <repo>/clinic and the
+# frontend sits directly beneath it.
 $root = Split-Path -Parent $PSScriptRoot
 $problems = @()
 
 Write-Output "Checking for conflicting processes..."
 
-# --- Next.js: any node process inside the frontend tree --------------------------
-$frontend = (Resolve-Path (Join-Path $root "clinic\frontend") -ErrorAction SilentlyContinue).Path
+# --- Next.js: any node process that could be touching .next ----------------------
+# Matches on the command line rather than on a path, because a process launched
+# from another directory (npm run dev from a parent folder, or a Playwright
+# webServer) will not contain this project's path in its command line, yet will
+# still write into the same .next directory.
 $node = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue)
 
 foreach ($process in $node) {
-  if ($process.CommandLine -and $frontend -and $process.CommandLine -like "*$frontend*") {
-    if ($process.CommandLine -like "*next*dev*") { $kind = "dev server" }
-    elseif ($process.CommandLine -like "*next*build*") { $kind = "build" }
-    elseif ($process.CommandLine -like "*playwright*") { $kind = "Playwright" }
-    else { $kind = "node process" }
-    $problems += "A $kind is running (PID $($process.ProcessId)). Stop it first:"
-    $problems += "    Stop-Process -Id $($process.ProcessId) -Force"
+  $cmd = $process.CommandLine
+  if (-not $cmd) { continue }
+
+  $isNext = $cmd -like "*next*" -or $cmd -like "*playwright*"
+  if (-not $isNext) { continue }
+
+  if ($cmd -like "*next*dev*" -or $cmd -like "*next-server*") { $kind = "Next.js dev server" }
+  elseif ($cmd -like "*next*build*") { $kind = "Next.js build" }
+  elseif ($cmd -like "*playwright*") { $kind = "Playwright" }
+  else { $kind = "Next.js process" }
+
+  $problems += "A $kind is running (PID $($process.ProcessId)). Stop it first:"
+  $problems += "    Stop-Process -Id $($process.ProcessId) -Force"
+}
+
+# --- The dev ports the frontend uses ---------------------------------------------
+# Only a Node process counts as a blocker. Other things legitimately hold 3000 on a
+# developer machine (Docker Desktop, Apache, an IDE proxy) and refusing to run
+# because of them would make this script unusable outside a clean CI container.
+foreach ($port in @(3000, 3100)) {
+  $listeners = @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+  foreach ($conn in $listeners) {
+    $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+    if ($proc -and $proc.ProcessName -eq "node") {
+      $problems += "Port $port is held by node (PID $($conn.OwningProcess)). Stop it before verifying:"
+      $problems += "    Stop-Process -Id $($conn.OwningProcess) -Force"
+    } else {
+      Write-Output "  note: port $port is held by $($proc.ProcessName); ignoring it."
+    }
   }
 }
 
@@ -55,7 +82,7 @@ foreach ($port in $backendPorts) {
 }
 
 # --- Report on build directories without blocking --------------------------------
-foreach ($dir in @("clinic\frontend\.next", "clinic\backend\target")) {
+foreach ($dir in @("frontend\.next", "backend\target")) {
   $path = Join-Path $root $dir
   if (Test-Path $path) {
     $bytes = (Get-ChildItem $path -Recurse -File -ErrorAction SilentlyContinue |

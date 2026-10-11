@@ -7,7 +7,8 @@ import { env } from '@/lib/env';
 import { getFriendlyErrorMessage } from '@/lib/error-handler';
 import { tokenStorage } from '@/lib/token-storage';
 import { useAuthStore } from '@/store/auth-store';
-import type { ApiErrorResponse, AuthTokens, AuthUser } from '@/types/api';
+import { toSession, type AuthResponse } from '@/lib/auth-session';
+import type { ApiErrorResponse } from '@/types/api';
 
 /**
  * Requests that are safe to replay automatically after a transient failure.
@@ -148,8 +149,15 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-/** Full auth payload returned by /auth/login, /auth/refresh and /auth/register. */
-type AuthSessionPayload = AuthTokens & { user: AuthUser };
+/**
+ * Full auth payload returned by /auth/login, /auth/refresh and /auth/register.
+ *
+ * <p>This is the raw wire shape, where `permissions` sits alongside `user` rather
+ * than inside it. `refreshSession` normalises it with `toSession` before anything
+ * stores it, so the permissions are never dropped on the refresh path either --
+ * which is where they had been going missing.
+ */
+type AuthSessionPayload = AuthResponse;
 
 let refreshPromise: Promise<AuthSessionPayload> | null = null;
 
@@ -170,9 +178,9 @@ async function refreshSession(): Promise<AuthSessionPayload> {
   return refreshPromise;
 }
 
-function applySession(session: AuthSessionPayload) {
+function applySession(raw: AuthSessionPayload) {
   // One call keeps tokens and the user (including its permissions) in sync.
-  useAuthStore.getState().setSession(session);
+  useAuthStore.getState().setSession(toSession(raw));
 }
 
 /**
@@ -202,8 +210,21 @@ apiClient.interceptors.response.use(
     const isRegisterRequest = requestPath.includes('/auth/register');
 
     // ---- 401: attempt token refresh exactly once -------------------------
+    //
+    // Deliberately skipped for login and register. A rejected credential is a
+    // final answer: there is nothing to refresh. Attempting it anyway was a real
+    // bug -- a *previous* session's refresh token was still in localStorage, so a
+    // failed sign-in would silently restore that earlier session and sign the
+    // browser in as somebody else. It also left the auth store half-updated, which
+    // broke the next navigation. Both symptoms looked like flaky tests.
     const isUnauthorized = error.response?.status === 401;
-    if (isUnauthorized && !originalRequest._authRetry && !isAuthRefreshRequest) {
+    if (
+      isUnauthorized &&
+      !isLoginRequest &&
+      !isRegisterRequest &&
+      !isAuthRefreshRequest &&
+      !originalRequest._authRetry
+    ) {
       originalRequest._authRetry = true;
       const { isHydrated, refreshToken, clearSession } = useAuthStore.getState();
 
@@ -226,10 +247,8 @@ apiClient.interceptors.response.use(
         }
       }
 
-      if (!isLoginRequest && !isRegisterRequest) {
-        clearSession();
-        window.location.href = '/login';
-      }
+      clearSession();
+      window.location.href = '/login';
       return Promise.reject(error);
     }
 

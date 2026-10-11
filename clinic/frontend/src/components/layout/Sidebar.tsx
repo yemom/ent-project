@@ -61,7 +61,7 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const userRole = role || user?.role || "SUPER_ADMIN";
+  const userRole = user?.role || role || "DOCTOR";
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const clearSession = useAuthStore((state) => state.clearSession);
   const badges = useNavBadges();
@@ -288,7 +288,7 @@ export function Sidebar({
       {/* Pinned User Card */}
       <UserCard
         collapsed={collapsed}
-        fullName={user?.fullName || "Super Admin"}
+        fullName={user?.fullName || (userRole === "SUPER_ADMIN" ? "Super Admin" : "User")}
         role={userRole}
         onLogout={handleLogout}
       />

@@ -18,6 +18,11 @@ spring:
     show-sql: false
   flyway:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
+    # Flyway records a failed migration in its history table and then refuses every
+    # subsequent run. A deploy that fails mid-migration therefore bricks the next
+    # deploy as well, unless the failed entry is cleared. Repair runs before migrate
+    # and removes only the failure markers -- it never rolls anything back.
+    repair-on-startup: true
   cache:
     type: ${SPRING_CACHE_TYPE:simple}
 

@@ -1,10 +1,18 @@
-import { ReceptionPlaceholderPage } from '@/features/front-desk/front-desk-pages';
+import { AccountPage } from '@/features/account/account-page';
 
+/**
+ * Front desk settings.
+ *
+ * <p>Was a "coming soon" placeholder. Reception preferences are not modelled by the
+ * backend, so the page shows the real session rather than promising a feature that
+ * does not exist.
+ */
 export default function Page() {
   return (
-    <ReceptionPlaceholderPage
+    <AccountPage
       title="Front Desk Settings"
-      description="Reception preferences are managed by hospital administration."
+      description="Your account and the access your role grants."
+      roleLabel="Receptionist"
     />
   );
 }

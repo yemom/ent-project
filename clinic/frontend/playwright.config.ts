@@ -15,6 +15,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
+void PORT;
 
 export default defineConfig({
   testDir: './e2e',
@@ -29,14 +30,19 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    navigationTimeout: 60_000,
+    actionTimeout: 30_000,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `npm run dev -- --port ${PORT}`,
+        // Builds and serves the production bundle on its own output directory.
+        // See scripts/dev-e2e.mjs for why this is a build rather than `next dev`,
+        // and why the output directory is separate.
+        command: 'npm run e2e:server',
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
+        timeout: 300_000,
       },
 });

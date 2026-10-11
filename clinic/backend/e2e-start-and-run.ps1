@@ -10,10 +10,36 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 if (-not $SkipRestart) {
-  Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
-    Where-Object { $_.CommandLine -like "*clinicl-1.0.0.jar*" } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-  Start-Sleep -Seconds 3
+  # The database is in-memory, so a fresh JVM is the only way to get a clean run.
+  # That makes killing the old backend mandatory rather than tidiness: if it
+  # survives, the new JVM cannot bind the port, the old one keeps serving its
+  # stale database, and the suite fails on "email already exists" for reasons that
+  # have nothing to do with the code.
+  #
+  # Matched on the listening port rather than only on the command line, because a
+  # JVM started with an absolute path, or whose CommandLine is not readable, still
+  # holds the port.
+  $testPort = 8090
+  $owners = @(Get-NetTCPConnection -LocalPort $testPort -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty OwningProcess -Unique)
+  $byCommand = @(Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
+    Where-Object { $_.CommandLine -like "*clinicl*.jar*" } |
+    Select-Object -ExpandProperty ProcessId)
+
+  $targets = @($owners + $byCommand | Sort-Object -Unique)
+  foreach ($pid_ in $targets) {
+    Write-Output "Stopping stale backend (PID $pid_)"
+    Stop-Process -Id $pid_ -Force -ErrorAction SilentlyContinue
+  }
+
+  # Waits for the port to actually free up rather than sleeping a fixed amount.
+  for ($i = 0; $i -lt 30; $i++) {
+    if (-not (Get-NetTCPConnection -LocalPort $testPort -State Listen -ErrorAction SilentlyContinue)) { break }
+    Start-Sleep -Seconds 1
+  }
+  if (Get-NetTCPConnection -LocalPort $testPort -State Listen -ErrorAction SilentlyContinue) {
+    throw "Port $testPort is still in use after stopping the stale backend."
+  }
 
   # A >=64 byte secret: HS512 rejects anything shorter and the app now refuses to
   # start, which is the behaviour we want in production too.
@@ -73,7 +99,7 @@ Or export the variables before running this script. They must not be committed.
   Write-Output "Bootstrapping Super Admin: $env:SUPER_ADMIN_EMAIL"
 
   $env:APP_JWT_SECRET = $secret
-  $env:SERVER_PORT = "8090"
+  $env:SERVER_PORT = "$testPort"
 
   Start-Process -FilePath "java" -ArgumentList "-jar", "target\clinicl-1.0.0.jar" `
     -NoNewWindow -RedirectStandardOutput "e2e-backend.log" -RedirectStandardError "e2e-backend.err"

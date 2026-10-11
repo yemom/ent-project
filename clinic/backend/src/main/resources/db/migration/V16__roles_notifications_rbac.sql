@@ -124,6 +124,39 @@ CREATE TABLE IF NOT EXISTS medical_record_amendment_fields (
 -- =====================================================
 -- 5. IMMUTABLE AUDIT LOG (append-only)
 -- =====================================================
+--
+-- V2 already created a table called audit_logs, with a different purpose and a
+-- different shape: table_name / operation / record_id / old_values / new_values /
+-- changed_by / changed_at. None of the columns the application writes are present
+-- there; only id is shared.
+--
+-- A plain CREATE TABLE IF NOT EXISTS would have skipped the creation silently and
+-- then failed on the first index below, which is exactly how this migration failed on
+-- its first deployment. The legacy table is renamed out of the way first, so its
+-- contents survive for inspection instead of being destroyed.
+DO $$
+DECLARE
+    has_actor_id BOOLEAN;
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = current_schema() AND table_name = 'audit_logs'
+    ) THEN
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'audit_logs'
+              AND column_name = 'actor_id'
+        ) INTO has_actor_id;
+
+        IF NOT has_actor_id THEN
+            EXECUTE 'ALTER TABLE audit_logs RENAME TO audit_logs_legacy_v2';
+            RAISE NOTICE 'Renamed the V2 audit_logs table to audit_logs_legacy_v2: '
+                          'its columns are unrelated to the application audit trail.';
+        END IF;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS audit_logs (
     id          VARCHAR(36)  PRIMARY KEY,
     created_at  TIMESTAMP    NOT NULL,

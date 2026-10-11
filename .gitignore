@@ -1,12 +1,25 @@
-cat > .gitignore << 'EOF'
-# Dependencies - NEVER commit these
+# Dependencies
 node_modules/
+
+# Next.js / frontend build output
 .next/
+.next-build/
+.next-e2e/
+.vercel/
 out/
 dist/
 build/
+*.tsbuildinfo
+next-env.d.ts
 
-# Secrets
+# Spring Boot / Java build output
+target/
+*.class
+*.jar
+*.war
+.m2/
+
+# Secrets and local environment files
 .env
 .env.local
 .env.development
@@ -17,36 +30,26 @@ build/
 .env.production.local
 .env.*.local
 
-# Next.js
-.next/
-.vercel/
-*.tsbuildinfo
-next-env.d.ts
-
-# Spring Boot
-target/
-*.class
-*.jar
-*.war
-.m2/
-
 # Logs
 *.log
 logs/
 
-# IDE
+# IDE / OS files
 .idea/
 .vscode/
 *.swp
 .DS_Store
 Thumbs.db
 
-# Database
+# Database files
 *.db
 *.sqlite
 *.h2.db
 
-# Test coverage
+# Coverage and test artifacts
 coverage/
 jacoco.csv
-EOF
+test-results/
+playwright-report/
+blob-report/
+.playwright/

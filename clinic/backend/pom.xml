@@ -342,6 +342,71 @@
         </plugins>
     </build>
 
+    <profiles>
+        <!--
+            Unbinds the test-running plugins so they never execute.
+
+            Why this exists rather than just -DskipTests:
+
+            maven-surefire-plugin declares requiresDependencyResolution=test, so Maven
+            resolves the ENTIRE test classpath the moment it instantiates the plugin,
+            which happens at the `test` phase, before it checks whether tests are
+            skipped. -DskipTests and even -Dmaven.test.skip=true stop the tests
+            running but not the classpath being resolved, so a container build still
+            downloads Testcontainers and its transitive JNA, JLine, JDBC and
+            database-commons artifacts. That large, pointless download is what failed
+            a Docker build with "Could not transfer artifact ... from/to central".
+
+            Setting the default execution's phase to `none` removes the plugin from the
+            lifecycle, so the resolution never happens at all.
+
+            Activated only by the Docker build (-P no-test-execution). A plain
+            `mvn test` on a developer machine is completely unaffected, so the test
+            suite still runs where it should.
+        -->
+        <profile>
+            <id>no-test-execution</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-test</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-test</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>report</id>
+                                <phase>none</phase>
+                            </execution>
+                            <execution>
+                                <id>jacoco-check</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>
 
 

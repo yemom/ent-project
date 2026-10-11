@@ -1,20 +1,19 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/layouts/page-header';
+import { AccountPage } from '@/features/account/account-page';
 
+/**
+ * Doctor settings.
+ *
+ * <p>Previously listed hardcoded preferences ("Consultation reminders enabled",
+ * "Telehealth notifications enabled") that no backend ever stored. Displaying them
+ * made the page look functional while every value was fiction, so it now shows the
+ * real session instead.
+ */
 export default function Page() {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Doctor Settings" description="Manage consultation preferences and notification settings." />
-      <Card>
-        <CardHeader>
-          <CardTitle>Preferences</CardTitle>
-          <CardDescription>Account and workflow controls</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="rounded-2xl bg-muted/50 p-4">Consultation reminders enabled</div>
-          <div className="rounded-2xl bg-muted/50 p-4">Telehealth notifications enabled</div>
-        </CardContent>
-      </Card>
-    </div>
+    <AccountPage
+      title="Doctor Settings"
+      description="Your account and the access your role grants."
+      roleLabel="Doctor"
+    />
   );
 }

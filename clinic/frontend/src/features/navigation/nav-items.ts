@@ -246,8 +246,9 @@ export const NAV_GROUPS_BY_ROLE: Record<string, readonly NavGroup[]> = {
     {
       title: 'Account',
       items: [
+        // "Settings" was removed rather than kept: it redirected to this same
+        // profile page, so offering both was two names for one screen.
         { label: 'Profile', href: '/pharmacist/profile', icon: UserRound },
-        { label: 'Settings', href: '/pharmacist/settings', icon: Settings },
       ],
     },
   ],

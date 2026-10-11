@@ -41,7 +41,7 @@ export function getAllowedRoles(pathname: string): ClinicRole[] {
   if (pathname.startsWith('/pharmacist')) return ['PHARMACIST'];
   if (pathname.startsWith('/cashier')) return ['CASHIER'];
   if (pathname.startsWith('/patient')) return ['PATIENT'];
-  return ['SUPER_ADMIN', 'ADMIN'];
+  return [];
 }
 
 export function hasSession(request: NextRequest): boolean {

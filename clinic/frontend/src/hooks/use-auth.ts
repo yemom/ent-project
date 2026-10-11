@@ -39,7 +39,9 @@ export function useLogin() {
     mutationFn: login,
     onSuccess: (data) => {
       useAuthStore.getState().setSession(data);
-      router.push(ROLE_HOME[data.user.role] ?? ROUTES.adminDashboard);
+      const destination = (data?.user?.role && ROLE_HOME[data.user.role]) ? ROLE_HOME[data.user.role] : ROUTES.login;
+      // router.replace ensures the login screen is replaced in history and immediately loads the target role dashboard
+      router.replace(destination);
     }
   });
 }
@@ -50,7 +52,8 @@ export function useRegister() {
     mutationFn: register,
     onSuccess: (data) => {
       useAuthStore.getState().setSession(data);
-      router.push(ROLE_HOME[data.user.role] ?? ROUTES.adminDashboard);
+      const destination = (data?.user?.role && ROLE_HOME[data.user.role]) ? ROLE_HOME[data.user.role] : ROUTES.login;
+      router.replace(destination);
     }
   });
 }

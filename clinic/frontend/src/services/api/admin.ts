@@ -281,11 +281,23 @@ export async function createPatient(payload: PatientCreateRequest) {
 }
 
 /**
- * Creates a non-doctor/patient user (PHARMACIST, LABORATORY, ADMIN).
- * Uses the admin-protected endpoint POST /admin/users.
+ * Creates a staff account (PHARMACIST, LAB_TECHNICIAN, and the roles without a
+ * dedicated endpoint).
+ *
+ * <p>Prefers {@link createAccount}, which is the canonical create endpoint and
+ * supports every role including the ones needing profile fields. Kept because
+ * callers exist that post the legacy flat shape.
+ *
+ * <p>Note the nested `user`: the response wraps the created account so that a
+ * generated password is never mistaken for a field of the account itself.
  */
-export async function inviteUser(payload: InviteUserRequest) {
-  const { data } = await apiClient.post('/admin/users', payload);
+export async function inviteUser(
+  payload: InviteUserRequest
+): Promise<{ user: ManagedUser; generatedPassword: string | null }> {
+  const { data } = await apiClient.post<{ user: ManagedUser; generatedPassword: string | null }>(
+    '/admin/users',
+    payload
+  );
   return data;
 }
 
@@ -296,20 +308,23 @@ export interface UpdateUserRequest {
 }
 
 /**
- * Edits an account's profile through the legacy endpoint.
+ * Edits an account's profile through the legacy path.
  *
  * <p>Note there is no `active` field. Account status moved to
  * {@link changeAccountStatus} so that deactivating requires a recorded reason and is
  * audited on its own; a routine profile save must not be able to quietly suspend
  * somebody.
+ *
+ * <p>Returns the full account rather than the previous summary, so callers get the
+ * same shape from both paths.
  */
-export async function updateUser(id: string, payload: UpdateUserRequest) {
-  const { data } = await apiClient.put(`/admin/users/${id}`, payload);
+export async function updateUser(id: string, payload: UpdateUserRequest): Promise<ManagedUser> {
+  const { data } = await apiClient.put<ManagedUser>(`/admin/users/${id}`, payload);
   return data;
 }
 
 /** Soft delete via the legacy route; delegates to the same implementation server-side. */
-export async function deleteUser(id: string) {
+export async function deleteUser(id: string): Promise<void> {
   await apiClient.delete(`/admin/users/${id}`);
 }
 

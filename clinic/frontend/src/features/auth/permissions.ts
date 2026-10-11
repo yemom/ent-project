@@ -192,7 +192,7 @@ export const ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
 export const ROLE_HOME: Record<string, string> = {
   SUPER_ADMIN: '/admin',
   ADMIN: '/admin',
-  HOSPITAL_ADMIN: '/reception',
+  HOSPITAL_ADMIN: '/hospital',
   DOCTOR: '/doctor',
   NURSE: '/nurse',
   RECEPTIONIST: '/reception',

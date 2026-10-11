@@ -67,6 +67,26 @@ export function NurseDashboardPage() {
   );
 }
 
+/**
+ * The nurse's own panel: the patients currently allocated to them.
+ *
+ * <p>Distinct from {@link NurseVitalsPage}, which renders the same patients but framed
+ * as a form to record vitals against. This page answers "who is on my list?", which
+ * is what the sidebar link promises.
+ */
+export function NursePatientsPage() {
+  const { data, isLoading } = useMyPatients({ size: 25 });
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="My Patients"
+        description="The patients currently allocated to you by the front desk."
+      />
+      <PatientPanel patients={data?.content ?? []} isLoading={isLoading} mode="vitals" />
+    </div>
+  );
+}
+
 export function NurseVitalsPage() {
   const { data, isLoading } = useMyPatients({ size: 25 });
   return (

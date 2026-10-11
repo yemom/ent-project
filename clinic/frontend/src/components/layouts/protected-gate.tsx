@@ -21,8 +21,8 @@ export function ProtectedGate({ children }: Readonly<{ children: React.ReactNode
   const accessToken = useAuthStore((state) => state.accessToken);
   const clearSession = useAuthStore((state) => state.clearSession);
 
-  const home = ROLE_HOME[role ?? ''] ?? ROUTES.adminDashboard;
-  const isAreaAuthorized = canAccessArea(pathname, role);
+  const home = (role && ROLE_HOME[role]) ? ROLE_HOME[role] : ROUTES.login;
+  const isAreaAuthorized = Boolean(role && canAccessArea(pathname, role));
 
   /**
    * Whether a usable session exists.

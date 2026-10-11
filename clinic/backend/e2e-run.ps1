@@ -140,12 +140,15 @@ $doc1 = Post $saTok "/doctors" @{ email = "doctor.one@example.com"; password = $
 $doc2 = Post $saTok "/doctors" @{ email = "doctor.two@example.com"; password = $pass; fullName = "Dr Ben Mensah"; specialization = "Neurology"; licenseNumber = "LIC-E2E-2"; consultationFee = 150 }
 Check "two doctors created" ($doc1.id -and $doc2.id) "missing"
 
-# Staff roles without dedicated entities
-$nurse = Post $saTok "/admin/users" @{ email = "nurse.one@example.com"; password = $pass; fullName = "Nora Nurse"; role = "NURSE" }
-$recep = Post $saTok "/admin/users" @{ email = "reception.one@example.com"; password = $pass; fullName = "Rita Reception"; role = "RECEPTIONIST" }
-$hosp = Post $saTok "/admin/users" @{ email = "hospital.admin@example.com"; password = $pass; fullName = "Hana Admin"; role = "HOSPITAL_ADMIN" }
-$cash = Post $saTok "/admin/users" @{ email = "cashier.one@example.com"; password = $pass; fullName = "Kofi Cashier"; role = "CASHIER" }
-$lab = Post $saTok "/admin/users" @{ email = "lab.one@example.com"; password = $pass; fullName = "Leo Lab"; role = "LAB_TECHNICIAN" }
+# Staff roles without dedicated entities.
+# The create endpoint returns { user: {...}, generatedPassword }, so the id lives
+# under .user -- reading .id here silently yields null and every later assertion
+# fails for the wrong reason.
+$nurse = (Post $saTok "/admin/users/accounts" @{ email = "nurse.one@example.com"; password = $pass; fullName = "Nora Nurse"; role = "NURSE" }).user
+$recep = (Post $saTok "/admin/users/accounts" @{ email = "reception.one@example.com"; password = $pass; fullName = "Rita Reception"; role = "RECEPTIONIST" }).user
+$hosp = (Post $saTok "/admin/users/accounts" @{ email = "hospital.admin@example.com"; password = $pass; fullName = "Hana Admin"; role = "HOSPITAL_ADMIN" }).user
+$cash = (Post $saTok "/admin/users/accounts" @{ email = "cashier.one@example.com"; password = $pass; fullName = "Kofi Cashier"; role = "CASHIER" }).user
+$lab = (Post $saTok "/admin/users/accounts" @{ email = "lab.one@example.com"; password = $pass; fullName = "Leo Lab"; role = "LAB_TECHNICIAN" }).user
 Check "staff created" ($nurse.id -and $recep.id -and $hosp.id -and $cash.id -and $lab.id) "missing one"
 
 Write-Output "=== 5. Front desk registers patients and allocates them ==="
@@ -291,7 +294,7 @@ ExpectStatus "lab tech cannot prescribe" 403 {
 }
 
 Write-Output "=== 15. Super Admin provisions a HOSPITAL_ADMIN; others cannot ==="
-$hospAdmin = Post $saTok "/admin/users" @{ email = "hospital.admin2@example.com"; password = $pass; fullName = "Hana Second Admin"; role = "HOSPITAL_ADMIN" }
+$hospAdmin = (Post $saTok "/admin/users/accounts" @{ email = "hospital.admin2@example.com"; password = $pass; fullName = "Hana Second Admin"; role = "HOSPITAL_ADMIN" }).user
 Check "super admin creates a privileged role" ($hospAdmin.id -and $hospAdmin.role -eq "HOSPITAL_ADMIN") "role=$($hospAdmin.role)"
 ExpectStatus "receptionist cannot create a privileged role" 403 {
   Post $recepTok "/admin/users" @{ email = "escalate@example.com"; password = $pass; fullName = "Escalator"; role = "SUPER_ADMIN" }
@@ -302,7 +305,10 @@ ExpectStatus "hospital admin cannot create a super admin" 403 {
 }
 
 Write-Output "=== 16. Pharmacy: catalogue, receipts, ledger, alerts ==="
-$pharm = Post $saTok "/admin/users" @{ email = "pharmacist.one@example.com"; password = $pass; fullName = "Phil Pharmacist"; role = "PHARMACIST" }
+# employeeNumber is required for a pharmacist: the role cannot be provisioned
+# without it, and the account lifecycle endpoint enforces that.
+$pharm = (Post $saTok "/admin/users/accounts" @{ email = "pharmacist.one@example.com"; password = $pass; fullName = "Phil Pharmacist"; role = "PHARMACIST"; employeeNumber = "PH-E2E-1" }).user
+Check "pharmacist created" ($pharm.id) "missing"
 $pharmTok = (Login "pharmacist.one@example.com" $pass).accessToken
 
 $rxMed = Post $pharmTok "/pharmacy/medicines" @{ name = "Ceftriaxone"; code = "CEF-1"; category = "ANTIBIOTIC"; unit = "vial"; reorderLevel = 10; unitCost = 5; requiresPrescription = $true }
