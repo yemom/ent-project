@@ -76,6 +76,22 @@ public class Notification extends BaseEntity {
     @Column(name = "read_at")
     private Instant readAt;
 
+    /**
+     * Deterministic identity of the business event that produced this row.
+     *
+     * <p>Unique when present, so the same event cannot be announced twice — not by
+     * a retried request, a double-clicked Save, or a replayed delivery. Two
+     * concurrent inserts of the same event leave exactly one row.
+     *
+     * <p>{@code null} for notifications not tied to a single business event, such
+     * as a manual broadcast. Nulls are distinct under a unique index, so those keep
+     * working and legacy rows are unaffected.
+     *
+     * @see com.clinic.service.NotificationEventKey
+     */
+    @Column(name = "event_key", length = 300)
+    private String eventKey;
+
     public boolean isRead() {
         return readAt != null;
     }

@@ -25,13 +25,16 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
 
     private final PrescriptionOrderRepository prescriptionOrderRepository;
     private final PrescriptionOrderMapper mapper;
+    private final PrescriptionEventNotifier prescriptionEventNotifier;
 
     public PrescriptionOrderServiceImpl(
             PrescriptionOrderRepository prescriptionOrderRepository,
-            PrescriptionOrderMapper mapper
+            PrescriptionOrderMapper mapper,
+            PrescriptionEventNotifier prescriptionEventNotifier
     ) {
         this.prescriptionOrderRepository = prescriptionOrderRepository;
         this.mapper = mapper;
+        this.prescriptionEventNotifier = prescriptionEventNotifier;
     }
 
     @Override
@@ -39,6 +42,11 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
         PrescriptionOrder order = mapper.toEntity(request);
         PrescriptionOrder saved = prescriptionOrderRepository.save(order);
         log.info("Created prescription order id={}", saved.getId());
+
+        // After the save: a request refused for any reason must not announce a
+        // prescription that does not exist.
+        prescriptionEventNotifier.onCreated(saved);
+
         return mapper.toResponse(saved);
     }
 
@@ -103,12 +111,21 @@ public class PrescriptionOrderServiceImpl implements PrescriptionOrderService {
     @Override
     public PrescriptionOrderResponse updateStatus(String id, UpdatePrescriptionOrderStatusRequest request) {
         PrescriptionOrder order = getEntityById(id);
+
+        String previousStatus = order.getStatus() == null ? null : order.getStatus().name();
+
         order.setStatus(request.status());
         if (request.status() == PrescriptionOrderStatus.DISPENSED) {
             order.setDispensedAt(LocalDateTime.now());
         }
         PrescriptionOrder updated = prescriptionOrderRepository.save(order);
         log.info("Updated prescription order id={} status to {}", id, request.status());
+
+        // Announced after the save. Re-sending the current status is a no-op here
+        // rather than a second notification, because the event key carries the
+        // status and the duplicate is discarded downstream.
+        prescriptionEventNotifier.onStatusChanged(updated, previousStatus);
+
         return mapper.toResponse(updated);
     }
 

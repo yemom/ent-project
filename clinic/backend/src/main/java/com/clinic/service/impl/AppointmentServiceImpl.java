@@ -76,19 +76,22 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final DoctorRepository doctorRepository;
     private final AppointmentMapper appointmentMapper;
     private final CurrentUser currentUser;
+    private final AppointmentEventNotifier appointmentEventNotifier;
 
     public AppointmentServiceImpl(
             AppointmentRepository appointmentRepository,
             PatientRepository patientRepository,
             DoctorRepository doctorRepository,
             AppointmentMapper appointmentMapper,
-            CurrentUser currentUser
+            CurrentUser currentUser,
+            AppointmentEventNotifier appointmentEventNotifier
     ) {
         this.appointmentRepository = appointmentRepository;
         this.patientRepository = patientRepository;
         this.doctorRepository = doctorRepository;
         this.appointmentMapper = appointmentMapper;
         this.currentUser = currentUser;
+        this.appointmentEventNotifier = appointmentEventNotifier;
     }
 
     // =================================================================
@@ -112,6 +115,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentMapper.toEntity(request, patient, doctor, status);
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Created appointment id={} patient={} doctor={} at={}", saved.getId(), patientId, doctor.getId(), start);
+
+        // Announced after the save, never before: a request that fails a booking
+        // rule or a conflict check must not produce a notification claiming the
+        // appointment exists.
+        appointmentEventNotifier.onCreated(saved);
+
         return appointmentMapper.toResponse(saved);
     }
 
@@ -143,8 +152,25 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Patient patient = request.patientId() != null ? getPatient(request.patientId()) : null;
         Doctor doctor = request.doctorId() != null ? getDoctor(request.doctorId()) : null;
+
+        // Captured before the update so the notification can say what the
+        // appointment moved *from*.
+        String previousDate = String.valueOf(appointment.getAppointmentDate());
+        boolean timeOrClinicianChanged = request.appointmentDate() != null
+                || request.duration() != null
+                || request.doctorId() != null;
+
         appointmentMapper.updateEntity(appointment, request, patient, doctor);
-        return appointmentMapper.toResponse(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+
+        // Only a genuine move is announced. Changing the reason for a visit is an
+        // edit, not a reschedule, and telling the care team about it would be
+        // noise.
+        if (timeOrClinicianChanged) {
+            appointmentEventNotifier.onRescheduled(saved, previousDate);
+        }
+
+        return appointmentMapper.toResponse(saved);
     }
 
     @Override
@@ -156,7 +182,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
         if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
             // Already cancelled: report the existing state rather than overwriting
-            // the original reason and timestamp with a second one.
+            // the original reason and timestamp with a second one. Returning early
+            // also means no second notification: nothing changed.
             return appointmentMapper.toResponse(appointment);
         }
 
@@ -164,7 +191,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setCancellationReason(cancellationReason);
         appointment.setCancellationDate(LocalDateTime.now());
         appointment.setCancelledBy(currentActorName());
-        return appointmentMapper.toResponse(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+
+        appointmentEventNotifier.onCancelled(saved, cancellationReason);
+
+        return appointmentMapper.toResponse(saved);
     }
 
     @Override
@@ -249,7 +280,22 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointment.setStatus(target);
         log.info("Appointment {} status {} -> {}", id, current, target);
-        return appointmentMapper.toResponse(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+
+        // A cancellation announces as a cancellation even when it arrives through
+        // the status endpoint, so the recipient is told why as well as that. The
+        // generic status message would have omitted the reason, which is the part
+        // a patient or a receptionist actually needs.
+        if (target == AppointmentStatus.CANCELLED) {
+            appointmentEventNotifier.onCancelled(saved, request.reason());
+        } else {
+            // The target status is the event discriminator, so a confirmation and a
+            // later no-show each produce their own notification instead of the
+            // second suppressing the first.
+            appointmentEventNotifier.onStatusChanged(saved);
+        }
+
+        return appointmentMapper.toResponse(saved);
     }
 
     // =================================================================

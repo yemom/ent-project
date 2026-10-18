@@ -1,16 +1,21 @@
 package com.clinic.controller;
 
 import com.clinic.config.ApiPaths;
+import com.clinic.dto.request.ForgotPasswordRequest;
 import com.clinic.dto.request.LoginRequest;
 import com.clinic.dto.request.RegisterRequest;
+import com.clinic.dto.request.ResetPasswordRequest;
 import com.clinic.dto.response.AuthResponse;
+import com.clinic.dto.response.ForgotPasswordResponse;
 import com.clinic.dto.response.UserSummaryResponse;
 import com.clinic.security.CustomUserPrincipal;
 import com.clinic.security.CurrentUser;
 import com.clinic.security.RolePermissions;
 import com.clinic.service.AuthService;
+import com.clinic.service.PasswordResetService;
 import com.clinic.mapper.UserMapper;
 import com.clinic.entity.User;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -34,11 +39,14 @@ public class AuthController {
     private final AuthService authService;
     private final CurrentUser currentUser;
     private final UserMapper userMapper;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService, CurrentUser currentUser, UserMapper userMapper) {
+    public AuthController(AuthService authService, CurrentUser currentUser, UserMapper userMapper,
+                          PasswordResetService passwordResetService) {
         this.authService = authService;
         this.currentUser = currentUser;
         this.userMapper = userMapper;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/register")
@@ -92,5 +100,58 @@ public class AuthController {
                 "active", userSummary.active() != null ? userSummary.active() : Boolean.FALSE,
                 "permissions", RolePermissions.forRole(user.getRole())
         ));
+    }
+
+    /**
+     * Start a password reset.
+     *
+     * <p>Public, because nobody can reset a password they cannot sign in with. The
+     * endpoint is safe to be public because the service, not the endpoint,
+     * guarantees a constant response: the same status and body for a known
+     * address, an unknown one, and a deactivated account.
+     *
+     * <p>202 rather than 200 because the work continues asynchronously in the
+     * user's inbox and nothing further is expected of the caller.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest) {
+        ForgotPasswordResponse response =
+                passwordResetService.requestReset(request, resolveClientIp(httpRequest));
+        log.info("Password reset requested for an address on this deployment (transport configured={})",
+                response.emailSent());
+        return ResponseEntity.accepted().body(response);
+    }
+
+    /**
+     * Redeem a reset token.
+     *
+     * <p>Public for the same reason as above. The token is the authorisation: it is
+     * unguessable, short-lived and single-use.
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("message",
+                "Your password has been changed. You can now sign in with your new password."));
+    }
+
+    /**
+     * The caller's address for abuse tracking.
+     *
+     * <p>Honours the proxy headers the deployment already trusts for rate limiting
+     * (see {@code RateLimitingFilter}), and falls back to the socket address.
+     */
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
     }
 }

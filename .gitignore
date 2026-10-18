@@ -56,3 +56,7 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Java language server output. Must not be target/classes: Maven and the
+# IDE compiling into the same directory corrupts each other's class files.
+target/ide-classes/

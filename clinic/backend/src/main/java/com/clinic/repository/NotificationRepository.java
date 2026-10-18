@@ -18,6 +18,16 @@ import java.util.Optional;
 public interface NotificationRepository extends JpaRepository<Notification, String> {
 
     /**
+     * Whether this business event has already been announced.
+     *
+     * <p>Guards duplicate notifications before an insert. The authoritative check
+     * is the unique index on {@code event_key}, added in V27; this exists so the
+     * common case costs one indexed lookup rather than a caught constraint
+     * violation.
+     */
+    boolean existsByEventKey(String eventKey);
+
+    /**
      * Notifications visible to a principal: everything addressed to their user id
      * plus everything addressed to their role.
      */

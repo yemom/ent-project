@@ -67,7 +67,7 @@ if (-not $SkipRestart) {
 
   # The frontend the Playwright suite starts (3100) plus a normal `npm run dev` (3000).
   # Both are local-only origins.
-  $env:CORS_ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3100"
+  $env:CORS_ALLOWED_ORIGINS = "http://localhost:3001,http://localhost:3100"
 
   # The production variable names. Values are read from .env.local rather than
   # hardcoded: a harness that boots the app for testing still must not carry a live

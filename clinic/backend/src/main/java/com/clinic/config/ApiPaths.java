@@ -6,6 +6,13 @@ public final class ApiPaths {
     /** Public, DB-free liveness probe (no repository access). */
     public static final String HEALTH = API_V1 + "/health";
     public static final String AUTH = API_V1 + "/auth";
+    /**
+     * AI assistant.
+     *
+     * <p>Behind the same authentication as everything else; individual capabilities
+     * apply their own permission checks.
+     */
+    public static final String AI = API_V1 + "/ai";
     public static final String PATIENTS = API_V1 + "/patients";
     public static final String DOCTORS = API_V1 + "/doctors";
     public static final String APPOINTMENTS = API_V1 + "/appointments";

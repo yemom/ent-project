@@ -8,6 +8,7 @@ import com.clinic.exception.ResourceNotFoundException;
 import com.clinic.repository.NotificationRepository;
 import com.clinic.repository.UserRepository;
 import com.clinic.security.CurrentUser;
+import com.clinic.service.NotificationEventKey;
 import com.clinic.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -152,6 +153,137 @@ public class NotificationServiceImpl implements NotificationService {
         eventPublisher.publishEvent(
                 new NotificationEmittedEvent(type, referenceId, link, Set.of(userId)));
         return NotificationResponse.from(saved);
+    }
+
+    /**
+     * Idempotent fan-out to specific users.
+     *
+     * <p>Keys are built per recipient, so the doctor, the patient and reception are
+     * each recorded once and none of them suppresses the others. An already-announced
+     * recipient is skipped and not counted, so the return value is the number of
+     * notifications actually shown rather than the number attempted.
+     */
+    @Override
+    public int notifyUsersOnce(Set<String> userIds, NotificationType type, String title, String message,
+                               String referenceId, String link, String eventType, String discriminator) {
+        if (userIds == null || userIds.isEmpty()) {
+            return 0;
+        }
+
+        Set<String> audience = userIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
+
+        List<Notification> rows = audience.stream()
+                .map(recipientId -> Notification.builder()
+                        .recipientUserId(recipientId)
+                        .type(type)
+                        .title(title)
+                        .message(message)
+                        .referenceId(referenceId)
+                        .link(link)
+                        .eventKey(NotificationEventKey.of(eventType, referenceId, discriminator, recipientId, null))
+                        .build())
+                .filter(this::claimEventKey)
+                .toList();
+
+        if (rows.isEmpty()) {
+            log.debug("All recipients already notified for eventType={} referenceId={}", eventType, referenceId);
+            return 0;
+        }
+
+        notificationRepository.saveAll(rows);
+        eventPublisher.publishEvent(new NotificationEmittedEvent(
+                type, referenceId, link,
+                rows.stream().map(Notification::getRecipientUserId).collect(Collectors.toSet())));
+
+        log.info("Created {} user notification(s) type={} referenceId={} eventType={}",
+                rows.size(), type, referenceId, eventType);
+        return rows.size();
+    }
+
+    /**
+     * Idempotent fan-out to roles.
+     *
+     * <p>Keyed per role rather than per user: a role broadcast is one row, so
+     * there is nothing to deduplicate between its members.
+     */
+    @Override
+    public int notifyRolesOnce(Set<UserRole> roles, NotificationType type, String title, String message,
+                               String referenceId, String link, String eventType, String discriminator) {
+        if (roles == null || roles.isEmpty()) {
+            return 0;
+        }
+
+        List<Notification> rows = roles.stream()
+                .map(role -> Notification.builder()
+                        .recipientRole(role)
+                        .type(type)
+                        .title(title)
+                        .message(message)
+                        .referenceId(referenceId)
+                        .link(link)
+                        .eventKey(NotificationEventKey.of(eventType, referenceId, discriminator,
+                                "role:" + role.name(), null))
+                        .build())
+                .filter(this::claimEventKey)
+                .toList();
+
+        if (rows.isEmpty()) {
+            return 0;
+        }
+
+        notificationRepository.saveAll(rows);
+
+        Set<String> audience = activeUserIdsForRoles(roles);
+        eventPublisher.publishEvent(new NotificationEmittedEvent(type, referenceId, link, audience));
+
+        log.info("Created {} role notification row(s) type={} referenceId={} eventType={}",
+                rows.size(), type, referenceId, eventType);
+        return rows.size();
+    }
+
+    @Override
+    public NotificationResponse createForUserOnce(String userId, NotificationType type, String title,
+                                                  String message, String referenceId, String link,
+                                                  String eventType, String discriminator) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+
+        Notification candidate = Notification.builder()
+                .recipientUserId(userId)
+                .type(type)
+                .title(title)
+                .message(message)
+                .referenceId(referenceId)
+                .link(link)
+                .eventKey(NotificationEventKey.of(eventType, referenceId, discriminator, userId, null))
+                .build();
+
+        if (!claimEventKey(candidate)) {
+            return null;
+        }
+
+        Notification saved = notificationRepository.save(candidate);
+        eventPublisher.publishEvent(new NotificationEmittedEvent(type, referenceId, link, Set.of(userId)));
+        return NotificationResponse.from(saved);
+    }
+
+    /**
+     * Decides whether a notification has already been announced.
+     *
+     * <p>Check-then-insert is only safe because the unique index on
+     * {@code event_key} is the real guarantee: two concurrent inserts both pass this
+     * check, one loses at the database and is discarded. Returning {@code true} here
+     * means "not seen yet", not "reserved".
+     */
+    private boolean claimEventKey(Notification notification) {
+        String eventKey = notification.getEventKey();
+        if (eventKey == null || eventKey.isBlank()) {
+            return true; // nothing to deduplicate against
+        }
+        return !notificationRepository.existsByEventKey(eventKey);
     }
 
     /** Active user ids holding any of the given roles. */

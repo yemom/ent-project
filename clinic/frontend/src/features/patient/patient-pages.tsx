@@ -39,35 +39,42 @@ const demoDoctors = [
 ];
 
 export function PatientDashboardPage() {
-  const [counts, setCounts] = useState<CountState>({ appointments: 0, records: 0, prescriptions: 0 });
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        const params = user ? { patientId: user.id, size: 10 } : { size: 10 };
-        const [appointmentData, medicalData, prescriptionData] = await Promise.all([
-          listAppointments(params),
-          user ? searchMedicalRecords(params) : listMedicalRecords(params),
-          listPrescriptions(params)
-        ]);
+  /**
+   * `listOwnMedicalRecords` calls `GET /medical-records/me`, which requires
+   * `own_record:read` and derives the patient from the server-side principal.
+   *
+   * This previously called `searchMedicalRecords`, the clinician directory, which
+   * requires `diagnosis:write`. A patient does not hold it, so every dashboard
+   * load produced a 403 — and the `catch` below turned that 403 into "0 records",
+   * which reads as a fact about the patient's history rather than a failure.
+   */
+  const ownRecords = useQuery({
+    queryKey: ['patient', 'dashboard', 'own-records', user?.id],
+    queryFn: () => listOwnMedicalRecords({ size: 1 }),
+    enabled: Boolean(user),
+    staleTime: 60_000,
+  });
 
-        setCounts({
-          appointments: appointmentData.totalElements ?? appointmentData.content?.length ?? 0,
-          records: medicalData.totalElements ?? medicalData.content?.length ?? 0,
-          prescriptions: prescriptionData.totalElements ?? prescriptionData.content?.length ?? 0
-        });
-      } catch {
-        setCounts({ appointments: 0, records: 0, prescriptions: 0 });
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  const appointments = useQuery({
+    queryKey: ['patient', 'dashboard', 'appointments', user?.id],
+    queryFn: () => listAppointments({ patientId: user?.id, size: 5 }),
+    enabled: Boolean(user),
+    staleTime: 60_000,
+  });
 
-    fetchData();
-  }, [user]);
+  const isLoading = ownRecords.isLoading || appointments.isLoading;
+
+  /**
+   * A failed request is shown as a failure, never as a zero.
+   *
+   * Reporting "0 medical records" because the call was refused tells the patient
+   * something false about their own history, and is the kind of quiet wrongness
+   * that is hardest to notice and worst for trust.
+   */
+  const failed = Boolean(ownRecords.isError || appointments.isError);
 
   return (
     <div className="space-y-6">
@@ -78,34 +85,96 @@ export function PatientDashboardPage() {
         actionHref="/patient/book-appointment"
       />
 
+      {failed ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <span>
+            {getFriendlyErrorMessage(
+              ownRecords.error ?? appointments.error,
+              'We could not load your dashboard just now.',
+            )}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void ownRecords.refetch();
+              void appointments.refetch();
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Visits</CardTitle>
-            <CardDescription>{isLoading ? 'Loading...' : `${counts.appointments} scheduled`}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CalendarCheck2 className="h-8 w-8 text-primary" />
-          </CardContent>
-        </Card>
+        {/*
+          Cards navigate. A metric card that cannot be followed to is a dead end:
+          the reader has the number and no way to act on it.
+        */}
+        <button
+          type="button"
+          onClick={() => router.push('/patient/appointments')}
+          className="text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <Card className="h-full transition-colors hover:border-primary/60">
+            <CardHeader>
+              <CardTitle>Upcoming Visits</CardTitle>
+              <CardDescription>
+                {isLoading
+                  ? 'Loading...'
+                  : `${appointments.data?.totalElements ?? 0} scheduled`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <CalendarCheck2 className="h-8 w-8 text-primary" aria-hidden />
+              <span className="text-sm font-medium text-primary">View all</span>
+            </CardContent>
+          </Card>
+        </button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Medical Records</CardTitle>
-            <CardDescription>{isLoading ? 'Loading...' : `${counts.records} documents`}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FileText className="h-8 w-8 text-primary" />
-          </CardContent>
-        </Card>
+        <button
+          type="button"
+          onClick={() => router.push('/patient/records')}
+          className="text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <Card className="h-full transition-colors hover:border-primary/60">
+            <CardHeader>
+              <CardTitle>Medical Records</CardTitle>
+              <CardDescription>
+                {isLoading
+                  ? 'Loading...'
+                  : `${ownRecords.data?.totalElements ?? 0} documents`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <FileText className="h-8 w-8 text-primary" aria-hidden />
+              <span className="text-sm font-medium text-primary">View all</span>
+            </CardContent>
+          </Card>
+        </button>
 
-        <Card>
+        {/*
+          Prescriptions are deliberately absent.
+
+          `PrescriptionOrder` records a patient *name* and no patient id, so there
+          is no authorized patient-scoped prescription endpoint to call. Rendering a
+          count here would mean either calling a clinician endpoint a patient cannot
+          reach (a guaranteed 403) or inventing a number. Patient-visible
+          prescriptions need a real patient reference on the order first.
+        */}
+        <Card className="border-dashed">
           <CardHeader>
             <CardTitle>Prescriptions</CardTitle>
-            <CardDescription>{isLoading ? 'Loading...' : `${counts.prescriptions} active or historical`}</CardDescription>
+            <CardDescription>Not yet available to you</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Bell className="h-8 w-8 text-primary" />
+          <CardContent className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Released prescriptions will appear here once the pharmacy marks them
+              for you.
+            </p>
           </CardContent>
         </Card>
       </div>

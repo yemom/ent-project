@@ -25,6 +25,23 @@ public class CurrentUser {
         return require().getUser().getId();
     }
 
+    /**
+     * The acting principal's id, or {@code null} when there is none.
+     *
+     * <p>For code that must work both interactively and on behalf of the system —
+     * a scheduled reminder, a notification fan-out — and cannot simply assume an
+     * authenticated caller. Use {@link #userId()} wherever a missing principal
+     * should be an error; this method exists so that "nobody is acting" is a value
+     * to handle rather than an exception to swallow.
+     */
+    public String tryGetUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserPrincipal principal)) {
+            return null;
+        }
+        return principal.getUser().getId();
+    }
+
     public UserRole role() {
         return require().getUser().getRole();
     }

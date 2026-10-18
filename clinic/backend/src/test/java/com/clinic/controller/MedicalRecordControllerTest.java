@@ -52,6 +52,18 @@ class MedicalRecordControllerTest {
     @MockBean
     private AuditLogService auditLogService;
 
+    /**
+     * Added with {@code GET /medical-records/me}.
+     *
+     * <p>The controller resolves the caller from the principal so that a patient can
+     * never widen the listing by passing somebody else's id. A {@code @WebMvcTest}
+     * slice has no security context of its own, so the collaborator has to be
+     * declared here; without it the context fails to load and all five tests report
+     * an unrelated context error.
+     */
+    @MockBean
+    private com.clinic.security.CurrentUser currentUser;
+
     @Test
     void createReturnsCreated() throws Exception {
         UUID patientId = UUID.randomUUID();

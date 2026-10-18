@@ -48,6 +48,17 @@ class AuthControllerTest {
     @MockBean
     private CurrentUser currentUser;
 
+    /**
+     * Added with the forgot-password and reset-password endpoints.
+     *
+     * <p>A {@code @WebMvcTest} slice builds the controller with mocked collaborators
+     * only, so a new constructor dependency has to be declared here. Without it the
+     * whole context fails to load and every test in the class reports an unrelated
+     * "ApplicationContext failure" — which hides the real cause.
+     */
+    @MockBean
+    private com.clinic.service.PasswordResetService passwordResetService;
+
     private final UserMapper userMapper = new UserMapper();
 
     @org.junit.jupiter.api.BeforeEach

@@ -7,8 +7,9 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { listAppointments } from '@/services/api/appointments';
 import { listDoctors, listPatients, listStaffDirectory, listUsers } from '@/services/api/users';
+import { listInvoices } from '@/services/api/billing';
+import { listPrescriptionOrders } from '@/features/prescriptions';
 import { useAuthStore } from '@/store/auth-store';
-import type { UserRole } from '@/types/api';
 
 /**
  * Query keys shared between prefetch and the pages themselves.
@@ -21,7 +22,16 @@ export const prefetchKeys = {
   appointments: (params?: Record<string, string | number | undefined>) => ['appointments', params ?? {}] as const,
 };
 
-/** Lightweight page-level data each role's dashboard shows first. */
+/**
+ * Lightweight page-level data each role's dashboard shows first.
+ *
+ * <p>Every entry has to be something that role can actually read. Prefetching a
+ * resource the role lacks produces a guaranteed 403 in the console on every
+ * dashboard visit, which is how a red console became normal and stopped being
+ * noticed — including for real faults. `PHARMACIST` and `CASHIER` were prefetching
+ * `/appointments`, which neither may read: `GET /appointments` requires
+ * `appointment:manage`, which those roles do not hold.
+ */
 const dashboardPrefetches: Record<string, Array<() => Promise<unknown>>> = {
   ADMIN: [
     () => listUsers({ size: 1 }),
@@ -35,13 +45,18 @@ const dashboardPrefetches: Record<string, Array<() => Promise<unknown>>> = {
   HOSPITAL_ADMIN: [
     () => listDoctors({ size: 8 }),
     () => listStaffDirectory({ size: 8 }),
+    () => listAppointments({ size: 8 }),
   ],
   DOCTOR: [() => listAppointments({ size: 8 })],
   NURSE: [() => listPatients({ size: 8 })],
   RECEPTIONIST: [() => listAppointments({ size: 8 }), () => listDoctors({ size: 8 })],
   LAB_TECHNICIAN: [],
-  PHARMACIST: [() => listAppointments({ size: 1 })],
-  CASHIER: [() => listAppointments({ size: 8 })],
+  // The pharmacy dashboard is built from the prescription queue and inventory,
+  // neither of which needs the appointment book.
+  PHARMACIST: [() => listPrescriptionOrders({ size: 8 })],
+  // The cashier dashboard is built from invoices and payments. `listInvoices`
+  // pages internally, so it takes no size.
+  CASHIER: [() => listInvoices()],
   PATIENT: [() => listAppointments({ size: 8 })],
 };
 

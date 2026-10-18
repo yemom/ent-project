@@ -18,5 +18,5 @@ export const env = {
     process.env.NEXT_PUBLIC_API_BASE_URL,
     'http://localhost:8090/api/v1'
   ),
-  appUrl: normaliseBaseUrl(process.env.NEXT_PUBLIC_APP_URL, 'http://localhost:3000')
+  appUrl: normaliseBaseUrl(process.env.NEXT_PUBLIC_APP_URL, 'http://localhost:3001')
 } as const;

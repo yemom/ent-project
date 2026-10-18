@@ -36,6 +36,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     Page<Appointment> findByPatientId(String patientId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"patient", "doctor"})
+    Page<Appointment> findByPatientIdAndAppointmentDateBetween(
+            String patientId, LocalDateTime from, LocalDateTime to, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"patient", "doctor"})
     Page<Appointment> findByDoctorId(String doctorId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"patient", "doctor"})
@@ -45,6 +49,20 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     Page<Appointment> findByAppointmentDateBetween(LocalDateTime from, LocalDateTime to, Pageable pageable);
 
     long countByAppointmentDateBetween(LocalDateTime from, LocalDateTime to);
+
+    /**
+     * Bookings a specific doctor carries in a window.
+     *
+     * <p>Used for the AI workload summary, which reports how much each clinician is
+     * carrying. It reports load only: outcomes per clinician would be a clinical
+     * judgement the underlying data does not support.
+     */
+    @Query("SELECT COUNT(a) FROM Appointment a "
+            + "WHERE a.doctor.id = :doctorId "
+            + "AND a.appointmentDate >= :from AND a.appointmentDate < :to")
+    long countByDoctorIdAndAppointmentDateBetween(@Param("doctorId") String doctorId,
+                                                 @Param("from") LocalDateTime from,
+                                                 @Param("to") LocalDateTime to);
 
     /** Status breakdown in one round trip, for the admin dashboard. */
     @Query("select a.status, count(a) from Appointment a group by a.status")

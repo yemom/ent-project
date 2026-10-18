@@ -55,11 +55,31 @@ services:
       - key: APP_REFUND_APPROVAL_THRESHOLD
         value: "500.00"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://yemom-hospital.vercel.app,http://localhost:3000"
+        value: "https://yemom-hospital.vercel.app,http://localhost:3001"
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: health,info
       - key: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
         value: "true"
+      # AI chat is opt-in. Keep the provider credential server-side; it is never
+      # exposed to the frontend or returned by the capabilities endpoint.
+      - key: AI_ENABLED
+        value: "true"
+      - key: AI_PROVIDER
+        value: openai-compatible
+      - key: AI_API_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_REQUEST_TIMEOUT_MS
+        value: "20000"
+      - key: AI_MAX_OUTPUT_TOKENS
+        value: "700"
+      - key: AI_ALLOW_IDENTIFIABLE_DATA
+        value: "false"
+      - key: AI_ALLOWED_HOSTS
+        value: api.openai.com
     # DB-free liveness endpoint: answers as soon as the HTTP listener is up,
     # which is what the keep-alive ping and the frontend wake-up call rely on.
     healthCheckPath: /api/v1/health

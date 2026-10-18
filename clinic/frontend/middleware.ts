@@ -38,5 +38,8 @@ export const config = {
     '/pharmacist/:path*',
     '/cashier/:path*',
     '/patient/:path*',
+    // Shared across roles. Guarded like the rest: without a session the redirect
+    // to /login applies, and `isRoleAllowed` still decides who may open it.
+    '/ai/:path*',
   ],
 };

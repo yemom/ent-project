@@ -72,6 +72,37 @@ import { getDoctorStats } from "@/services/api/doctor";
 import { labOrdersService } from "@/features/laboratory/services/lab-orders.service";
 import { labResultsService } from "@/features/laboratory/services/lab-results.service";
 import { LAB_TEST_TYPES, LAB_URGENCY } from "@/lib/constants";
+import { AiAssistantPanel } from "@/features/ai/ai-assistant-panel";
+
+/**
+ * Explains a failed patient read in terms the doctor can act on.
+ *
+ * <p>A 403 here is almost never a bug: it is the assignment and branch rule doing
+ * its job when a doctor opens a patient outside their own panel. The API's generic
+ * "You do not have permission to access this resource" is accurate but leaves the
+ * reader with nothing to do about it, so the two cases that actually occur are
+ * named here.
+ *
+ * <p>The distinction is drawn from the status code only. It is a guess about
+ * <em>which</em> rule applied, never about whether access was allowed — that is the
+ * server's decision and this function cannot widen it.
+ */
+function patientAccessMessage(error: unknown): string {
+  const status = (error as { response?: { status?: number } } | undefined)?.response
+    ?.status;
+
+  if (status === 403) {
+    return "This patient is not in your assigned panel, so their details are not available to you. Open the patient from My Patients, or ask reception to assign them to you.";
+  }
+  if (status === 404) {
+    return "This patient could not be found. They may have been removed, or the link may be out of date.";
+  }
+
+  return getFriendlyErrorMessage(
+    error,
+    "Could not load patient details. Please try again.",
+  );
+}
 
 export function DoctorPatientDetailPage({ id }: { id: string }) {
   const router = useRouter();
@@ -200,12 +231,7 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
         console.error("Error fetching patient details", err);
         setPatient(null);
         setRecords([]);
-        setFetchError(
-          getFriendlyErrorMessage(
-            err,
-            "Could not load patient details. Please try again.",
-          ),
-        );
+        setFetchError(patientAccessMessage(err));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -274,6 +300,7 @@ export function DoctorPatientDetailPage({ id }: { id: string }) {
           user?.role === "ADMIN" ? "/admin/patients" : "/doctor/patients"
         }
       />
+      <AiAssistantPanel compact contextArguments={{ patientId: id }} />
       <StatusAlert
         status={status}
         message={statusMessage}

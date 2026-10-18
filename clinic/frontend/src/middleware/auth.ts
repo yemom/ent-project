@@ -10,6 +10,9 @@ export const protectedPrefixes = [
   '/pharmacist',
   '/cashier',
   '/patient',
+  // Shared assistant surface. What each role may actually ask about is decided by
+  // the backend; the middleware only requires a session.
+  '/ai',
 ];
 
 export type ClinicRole =
@@ -24,6 +27,27 @@ export type ClinicRole =
   | 'PHARMACIST'
   | 'CASHIER'
   | 'PATIENT';
+
+/**
+ * Every role the system knows about.
+ *
+ * <p>Derived from {@link ClinicRole} rather than written out, so adding a role to
+ * the type does not silently leave this list behind — the mismatch would lock the
+ * new role out of every shared page.
+ */
+export const ALL_ROLES: ClinicRole[] = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'HOSPITAL_ADMIN',
+  'DOCTOR',
+  'NURSE',
+  'RECEPTIONIST',
+  'LAB_TECHNICIAN',
+  'LABORATORY',
+  'PHARMACIST',
+  'CASHIER',
+  'PATIENT',
+];
 
 export function isProtectedPath(pathname: string): boolean {
   return protectedPrefixes.some(
@@ -41,6 +65,10 @@ export function getAllowedRoles(pathname: string): ClinicRole[] {
   if (pathname.startsWith('/pharmacist')) return ['PHARMACIST'];
   if (pathname.startsWith('/cashier')) return ['CASHIER'];
   if (pathname.startsWith('/patient')) return ['PATIENT'];
+  // The assistant is offered to every role; the backend decides what each of them
+  // may actually ask about. Listing all roles here keeps the middleware from
+  // becoming a second, diverging copy of the permission matrix.
+  if (pathname.startsWith('/ai')) return ALL_ROLES;
   return [];
 }
 

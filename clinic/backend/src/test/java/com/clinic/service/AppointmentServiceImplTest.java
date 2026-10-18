@@ -63,7 +63,10 @@ class AppointmentServiceImplTest {
     void setUp() {
         appointmentMapper = new AppointmentMapper();
         appointmentService = new AppointmentServiceImpl(
-                appointmentRepository, patientRepository, doctorRepository, appointmentMapper, currentUser);
+                appointmentRepository, patientRepository, doctorRepository, appointmentMapper, currentUser,
+                // Notifications are exercised directly in AppointmentNotificationTest; this
+                // suite is about booking rules, so a mock keeps the two concerns apart.
+                org.mockito.Mockito.mock(com.clinic.service.impl.AppointmentEventNotifier.class));
 
         patientId = UUID.randomUUID();
         doctorId = UUID.randomUUID();

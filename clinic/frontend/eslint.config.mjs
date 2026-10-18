@@ -9,11 +9,22 @@ export default [
   {
     ignores: [
       '.next/**',
+      '.next-build/**',
+      '.next-e2e/**',
+      '.next-verify/**',
       'node_modules/**',
       'next-env.d.ts'
     ]
   },
   js.configs.recommended,
+  {
+    files: ['**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node
+      }
+    }
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

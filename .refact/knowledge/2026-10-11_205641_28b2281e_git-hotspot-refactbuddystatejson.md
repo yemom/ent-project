@@ -6,7 +6,7 @@ tags:
 - git
 - hotspot
 created: 2026-10-11
-updated: 2026-10-12
+updated: 2026-10-18
 filenames:
 - .refact/buddy/state.json
 links: []
@@ -14,7 +14,7 @@ kind: code
 status: proposed
 superseded_by: null
 deprecated_at: null
-review_after: 2026-10-12
+review_after: 2026-10-18
 source_chat_id: null
 created_at: 2026-10-11T17:56:41.668021900+00:00
 summary: null

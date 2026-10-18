@@ -46,11 +46,11 @@ public class SecurityConfig {
             "https://yemom-hospital-git-main-yemoms-projects.vercel.app",
             "https://hotel-managment-system.vercel.app",
             "https://hotel-managment-system-git-main-yemoms-projects.vercel.app",
-            "http://localhost:3000",
+            "http://localhost:3001",
             "http://localhost:3001",
             "http://localhost:3002",
             "http://localhost:3003",
-            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
             "http://127.0.0.1:3001",
             "http://192.168.137.1:3000",
             "http://192.168.137.1:3001",
@@ -91,6 +91,13 @@ public class SecurityConfig {
                                 ApiPaths.AUTH + "/login",
                                 ApiPaths.AUTH + "/register",
                                 ApiPaths.AUTH + "/refresh",
+                                // Public by necessity: nobody can reset a password
+                                // they cannot sign in with. The endpoints are safe
+                                // to expose because PasswordResetService returns a
+                                // constant response for any address, and the token
+                                // is the only authorisation that matters.
+                                ApiPaths.AUTH + "/forgot-password",
+                                ApiPaths.AUTH + "/reset-password",
                                 "/error",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",

@@ -49,7 +49,7 @@ spec:
             - name: APP_JWT_SECRET
               value: "c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo="
             - name: CORS_ALLOWED_ORIGINS
-              value: "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:3003,http://192.168.137.1:3000,http://192.168.137.1:3001,http://192.168.20.27:3000,http://192.168.20.27:3001"
+              value: "http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:3003,http://192.168.137.1:3001,http://192.168.20.27:3001"
             - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
               value: "health,info"
             - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED

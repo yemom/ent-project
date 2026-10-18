@@ -1,14 +1,33 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { isServerAwake, subscribeServerStatus, wakeUpServer } from '@/services/api/client';
 import { getFriendlyErrorMessage } from '@/lib/error-handler';
 import { useLogin, useRegister } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, Mail, Lock, Chrome, KeyRound, Eye, EyeOff, Loader2, Server } from 'lucide-react';
-import { loginSchema, registerSchema } from "@/features/auth/schemas";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Mail,
+  Lock,
+  Chrome,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Loader2,
+  Server,
+} from 'lucide-react';
+import {
+  loginSchema,
+  registerSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from "@/features/auth/schemas";
+import { forgotPassword, resetPassword, type ForgotPasswordResponse } from "@/services/api/auth";
+import { useAuthStore } from '@/store/auth-store';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { z } from "zod";
@@ -128,6 +147,10 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const serverAwake = useServerStatus();
 
+  // Set by `/reset-password` once a reset has been redeemed, so the user lands
+  // here with the fact that their password changed rather than on a blank form.
+  const didReset = useSearchParams().get('reset') === '1';
+
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -181,6 +204,22 @@ export function LoginPage() {
             Patient Portal
           </button>
         </div> */}
+
+        {didReset ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-4 flex items-start gap-3 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900"
+          >
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <div>
+              <p className="font-medium">Your password has been changed</p>
+              <p className="text-xs text-teal-800">
+                Any other sessions have been signed out. Sign in with your new password.
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {serverAwake === false ? (
           <div
@@ -590,43 +629,355 @@ export function RegisterPage() {
 }
 
 /**
- * Password recovery.
+ * Password recovery — step 1: ask for a reset link.
  *
- * <p>Deliberately does not call an API. There is no `POST /auth/forgot-password` on
- * the server — the authentication controller exposes only register, login, refresh,
- * logout and me — so the previous service wrapper issued a request that could only
- * ever answer 404, and the page rendered a "Send reset link" button that silently
- * did nothing.
+ * <p>Posts to the real `POST /auth/forgot-password`. The server answers the same
+ * way for every address, so this screen never knows whether the account exists and
+ * must not imply it does either way.
  *
- * <p>Rather than add an endpoint that cannot actually deliver a reset (this
- * deployment has no mail transport, and re-issuing a password is something a clinic
- * administrator must do anyway), the page states the workflow that does exist.
+ * <p>There is one honest branch to render: a deployment with no mail transport.
+ * The server refuses those requests rather than pretending to send mail, and the
+ * user is told to contact the clinic. That is a statement about the deployment,
+ * not about the address they typed.
  */
 export function ForgotPasswordPage() {
+  const [result, setResult] = useState<ForgotPasswordResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+
+  const form = useForm<z.infer<typeof forgotPasswordSchema>>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: '' }
+  });
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    const isValid = await form.trigger();
+    if (!isValid) return;
+
+    setIsPending(true);
+    try {
+      setResult(await forgotPassword(form.getValues()));
+    } catch (err) {
+      setError(
+        getFriendlyErrorMessage(
+          err,
+          'We could not send the reset email. Please try again in a moment.'
+        )
+      );
+    } finally {
+      setIsPending(false);
+    }
+  };
+
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Forgotten password
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Forgotten password</h2>
           <p className="text-sm text-gray-600">
-            Password resets are handled by a clinic administrator, who can issue a
-            new one for your account.
+            Enter the email address you sign in with and we will send you a link to
+            choose a new password.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-gray-50 p-4 text-sm text-gray-700">
-          <p className="font-medium text-gray-900">What to do</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5">
-            <li>Contact the front desk or the hospital administrator.</li>
-            <li>Ask them to look up your account by name or email address.</li>
-            <li>Sign in with the password they give you, then change it from your profile.</li>
-          </ol>
-        </div>
+        {result ? (
+          // role="status" so the outcome is announced rather than appearing silently.
+          <div
+            role="status"
+            aria-live="polite"
+            className={`rounded-lg border px-4 py-4 text-sm ${
+              result.emailSent
+                ? 'border-teal-200 bg-teal-50 text-teal-900'
+                : 'border-amber-200 bg-amber-50 text-amber-900'
+            }`}
+          >
+            <p className="font-medium">{result.emailSent ? 'Check your inbox' : 'Contact the clinic'}</p>
+            <p className="mt-1">{result.message}</p>
+            {!result.emailSent ? (
+              <p className="mt-2 text-xs">
+                A member of staff can verify your identity and reset the password with
+                you in person.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs">
+                The link expires in 30 minutes and can be used once. If it does not
+                arrive, check your spam folder before asking the clinic for help.
+              </p>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {error ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              >
+                {error}
+              </div>
+            ) : null}
+
+            <div>
+              <label
+                htmlFor="forgot-email"
+                className="block text-sm font-medium text-gray-900 mb-2"
+              >
+                Email address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" aria-hidden />
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  aria-invalid={Boolean(form.formState.errors.email)}
+                  aria-describedby={
+                    form.formState.errors.email ? 'forgot-email-error' : undefined
+                  }
+                  className="pl-10 h-11 border-gray-300 rounded-lg"
+                  {...form.register('email')}
+                />
+              </div>
+              {form.formState.errors.email ? (
+                <p id="forgot-email-error" className="mt-1 text-xs text-red-600">
+                  {form.formState.errors.email.message}
+                </p>
+              ) : null}
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Sending…
+                </>
+              ) : (
+                'Send reset link'
+              )}
+            </Button>
+          </form>
+        )}
 
         <div className="mt-6 text-center text-sm">
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="text-teal-600 hover:text-teal-700 font-medium">
+            Back to sign in
+          </Link>
+        </div>
+      </div>
+    </AuthLayout>
+  );
+}
+
+/**
+ * Password recovery — step 2: choose a new password.
+ *
+ * <p>The token arrives in the query string of the emailed link and is read with
+ * `useSearchParams`. It is held in component state, submitted once, and never
+ * written to storage or to the URL by this screen.
+ *
+ * <p>Because the server invalidates every session for the account on success, the
+ * local session is discarded as well — a user who had this browser signed in to the
+ * old password must not keep a token minted before the change.
+ */
+export function ResetPasswordPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token') ?? '';
+  const clearSession = useAuthStore((s) => s.clearSession);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [isDone, setIsDone] = useState(false);
+
+  const form = useForm<z.infer<typeof resetPasswordSchema>>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { newPassword: '', confirmPassword: '' }
+  });
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    const isValid = await form.trigger();
+    if (!isValid) return;
+
+    setIsPending(true);
+    try {
+      await resetPassword({ token, newPassword: form.getValues('newPassword') });
+      // Every session for this account was revoked server-side; drop the local one
+      // so this tab cannot continue on the old credentials.
+      clearSession();
+      setIsDone(true);
+      router.push('/login?reset=1');
+    } catch (err) {
+      setError(
+        getFriendlyErrorMessage(
+          err,
+          'This reset link is invalid or has expired. Request a new one to continue.'
+        )
+      );
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  // A link opened without its token, or with an empty one, cannot be redeemed.
+  if (!token) {
+    return (
+      <AuthLayout>
+        <div className="w-full max-w-md text-center">
+          <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" aria-hidden />
+          <h2 className="mt-4 text-2xl font-bold text-gray-900">This link is incomplete</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            The reset link is missing its security token. Open the link straight from
+            your email, or request a new one.
+          </p>
+          <Link
+            href="/forgot-password"
+            className="mt-6 inline-block font-medium text-teal-700 hover:text-teal-800"
+          >
+            Request a new reset link
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (isDone) {
+    return (
+      <AuthLayout>
+        <div className="w-full max-w-md text-center">
+          <CheckCircle2 className="mx-auto h-10 w-10 text-teal-600" aria-hidden />
+          <h2 className="mt-4 text-2xl font-bold text-gray-900">Password changed</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            You can now sign in with your new password. Any other sessions have been
+            signed out.
+          </p>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout>
+      <div className="w-full max-w-md">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose a new password</h2>
+          <p className="text-sm text-gray-600">
+            Your new password takes effect immediately and signs you out everywhere
+            else.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {error ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {error}
+            </div>
+          ) : null}
+
+          <div>
+            <label
+              htmlFor="reset-password"
+              className="block text-sm font-medium text-gray-900 mb-2"
+            >
+              New password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" aria-hidden />
+              <Input
+                id="reset-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="Min 8 chars, letter, number & symbol"
+                aria-invalid={Boolean(form.formState.errors.newPassword)}
+                aria-describedby={
+                  form.formState.errors.newPassword ? 'reset-password-error' : undefined
+                }
+                className="pl-10 pr-10 h-11 border-gray-300 rounded-lg"
+                {...form.register('newPassword')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((shown) => !shown)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" aria-hidden />
+                ) : (
+                  <Eye className="h-5 w-5" aria-hidden />
+                )}
+              </button>
+            </div>
+            {form.formState.errors.newPassword ? (
+              <p id="reset-password-error" className="mt-1 text-xs text-red-600">
+                {form.formState.errors.newPassword.message}
+              </p>
+            ) : null}
+            <p className="mt-1 text-xs text-gray-500">
+              At least 8 characters, including a letter, a number and a special
+              character.
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="reset-confirm-password"
+              className="block text-sm font-medium text-gray-900 mb-2"
+            >
+              Confirm new password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" aria-hidden />
+              <Input
+                id="reset-confirm-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                aria-invalid={Boolean(form.formState.errors.confirmPassword)}
+                aria-describedby={
+                  form.formState.errors.confirmPassword
+                    ? 'reset-confirm-password-error'
+                    : undefined
+                }
+                className="pl-10 h-11 border-gray-300 rounded-lg"
+                {...form.register('confirmPassword')}
+              />
+            </div>
+            {form.formState.errors.confirmPassword ? (
+              <p id="reset-confirm-password-error" className="mt-1 text-xs text-red-600">
+                {form.formState.errors.confirmPassword.message}
+              </p>
+            ) : null}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Saving…
+              </>
+            ) : (
+              'Change password'
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center text-sm">
+          <Link href="/login" className="text-teal-600 hover:text-teal-700 font-medium">
             Back to sign in
           </Link>
         </div>

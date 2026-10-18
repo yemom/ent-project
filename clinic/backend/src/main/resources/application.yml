@@ -136,6 +136,54 @@ app:
   security:
     # Refunds above this amount need approval from a second privileged user.
     refund-approval-threshold: ${APP_REFUND_APPROVAL_THRESHOLD:500.00}
+  # Outbound email. With MAIL_HOST unset the deployment cannot send mail, and the
+  # password-reset endpoints answer 503 rather than pretending a message was sent.
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:no-reply@clinic.local}
+    start-tls: ${MAIL_START_TLS:true}
+    connection-timeout-seconds: ${MAIL_CONNECTION_TIMEOUT_SECONDS:10}
+    timeout-seconds: ${MAIL_TIMEOUT_SECONDS:10}
+  password-reset:
+    # Short on purpose. The token travels through a recipient's inbox, where a link
+    # can sit unread for days; a long window turns an old mail into a live key.
+    token-ttl-minutes: ${PASSWORD_RESET_TOKEN_TTL_MINUTES:30}
+    max-issuances-per-window: ${PASSWORD_RESET_MAX_ISSUANCES:3}
+    issuance-window-minutes: ${PASSWORD_RESET_ISSUANCE_WINDOW_MINUTES:60}
+    # Where the emailed link points. Must be the public frontend origin: a link to
+    # localhost is a support ticket waiting to happen.
+    frontend-reset-url: ${PASSWORD_RESET_FRONTEND_URL:http://localhost:3001/reset-password}
+  clinic-name: ${CLINIC_NAME:Clinic Care}
+
+# AI assistant.
+#
+# Disabled unless AI_ENABLED is set, and usable only once AI_API_URL and AI_API_KEY
+# are also set. There is no default endpoint, key or model: a hospital chooses a
+# provider deliberately, after deciding where its data is allowed to go.
+#
+# AI_ALLOW_IDENTIFIABLE_DATA defaults to false and must be turned on explicitly
+# before any capability that carries patient-identifiable clinical text will run.
+# Everything else — counts, dates, categories, status breakdowns — works with it off.
+ai:
+  enabled: ${AI_ENABLED:false}
+  provider: ${AI_PROVIDER:openai-compatible}
+  api-url: ${AI_API_URL:}
+  model: ${AI_MODEL:}
+  # Server-side only. Never a NEXT_PUBLIC_* variable, never returned by an endpoint.
+  api-key: ${AI_API_KEY:}
+  request-timeout-millis: ${AI_REQUEST_TIMEOUT_MS:20000}
+  max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:700}
+  max-input-chars: ${AI_MAX_INPUT_CHARS:4000}
+  max-history-turns: ${AI_MAX_HISTORY_TURNS:8}
+  requests-per-window: ${AI_REQUESTS_PER_WINDOW:30}
+  requests-window-minutes: ${AI_REQUESTS_WINDOW_MINUTES:10}
+  allow-identifiable-data: ${AI_ALLOW_IDENTIFIABLE_DATA:false}
+  # Optional. Empty means "trust the configured AI_API_URL host"; populating it adds
+  # a second gate for deployments under a data-residency or vendor policy.
+  allowed-hosts: ${AI_ALLOWED_HOSTS:}
   rate-limit:
     # Overridable so the scripted test suites can turn it off: they fire several
     # hundred requests within a couple of minutes against one account, which a
