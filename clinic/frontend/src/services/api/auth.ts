@@ -5,6 +5,16 @@ import type { AuthTokens, AuthUser, UserRole } from '@/types/api';
 export type { AuthResponse };
 export { toSession };
 
+/**
+ * No password-reset endpoint is exported, and none exists on the server.
+ *
+ * <p>An earlier `forgotPassword()` helper here posted to `/auth/forgot-password`,
+ * which `AuthController` has never mapped — every call it made answered 404. There
+ * is no mail transport in this deployment to deliver a reset link, and re-issuing a
+ * password is a clinic-administrator action, so the recovery screen describes that
+ * workflow instead of pretending to send mail.
+ */
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -29,12 +39,9 @@ export async function register(
   return toSession(data);
 }
 
-export async function forgotPassword(email: string) {
-  const { data } = await apiClient.post<{ message: string }>('/auth/forgot-password', { email });
-  return data;
-}
-
-/** `/auth/me` returns the caller's profile plus the permissions the API enforces. */
+/**
+ * `GET /auth/me` returns the caller's profile plus the permissions the API enforces.
+ */
 export interface CurrentUserResponse extends AuthUser {
   permissions: string[];
 }

@@ -91,15 +91,17 @@ export function DoctorRecordsPage() {
       try {
         setIsLoading(true);
         const data = await listMedicalRecords({ size: 30 });
+        // Reads the real `MedicalRecordResponse`: a nested `patient` object, a
+        // `recordDate`, and a signed/draft state derived from `signedAt`. The flat
+        // `patientName` / `visitDate` / `status` fields this used to read are not
+        // sent by the API, so the list rendered blanks.
         setRecords(
           (data.content ?? []).map((r) => ({
             id: r.id,
-            diagnosis: r.diagnosis,
-            status: (r.status || r.medicalRecordType || "SIGNED") as string,
-            visitDate: (r.recordDate ||
-              r.visitDate ||
-              new Date().toISOString()) as string,
-            patientName: r.patient?.fullName || r.patientName,
+            diagnosis: r.diagnosis ?? "No diagnosis recorded",
+            status: r.signedAt ? "SIGNED" : "DRAFT",
+            visitDate: r.recordDate,
+            patientName: r.patient?.fullName ?? "Unknown patient",
           })),
         );
       } finally {

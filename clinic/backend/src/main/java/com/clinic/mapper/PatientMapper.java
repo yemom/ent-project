@@ -88,6 +88,7 @@ public class PatientMapper {
                 patient.getEmergencyContactName(),
                 patient.getEmergencyContactPhone(),
                 patient.getActive(),
+                patient.getRegistrationNumber(),
                 patient.getCreatedAt(),
                 patient.getUpdatedAt()
         );

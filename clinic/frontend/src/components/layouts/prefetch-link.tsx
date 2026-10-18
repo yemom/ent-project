@@ -6,7 +6,7 @@ import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { listAppointments } from '@/services/api/appointments';
-import { listDoctors, listPatients, listUsers } from '@/services/api/users';
+import { listDoctors, listPatients, listStaffDirectory, listUsers } from '@/services/api/users';
 import { useAuthStore } from '@/store/auth-store';
 import type { UserRole } from '@/types/api';
 
@@ -29,7 +29,13 @@ const dashboardPrefetches: Record<string, Array<() => Promise<unknown>>> = {
     () => listPatients({ size: 1 }),
     () => listAppointments({ size: 8 }),
   ],
-  HOSPITAL_ADMIN: [() => listDoctors({ size: 8 }), () => listUsers({ size: 1 })],
+  // A hospital administrator holds `staff:manage` but not `user:manage`, so
+  // `/admin/users` answers 403 for them. Warming the directory it can actually read
+  // keeps the prefetch useful without a guaranteed red response on every visit.
+  HOSPITAL_ADMIN: [
+    () => listDoctors({ size: 8 }),
+    () => listStaffDirectory({ size: 8 }),
+  ],
   DOCTOR: [() => listAppointments({ size: 8 })],
   NURSE: [() => listPatients({ size: 8 })],
   RECEPTIONIST: [() => listAppointments({ size: 8 }), () => listDoctors({ size: 8 })],

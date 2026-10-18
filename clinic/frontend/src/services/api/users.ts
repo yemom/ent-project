@@ -25,6 +25,29 @@ export interface UserItem {
   updatedAt?: string;
 }
 
+/**
+ * The patient directory, as `/patients` actually returns it.
+ *
+ * <p>Distinct from {@link UserItem}: the endpoint answers with the typed patient
+ * shape, which carries `registrationNumber`. The flat `UserItem` shape has no such
+ * field, which is why the registration number read as `undefined` on every screen
+ * that looked a patient up through this module — including the front desk, whose
+ * whole job is identifying patients by the number on their card.
+ */
+export interface PatientDirectoryItem {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  registrationNumber: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  bloodType: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  active: boolean | null;
+}
+
 export async function listUsers(params: Record<string, string | number | undefined> = {}) {
   try {
     const data = await fetchAllPages(async (page, size) => {
@@ -40,23 +63,58 @@ export async function listUsers(params: Record<string, string | number | undefin
     return data;
   } catch (error) {
     try {
-      const [doctorsRes, patientsRes] = await Promise.all([listDoctors(params), listPatients(params)]);
-
-      const combinedContent = [
-        ...(doctorsRes.content || []),
-        ...(patientsRes.content || [])
-      ];
-
-      return {
-        ...doctorsRes,
-        content: combinedContent,
-        totalElements: combinedContent.length,
-        totalPages: 1
-      } as PageResponse<UserItem>;
+      return await listStaffDirectory(params);
     } catch {
       throw new Error(getFriendlyErrorMessage(error, 'We could not load users right now. Please try again.'));
     }
   }
+}
+
+/**
+ * The people directory, for a caller that cannot read `/admin/users`.
+ *
+ * <p>A hospital administrator holds `staff:manage` but not `user:manage`, so the
+ * account directory 403s for them. Rather than fire a request that is guaranteed to
+ * be refused and log a console error on every page that shows staff, this asks the
+ * two directories the role *can* read. It is the same fallback {@link listUsers}
+ * falls back to; exposed so a caller can skip the doomed request entirely.
+ */
+export async function listStaffDirectory(
+  params: Record<string, string | number | undefined> = {},
+): Promise<PageResponse<UserItem>> {
+  const [doctorsRes, patientsRes] = await Promise.all([listDoctors(params), listPatients(params)]);
+
+  const combinedContent = [
+    ...(doctorsRes.content ?? []),
+    ...(patientsRes.content ?? []),
+  ];
+
+  return {
+    ...doctorsRes,
+    content: combinedContent,
+    totalElements: combinedContent.length,
+    totalPages: 1,
+  } as PageResponse<UserItem>;
+}
+
+/** A page of the patient directory, for pickers that need the registration number. */
+export async function listPatientDirectory(
+  params: Record<string, string | number | boolean | undefined> = {},
+): Promise<PageResponse<PatientDirectoryItem>> {
+  const { data } = await apiClient.get<PageResponse<PatientDirectoryItem>>('/patients', { params });
+  return data;
+}
+
+/** Every page of the patient directory, for a search box that filters as you type. */
+export async function searchPatientDirectory(
+  params: Record<string, string | number | boolean | undefined> = {},
+): Promise<PageResponse<PatientDirectoryItem>> {
+  return fetchAllPages(async (page, size) => {
+    const { data } = await apiClient.get<PageResponse<PatientDirectoryItem>>('/patients/search', {
+      params: { ...params, page, size },
+    });
+    return data;
+  });
 }
 
 export async function listDoctors(params: Record<string, string | number | boolean | undefined> = {}) {

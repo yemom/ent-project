@@ -49,6 +49,7 @@ import { createAppointment } from "@/services/api/appointments";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getMedicalRecord,
+  type ClinicianMedicalRecord,
   listMedicalRecords,
   searchMedicalRecords,
   createMedicalRecord,
@@ -75,23 +76,10 @@ import { LAB_TEST_TYPES, LAB_URGENCY } from "@/lib/constants";
 
 export function DoctorMedicalRecordDetailPage({ id }: { id: string }) {
   const user = useAuthStore((s) => s.user);
-  const [record, setRecord] = useState<{
-    id: string;
-    diagnosis: string;
-    treatment?: string;
-    prescription?: string;
-    notes?: string;
-    testResults?: string;
-    vitalSigns?: string;
-    medicalRecordType?: string;
-    recordDate?: string;
-    visitDate?: string;
-    followUpRequired?: boolean;
-    followUpDate?: string;
-    confidential?: boolean;
-    patient?: { id?: string; fullName?: string };
-    doctor?: { fullName?: string };
-  } | null>(null);
+  // The API contract itself rather than a local restatement of it: the previous
+  // inline type declared `visitDate` and `confidential`, neither of which
+  // `MedicalRecordResponse` sends, so the page quietly rendered blanks for them.
+  const [record, setRecord] = useState<ClinicianMedicalRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<"success" | "error" | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
@@ -121,7 +109,7 @@ export function DoctorMedicalRecordDetailPage({ id }: { id: string }) {
     fetchRecord();
   }, [id]);
 
-  const visitDate = record?.recordDate || record?.visitDate;
+  const visitDate = record?.recordDate;
 
   return (
     <div className="space-y-6">
@@ -251,7 +239,7 @@ export function DoctorMedicalRecordDetailPage({ id }: { id: string }) {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {record.confidential && (
+                  {record.isConfidential && (
                     <Badge variant="warning">Confidential</Badge>
                   )}
                   {record.followUpRequired && (

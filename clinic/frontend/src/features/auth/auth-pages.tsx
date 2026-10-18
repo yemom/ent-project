@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, Mail, Lock, Chrome, KeyRound, Eye, EyeOff, Loader2, Server } from 'lucide-react';
-import { loginSchema, registerSchema, forgotPasswordSchema } from "@/features/auth/schemas";
+import { loginSchema, registerSchema } from "@/features/auth/schemas";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { z } from "zod";
@@ -589,46 +589,47 @@ export function RegisterPage() {
   );
 }
 
+/**
+ * Password recovery.
+ *
+ * <p>Deliberately does not call an API. There is no `POST /auth/forgot-password` on
+ * the server — the authentication controller exposes only register, login, refresh,
+ * logout and me — so the previous service wrapper issued a request that could only
+ * ever answer 404, and the page rendered a "Send reset link" button that silently
+ * did nothing.
+ *
+ * <p>Rather than add an endpoint that cannot actually deliver a reset (this
+ * deployment has no mail transport, and re-issuing a password is something a clinic
+ * administrator must do anyway), the page states the workflow that does exist.
+ */
 export function ForgotPasswordPage() {
-  const form = useForm<z.infer<typeof forgotPasswordSchema>>({
-    resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: { email: "" },
-  });
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await form.trigger();
-  };
-
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Reset password
+            Forgotten password
           </h2>
           <p className="text-sm text-gray-600">
-            We’ll send a secure reset link to your email address.
+            Password resets are handled by a clinic administrator, who can issue a
+            new one for your account.
           </p>
         </div>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
-            <Input
-              type="email"
-              placeholder="name@clinic.health"
-              {...form.register("email")}
-            />
-          </div>
-          <Button className="w-full rounded-2xl" type="submit">
-            Send reset link
-          </Button>
-          <div className="text-center text-sm">
-            <Link className="text-primary hover:underline" href="/login">
-              Back to sign in
-            </Link>
-          </div>
-        </form>
+
+        <div className="rounded-2xl border border-border bg-gray-50 p-4 text-sm text-gray-700">
+          <p className="font-medium text-gray-900">What to do</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>Contact the front desk or the hospital administrator.</li>
+            <li>Ask them to look up your account by name or email address.</li>
+            <li>Sign in with the password they give you, then change it from your profile.</li>
+          </ol>
+        </div>
+
+        <div className="mt-6 text-center text-sm">
+          <Link href="/login" className="text-primary hover:underline">
+            Back to sign in
+          </Link>
+        </div>
       </div>
     </AuthLayout>
   );

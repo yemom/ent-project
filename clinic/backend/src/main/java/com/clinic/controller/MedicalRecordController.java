@@ -6,9 +6,12 @@ import com.clinic.dto.request.MedicalRecordAmendRequest;
 import com.clinic.dto.response.MedicalRecordAmendmentResponse;
 import com.clinic.dto.response.PageResponse;
 import com.clinic.dto.response.MedicalRecordResponse;
+import com.clinic.dto.response.MyMedicalRecordResponse;
+import com.clinic.security.CurrentUser;
 import com.clinic.service.AuditLogService;
 import com.clinic.service.BreakGlassService;
 import com.clinic.service.MedicalRecordService;
+import com.clinic.service.OwnRecordFilter;
 import com.clinic.entity.AuditAction;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -45,16 +48,30 @@ import java.util.List;
 @Slf4j
 public class MedicalRecordController {
 
+    /**
+     * Who may read clinical records at all.
+     *
+     * <p>{@code own_record:read} is deliberately excluded here: a patient reading
+     * their own chart is served by {@code /me} and by the ownership-checked
+     * {@code /{id}}, never by the clinic-wide listings below, which would otherwise
+     * become an enumeration surface.
+     */
+    private static final String CLINICAL_READ =
+            "hasAuthority('PERM_diagnosis:write') or hasAuthority('PERM_vital:write')";
+
     private final MedicalRecordService medicalRecordService;
     private final BreakGlassService breakGlassService;
     private final AuditLogService auditLogService;
+    private final CurrentUser currentUser;
 
     public MedicalRecordController(MedicalRecordService medicalRecordService,
                                    BreakGlassService breakGlassService,
-                                   AuditLogService auditLogService) {
+                                   AuditLogService auditLogService,
+                                   CurrentUser currentUser) {
         this.medicalRecordService = medicalRecordService;
         this.breakGlassService = breakGlassService;
         this.auditLogService = auditLogService;
+        this.currentUser = currentUser;
     }
 
     @PostMapping
@@ -66,11 +83,44 @@ public class MedicalRecordController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('PERM_diagnosis:write') or hasAuthority('PERM_vital:write')")
+    @PreAuthorize(CLINICAL_READ + " or hasAuthority('PERM_own_record:read')")
     public ResponseEntity<MedicalRecordResponse> getById(@PathVariable String id) {
-        MedicalRecordResponse record = medicalRecordService.getById(id);
+        // Routed through the ownership-aware read so `own_record:read` is only ever
+        // able to reach the caller's own record.
+        MedicalRecordResponse record = medicalRecordService.getByIdForCaller(id);
         auditLogService.record(AuditAction.RECORD_VIEWED, "MEDICAL_RECORD", id, "Viewed clinical record");
         return ResponseEntity.ok(record);
+    }
+
+    /**
+     * The signed-in patient's own records.
+     *
+     * <p>This exists because the clinical listing endpoints require
+     * {@code diagnosis:write}, a permission the PATIENT role deliberately does not
+     * hold. Granting it would be the wrong fix: it would hand a patient the ability
+     * to create, amend and sign any patient's chart. A separate, read-only,
+     * ownership-scoped listing grants exactly what a patient needs and nothing more.
+     *
+     * <p>The patient is derived from the principal in the service, so there is no
+     * {@code patientId} parameter to tamper with. Ownership is a predicate the
+     * caller cannot switch off, not a filter it can widen.
+     *
+     * <p>Reads are audited, as with every other clinical read.
+     */
+    @GetMapping("/me")
+    @PreAuthorize("hasAuthority('PERM_own_record:read')")
+    public ResponseEntity<PageResponse<MyMedicalRecordResponse>> myRecords(
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @RequestParam(required = false) String keyword,
+            @PageableDefault(size = 20, sort = "recordDate", direction = Sort.Direction.DESC)
+            @ParameterObject Pageable pageable
+    ) {
+        Page<MyMedicalRecordResponse> page = medicalRecordService.getOwnRecords(
+                new OwnRecordFilter(fromDate, toDate, keyword), pageable);
+        auditLogService.record(AuditAction.RECORD_VIEWED, "MEDICAL_RECORD", currentUser.userId(),
+                "Viewed own medical records (" + page.getTotalElements() + " records)");
+        return ResponseEntity.ok(PageResponse.of(page));
     }
 
     /**
@@ -96,6 +146,14 @@ public class MedicalRecordController {
         return ResponseEntity.ok(PageResponse.of(page));
     }
 
+    /**
+     * Clinic-wide record search.
+     *
+     * <p>Deliberately narrower than the by-id read: `vital:write` may open a record
+     * a nurse was given, but must not become clinic-wide enumeration of every
+     * patient's chart. Broadening this to match {@code /{id}} would hand nurses a
+     * directory they were not granted, so it stays on `diagnosis:write`.
+     */
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
     public ResponseEntity<PageResponse<MedicalRecordResponse>> search(
@@ -128,9 +186,17 @@ public class MedicalRecordController {
         return ResponseEntity.ok(updated);
     }
 
+    /**
+     * Amendment history.
+     *
+     * <p>Also reachable by {@code own_record:read}: a patient is entitled to the
+     * record of every change made to their chart. The ownership check runs first, so
+     * the amendment list cannot be used to discover another patient's record ids.
+     */
     @GetMapping("/{id}/amendments")
-    @PreAuthorize("hasAuthority('PERM_diagnosis:write')")
+    @PreAuthorize(CLINICAL_READ + " or hasAuthority('PERM_own_record:read')")
     public ResponseEntity<List<MedicalRecordAmendmentResponse>> amendments(@PathVariable String id) {
+        medicalRecordService.getByIdForCaller(id);
         return ResponseEntity.ok(medicalRecordService.amendmentHistory(id));
     }
 

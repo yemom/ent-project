@@ -169,7 +169,7 @@ public final class TestFixtures {
     }
 
     public static PatientResponse patientResponse(UUID id) {
-        return new PatientResponse(id.toString(), "patient@example.com", "John Patient", "+15550001", UserRole.PATIENT, LocalDate.of(1990, 1, 1), Gender.MALE, "Asthma", "O+", "Peanuts", "Jane Patient", "+15550002", true, LocalDateTime.now(), LocalDateTime.now());
+        return new PatientResponse(id.toString(), "patient@example.com", "John Patient", "+15550001", UserRole.PATIENT, LocalDate.of(1990, 1, 1), Gender.MALE, "Asthma", "O+", "Peanuts", "Jane Patient", "+15550002", true, "REG-1234", LocalDateTime.now(), LocalDateTime.now());
     }
 
     public static DoctorResponse doctorResponse(UUID id) {
@@ -177,7 +177,13 @@ public final class TestFixtures {
     }
 
     public static AppointmentResponse appointmentResponse(UUID id, UUID patientId, UUID doctorId) {
-        return new AppointmentResponse(id.toString(), userSummary(patientId, "John Patient", "patient@example.com", UserRole.PATIENT), userSummary(doctorId, "Dr Smith", "doctor@example.com", UserRole.DOCTOR), LocalDateTime.now().plusDays(1), 30, AppointmentStatus.SCHEDULED, "Checkup", "Bring reports", false, null, null, null, null, LocalDateTime.now(), LocalDateTime.now());
+        return new AppointmentResponse(id.toString(), appointmentParty(patientId, "John Patient", "patient@example.com", UserRole.PATIENT, "REG-1234", null), appointmentParty(doctorId, "Dr Smith", "doctor@example.com", UserRole.DOCTOR, null, "Cardiology"), LocalDateTime.now().plusDays(1), 30, AppointmentStatus.SCHEDULED, "Checkup", "Bring reports", false, null, null, null, null, LocalDateTime.now(), LocalDateTime.now());
+    }
+
+    /** A party as the appointment API returns it: name, email, plus the role-specific id. */
+    public static AppointmentPartyResponse appointmentParty(UUID id, String name, String email, UserRole role,
+                                                            String registrationNumber, String specialization) {
+        return new AppointmentPartyResponse(id.toString(), name, email, role, true, registrationNumber, specialization);
     }
 
     public static MedicalRecordResponse medicalRecordResponse(UUID id, UUID patientId, UUID doctorId, UUID appointmentId) {
@@ -199,6 +205,7 @@ public final class TestFixtures {
                 .allergies("Peanuts")
                 .emergencyContactName("Jane Patient")
                 .emergencyContactPhone("+15550002")
+                .registrationNumber("REG-1234")
                 .active(true)
                 .build();
     }
@@ -223,10 +230,15 @@ public final class TestFixtures {
     }
 
     public static Appointment appointmentEntity(UUID id, Patient patient, Doctor doctor) {
+        return appointmentEntity(id, patient, doctor, LocalDateTime.now().plusDays(1));
+    }
+
+    /** Same, at a chosen slot — used by the overlap and rescheduling tests. */
+    public static Appointment appointmentEntity(UUID id, Patient patient, Doctor doctor, LocalDateTime start) {
         return Appointment.builder()
                 .patient(patient)
                 .doctor(doctor)
-                .appointmentDate(LocalDateTime.now().plusDays(1))
+                .appointmentDate(start)
                 .duration(30)
                 .status(AppointmentStatus.SCHEDULED)
                 .reasonForVisit("Checkup")

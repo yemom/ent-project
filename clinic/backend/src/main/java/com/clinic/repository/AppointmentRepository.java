@@ -9,9 +9,11 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -63,8 +65,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
             GROUP BY CAST(appointment_date AS DATE)
             ORDER BY trend_day
             """, nativeQuery = true)
-    List<Object[]> dailyVolumeSince(@org.springframework.data.repository.query.Param("from")
-                                    LocalDateTime from);
+    List<Object[]> dailyVolumeSince(@Param("from") LocalDateTime from);
 
     /** Next appointments for a doctor, ordered by time — the doctor's own panel. */
     @EntityGraph(attributePaths = {"patient", "doctor"})
@@ -74,4 +75,31 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     @EntityGraph(attributePaths = {"patient", "doctor"})
     Page<Appointment> findByPatientIdAndAppointmentDateAfterOrderByAppointmentDateAsc(
             String patientId, LocalDateTime after, Pageable pageable);
+
+    /**
+     * Bookable appointments for one doctor inside a time window.
+     *
+     * <p>Backs double-booking detection. The window is deliberately wider than the
+     * slot being checked, because the overlap test happens in the service: an
+     * appointment that started before {@code windowStart} can still overlap a slot
+     * beginning at {@code windowStart} if it runs long, so callers pad the window.
+     *
+     * <p>Statuses are bound as a parameter instead of inlined so the predicate is
+     * generated identically on H2 (tests) and PostgreSQL (production), and so a
+     * cancelled or no-show slot stays bookable.
+     */
+    @EntityGraph(attributePaths = {"patient", "doctor"})
+    @Query("""
+            select a from Appointment a
+            where a.doctor.id = :doctorId
+              and a.status in :statuses
+              and a.appointmentDate > :windowStart
+              and a.appointmentDate < :windowEnd
+            order by a.appointmentDate asc
+            """)
+    List<Appointment> findBookableInWindow(
+            @Param("doctorId") String doctorId,
+            @Param("windowStart") LocalDateTime windowStart,
+            @Param("windowEnd") LocalDateTime windowEnd,
+            @Param("statuses") Collection<AppointmentStatus> statuses);
 }

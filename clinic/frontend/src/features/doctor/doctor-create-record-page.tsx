@@ -147,7 +147,11 @@ export function DoctorCreateRecordPage() {
         title="Create Medical Record"
         description="Enter clinical encounter details, diagnosis, and care plan."
         actionLabel="Cancel"
-        actionHref="/doctor/records"
+        // Was "/doctor/records", which is not a route: the app only defines
+        // /doctor/records/new and /doctor/records/[id]. Next prefetches the link on
+        // every visit to this page, so the dead href produced a guaranteed 404 in
+        // the console. The clinician's schedule is where they go from here.
+        actionHref="/doctor/appointments"
       />
       <Card>
         <CardContent className="p-6">

@@ -30,12 +30,18 @@
       }
     ]
   },
+  "//": [
+    "`next build` appends `${distDir}/types/**/*.ts` to this array whenever the active output directory is not already listed, rewriting a tracked file on every build. Every supported output directory is therefore listed up front. The list mirrors SUPPORTED_DIST_DIRS in next.config.mjs, which fails the build if the two ever disagree.",
+    "Patterns for directories that do not exist are harmless: TypeScript treats an unmatched glob as an empty match."
+  ],
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next-e2e/types/**/*.ts",
     "next-env.d.ts",
-    ".next-build/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next-e2e/types/**/*.ts",
+    ".next-build/types/**/*.ts",
+    ".next-verify/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

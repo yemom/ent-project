@@ -22,21 +22,20 @@ import {
   updateUser,
 } from "@/services/api/admin";
 import { listUsers, listDoctors, searchDoctors, listPatients, searchPatients } from '@/services/api/users';
-import { listAppointments } from '@/services/api/appointments';
+import {
+  listAppointments,
+  statusLabel,
+  statusVariant,
+  formatTime,
+  formatDateTime,
+  type AppointmentRecord,
+} from '@/services/api/appointments';
 import { listLaboratories, searchLaboratories, getLaboratory, createLaboratory, updateLaboratory, deleteLaboratory, listDoctorAvailability, getDoctorAvailabilityByLaboratory, createDoctorAvailability, deleteDoctorAvailability } from '@/services/api/laboratory';
 import { labOrdersService } from '@/features/laboratory/services/lab-orders.service';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function formatAppointmentTime(value?: string) {
-  if (!value) return 'TBD';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  });
+  return value ? formatDateTime(value) : 'TBD';
 }
 
 function getInitials(name: string) {
@@ -111,7 +110,10 @@ function MetricCards() {
 }
 
 function UpcomingAppointmentsPanel() {
-  const [appointments, setAppointments] = useState<Array<{ id: string; patientName: string; doctorName: string; scheduledAt: string; status: string }>>([]);
+  // Reads the real `AppointmentResponse` shape: nested `patient`/`doctor` objects and
+  // an `appointmentDate`, not the flat `patientName`/`scheduledAt` this panel used
+  // to ask for. Those fields are never sent, so the panel rendered blanks.
+  const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -119,14 +121,13 @@ function UpcomingAppointmentsPanel() {
       try {
         setIsLoading(true);
         const data = await listAppointments({ size: 8 });
-        const items = (data.content ?? []).map((appointment) => ({
-          id: appointment.id,
-          patientName: appointment.patientName,
-          doctorName: appointment.doctorName,
-          scheduledAt: appointment.scheduledAt,
-          status: appointment.status
-        }));
-        setAppointments(items.sort((left, right) => new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime()));
+        setAppointments(
+          [...(data.content ?? [])].sort((left, right) =>
+            left.appointmentDate.localeCompare(right.appointmentDate),
+          ),
+        );
+      } catch {
+        setAppointments([]);
       } finally {
         setIsLoading(false);
       }
@@ -159,13 +160,15 @@ function UpcomingAppointmentsPanel() {
           appointments.map((appointment) => (
             <div key={appointment.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
               <div>
-                <p className="font-medium">{appointment.patientName}</p>
-                <p className="text-sm text-muted-foreground">{appointment.doctorName}</p>
+                <p className="font-medium">{appointment.patient?.fullName ?? 'Unknown patient'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {appointment.doctor?.fullName ?? 'Unknown doctor'}
+                </p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-medium">{formatAppointmentTime(appointment.scheduledAt)}</p>
-                <Badge variant={appointment.status === 'CONFIRMED' ? 'success' : appointment.status === 'PENDING' ? 'warning' : 'outline'} className="mt-2">
-                  {appointment.status}
+                <p className="text-sm font-medium">{formatTime(appointment.appointmentDate)}</p>
+                <Badge variant={statusVariant(appointment.status)} className="mt-2">
+                  {statusLabel(appointment.status)}
                 </Badge>
               </div>
             </div>
@@ -880,7 +883,10 @@ export function AdminPatientsPage() {
 // ============================================================================
 export function AdminAppointmentsPage() {
   const urlQuery = useUrlQuery();
-  const [appointments, setAppointments] = useState<Array<{ time: string; patient: string; doctor: string; status: string; reason: string }>>([]);
+  // The real record shape. This panel used to read `scheduledAt`, `patientName`,
+  // `doctorName` and `reason`, none of which the API sends, so the list rendered
+  // "Invalid Date" against empty names.
+  const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState(urlQuery);
 
@@ -892,7 +898,15 @@ export function AdminAppointmentsPage() {
     if (!query.trim()) return appointments;
     const q = query.toLowerCase();
     return appointments.filter((appointment) =>
-      [appointment.time, appointment.patient, appointment.doctor, appointment.status, appointment.reason].some((value) => value.toLowerCase().includes(q))
+      [
+        formatDateTime(appointment.appointmentDate),
+        appointment.patient?.fullName,
+        appointment.doctor?.fullName,
+        appointment.status,
+        appointment.reasonForVisit,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLowerCase().includes(q)),
     );
   }, [appointments, query]);
 
@@ -901,13 +915,7 @@ export function AdminAppointmentsPage() {
       try {
         setIsLoading(true);
         const data = await listAppointments({ size: 30 });
-        setAppointments((data.content ?? []).map((a) => ({
-          time: new Date(a.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          patient: a.patientName,
-          doctor: a.doctorName,
-          status: a.status,
-          reason: a.reason || ''
-        })));
+        setAppointments(data.content ?? []);
       } catch {
         setAppointments([]);
       } finally {
@@ -948,15 +956,18 @@ export function AdminAppointmentsPage() {
           ) : filteredAppointments.length === 0 ? (
             <div className="text-sm text-muted-foreground">No appointments scheduled.</div>
           ) : (
-            filteredAppointments.map((apt, idx) => (
-              <div key={idx} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
+            filteredAppointments.map((apt) => (
+              <div key={apt.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
                 <div>
-                  <span className="font-medium">{apt.time} - {apt.patient}</span>
-                  <p className="text-sm text-muted-foreground">{apt.doctor}{apt.reason ? ` • ${apt.reason}` : ''}</p>
+                  <span className="font-medium">
+                    {formatTime(apt.appointmentDate)} - {apt.patient?.fullName ?? 'Unknown patient'}
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    {apt.doctor?.fullName ?? 'Unknown doctor'}
+                    {apt.reasonForVisit ? ` • ${apt.reasonForVisit}` : ''}
+                  </p>
                 </div>
-                <Badge variant={apt.status === 'CONFIRMED' ? 'success' : apt.status === 'IN_PROGRESS' ? 'default' : apt.status === 'PENDING' ? 'warning' : 'destructive'}>
-                  {apt.status}
-                </Badge>
+                <Badge variant={statusVariant(apt.status)}>{statusLabel(apt.status)}</Badge>
               </div>
             ))
           )}

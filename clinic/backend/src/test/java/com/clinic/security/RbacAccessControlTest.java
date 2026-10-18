@@ -32,13 +32,18 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -108,6 +113,12 @@ class RbacAccessControlTest {
     @Autowired
     private DepartmentRepository departmentRepository;
 
+    @Autowired
+    private com.clinic.repository.AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private com.clinic.repository.MedicalRecordRepository medicalRecordRepository;
+
     private String superAdminId;
     private String doctorId;
     private String otherDoctorId;
@@ -135,6 +146,9 @@ class RbacAccessControlTest {
         wardRepository.deleteAllInBatch();
         departmentRepository.deleteAllInBatch();
         assignmentRepository.deleteAllInBatch();
+        // Appointments and records hang off patients and doctors, so they go first.
+        medicalRecordRepository.deleteAllInBatch();
+        appointmentRepository.deleteAllInBatch();
         patientRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
 
@@ -539,7 +553,190 @@ class RbacAccessControlTest {
         mockMvc.perform(get("/api/v1/health")).andExpect(status().isOk());
     }
 
+    // ---------------- Appointments: front desk, doctor, patient -------------
+
+    /**
+     * The regression this whole area exists for.
+     *
+     * <p>The controller used to name {@code ADMIN, DOCTOR, PATIENT} in its
+     * {@code @PreAuthorize}, so the receptionist — who holds
+     * {@code appointment:manage} in the central matrix and is given an Appointments
+     * link in the navigation — received 403 on the page the application had just
+     * sent them to. A 403 here is the bug, not the expectation.
+     */
+    @Test
+    void receptionistCanManageAppointments() throws Exception {
+        mockMvc.perform(get("/api/v1/appointments").with(asUser(receptionistId)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/appointments/search").with(asUser(receptionistId)))
+                .andExpect(status().isOk());
+
+        String created = mockMvc.perform(appointmentCreate(receptionistId))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String appointmentId = extractId(created);
+
+        mockMvc.perform(get("/api/v1/appointments/" + appointmentId).with(asUser(receptionistId)))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/v1/appointments/" + appointmentId)
+                        .param("reason", "Patient rescheduled").with(asUser(receptionistId)))
+                .andExpect(status().isNoContent());
+    }
+
+    /**
+     * A booking is only as good as the data behind it, so the response has to carry
+     * enough for the front desk to identify both parties without a second call.
+     */
+    @Test
+    void aCreatedAppointmentReturnsBothPartiesWithTheirIdentifiers() throws Exception {
+        String created = mockMvc.perform(appointmentCreate(receptionistId))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        var body = new com.fasterxml.jackson.databind.ObjectMapper().readTree(created);
+        assertEquals(patientId, body.get("patient").get("id").asText());
+        assertFalse(body.get("patient").get("fullName").asText().isBlank());
+        assertEquals(doctorId, body.get("doctor").get("id").asText());
+        assertEquals("Cardiology", body.get("doctor").get("specialization").asText());
+        assertEquals("SCHEDULED", body.get("status").asText());
+    }
+
+    @Test
+    void twoBookingsForOneDoctorAtOneSlotAreRejected() throws Exception {
+        LocalDateTime slot = LocalDateTime.now().plusDays(4).withSecond(0).withNano(0);
+
+        mockMvc.perform(appointmentCreateAt(receptionistId, slot))
+                .andExpect(status().isCreated());
+
+        // The second booking lands inside the first one's 30-minute slot.
+        mockMvc.perform(appointmentCreateAt(receptionistId, slot.plusMinutes(15)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void aBookingThatStartsWhenThePreviousOneEndsIsAccepted() throws Exception {
+        LocalDateTime slot = LocalDateTime.now().plusDays(5).withSecond(0).withNano(0);
+
+        mockMvc.perform(appointmentCreateAt(receptionistId, slot)).andExpect(status().isCreated());
+        mockMvc.perform(appointmentCreateAt(receptionistId, slot.plusMinutes(30)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void aBackdatedAppointmentIsRejected() throws Exception {
+        mockMvc.perform(appointmentCreateAt(receptionistId, LocalDateTime.now().minusDays(1)))
+                .andExpect(status().isBadRequest());
+    }
+
+    /** A patient may cancel their own booking, but may not confirm or complete it. */
+    @Test
+    void patientCannotChangeTheLifecycleOfAnAppointment() throws Exception {
+        String created = mockMvc.perform(appointmentCreate(receptionistId))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        assertForbidden(patientId, withBody(
+                put("/api/v1/appointments/" + extractId(created) + "/status"),
+                "{\"status\":\"CONFIRMED\"}"));
+    }
+
+    /**
+     * Knowing an id is not authorisation.
+     *
+     * <p>The booking is deliberately made for a different patient, so a 200 here
+     * would mean the check never ran. Reading the unfiltered list would not
+     * distinguish anything: the response looks the same either way, which is exactly
+     * why this asserts the direct read.
+     */
+    @Test
+    void patientCannotOpenAnotherPatientsAppointment() throws Exception {
+        String created = mockMvc.perform(appointmentForOtherPatient(receptionistId))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(get("/api/v1/appointments/" + extractId(created)).with(asUser(patientId)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aPatientSeesOnlyTheirOwnAppointments() throws Exception {
+        String mine = mockMvc.perform(appointmentCreate(receptionistId))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        mockMvc.perform(appointmentForOtherPatient(receptionistId)).andExpect(status().isCreated());
+
+        String body = mockMvc.perform(get("/api/v1/appointments").with(asUser(patientId)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains(extractId(mine)), "the patient should see their own appointment");
+        assertFalse(body.contains(otherPatientId), "and nobody else's");
+    }
+
+    @Test
+    void aPatientCannotBookOnSomeoneElsesBehalf() throws Exception {
+        mockMvc.perform(appointmentForOtherPatient(patientId))
+                .andExpect(status().isForbidden());
+    }
+
+    /** A doctor reads their own panel and nobody else's. */
+    @Test
+    void doctorCannotOpenAnotherDoctorsAppointment() throws Exception {
+        String created = mockMvc.perform(appointmentCreateAt(receptionistId,
+                        LocalDateTime.now().plusDays(6).withSecond(0).withNano(0)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        assertForbidden(otherDoctorId, get("/api/v1/appointments/" + extractId(created)));
+    }
+
+    /** The front desk picks providers, so the doctor directory has to be readable. */
+    @Test
+    void receptionistCanReadTheDoctorDirectory() throws Exception {
+        mockMvc.perform(get("/api/v1/doctors/search").with(asUser(receptionistId)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void cashierAndNurseCannotReachAppointments() throws Exception {
+        assertForbidden(cashierId, get("/api/v1/appointments"));
+        assertForbidden(nurseId, get("/api/v1/appointments"));
+        assertForbidden(cashierId, appointmentCreate(cashierId));
+    }
+
     // ---------------- helpers ---------------------------------------------
+
+    /** A valid booking in tomorrow's 09:00 slot, authenticated as `requestingUserId`. */
+    private MockHttpServletRequestBuilder appointmentCreate(String requestingUserId) {
+        return appointmentCreateAt(requestingUserId,
+                LocalDateTime.now().plusDays(1).withHour(9).withMinute(0).withSecond(0).withNano(0));
+    }
+
+    /** The same booking at an explicit slot, authenticated as `requestingUserId`. */
+    private MockHttpServletRequestBuilder appointmentCreateAt(String requestingUserId, LocalDateTime start) {
+        return appointmentBody(requestingUserId, patientId, start);
+    }
+
+    /** A booking made for the second seeded patient — never for `patientId`. */
+    private MockHttpServletRequestBuilder appointmentForOtherPatient(String requestingUserId) {
+        return appointmentBody(requestingUserId, otherPatientId,
+                LocalDateTime.now().plusDays(2).withHour(10).withMinute(0).withSecond(0).withNano(0));
+    }
+
+    private MockHttpServletRequestBuilder appointmentBody(String requestingUserId, String forPatientId,
+                                                         LocalDateTime start) {
+        return withBody(post("/api/v1/appointments"), String.format(
+                        "{\"patientId\":\"%s\",\"doctorId\":\"%s\",\"appointmentDate\":\"%s\","
+                                + "\"duration\":30,\"reasonForVisit\":\"Routine checkup\"}",
+                        forPatientId, doctorId, start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))))
+                .with(asUser(requestingUserId));
+    }
+
+    /** ISO local date-time, the format the request DTO reads. */
+    private String tomorrow() {
+        return LocalDateTime.now().plusDays(1).withHour(9).withMinute(0).withSecond(0).withNano(0)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+    }
 
     private void assertForbidden(String userId, MockHttpServletRequestBuilder builder) throws Exception {
         mockMvc.perform(builder.with(asUser(userId))).andExpect(status().isForbidden());

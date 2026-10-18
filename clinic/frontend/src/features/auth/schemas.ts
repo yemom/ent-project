@@ -12,7 +12,3 @@ export const registerSchema = z.object({
   password: passwordFieldSchema,
   role: z.enum(['ADMIN', 'DOCTOR', 'PATIENT'])
 });
-
-export const forgotPasswordSchema = z.object({
-  email: z.string().email('Enter a valid email address')
-});

@@ -5,6 +5,9 @@ node_modules/
 .next/
 .next-build/
 .next-e2e/
+# `.next-verify` is the output directory used when verifying a build against a
+# running backend; it is build output like any other and must not be committed.
+.next-verify/
 .vercel/
 out/
 dist/

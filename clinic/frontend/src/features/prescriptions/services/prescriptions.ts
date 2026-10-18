@@ -9,9 +9,14 @@ export interface PrescriptionItem {
   status: 'ACTIVE' | 'PENDING' | 'DISCONTINUED';
   prescribedAt: string;
   patientId?: string;
-  diagnosis?: string;
-  treatment?: string;
-  notes?: string;
+  /**
+   * Nullable to match `MedicalRecordResponse`, which sends `null` for an unset
+   * clinical field rather than omitting the key. These are optional rather than
+   * `| null` so existing consumers keep reading them as `string | undefined`.
+   */
+  diagnosis?: string | null;
+  treatment?: string | null;
+  notes?: string | null;
 }
 
 export async function listPrescriptions(params: Record<string, string | number | undefined> = {}) {

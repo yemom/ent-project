@@ -7,7 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/layouts/page-header';
-import { listAppointments, type AppointmentItem } from '@/services/api/appointments';
+import {
+  listAppointments,
+  statusLabel,
+  statusVariant,
+  formatDateTime,
+  type AppointmentRecord,
+} from '@/services/api/appointments';
 import { useHospitalStats } from '@/features/admin/use-hospital-stats';
 
 export default function AppointmentsReportPage() {
@@ -17,9 +23,12 @@ export default function AppointmentsReportPage() {
     queryFn: () => listAppointments({ page: 0, size: 50 }),
   });
 
-  const appointments: AppointmentItem[] = apptsPage?.content || [];
+  // The API reports `SCHEDULED` / `CONFIRMED` as the two live states. It never sends
+  // the `PENDING` this page used to count, so every one of those bookings was
+  // silently missing from the "Scheduled / Active" tile.
+  const appointments: AppointmentRecord[] = apptsPage?.content || [];
   const completed = appointments.filter((a) => a.status === 'COMPLETED').length;
-  const scheduled = appointments.filter((a) => a.status === 'CONFIRMED' || a.status === 'PENDING').length;
+  const scheduled = appointments.filter((a) => a.status === 'SCHEDULED' || a.status === 'CONFIRMED').length;
   const cancelled = appointments.filter((a) => a.status === 'CANCELLED').length;
 
   return (
@@ -108,23 +117,15 @@ export default function AppointmentsReportPage() {
                 {appointments.slice(0, 15).map((a) => (
                   <TableRow key={a.id}>
                     <TableCell className="font-medium">
-                      {new Date(a.scheduledAt).toLocaleString()}
+                      {formatDateTime(a.appointmentDate)}
                     </TableCell>
-                    <TableCell>{a.patientName || 'Patient'}</TableCell>
-                    <TableCell>{a.doctorName || 'Doctor'}</TableCell>
-                    <TableCell className="max-w-xs truncate text-sm text-muted-foreground">{a.reason || '—'}</TableCell>
+                    <TableCell>{a.patient?.fullName || 'Patient'}</TableCell>
+                    <TableCell>{a.doctor?.fullName || 'Doctor'}</TableCell>
+                    <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                      {a.reasonForVisit || '—'}
+                    </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          a.status === 'COMPLETED'
-                            ? 'default'
-                            : a.status === 'CANCELLED'
-                            ? 'destructive'
-                            : 'secondary'
-                        }
-                      >
-                        {a.status}
-                      </Badge>
+                      <Badge variant={statusVariant(a.status)}>{statusLabel(a.status)}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

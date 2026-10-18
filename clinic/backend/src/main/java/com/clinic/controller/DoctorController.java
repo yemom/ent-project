@@ -29,6 +29,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(ApiPaths.DOCTORS)
 public class DoctorController {
 
+    /**
+     * Roles and permissions that read the doctor directory.
+     *
+     * <p>The front desk is added below via {@code PERM_patient:assign} — booking a
+     * patient in requires choosing a provider — and {@code PERM_staff:manage} opens
+     * it to a hospital administrator, whose Staff screen lists the roster. Both read
+     * names and specialisations only: no patient data is reachable from here.
+     * Writes stay admin-only.
+     */
+    private static final String READABLE_BY = "hasAnyRole('ADMIN','DOCTOR','PATIENT')";
+
+    /** Granted to the front desk (booking) and to a hospital administrator (roster). */
+    private static final String ALSO_READABLE = "or hasAuthority('PERM_patient:assign')"
+            + " or hasAuthority('PERM_staff:manage')";
+
     private final DoctorService doctorService;
 
     public DoctorController(DoctorService doctorService) {
@@ -42,13 +57,13 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
+    @PreAuthorize(READABLE_BY + ALSO_READABLE)
     public ResponseEntity<DoctorResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(doctorService.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
+    @PreAuthorize(READABLE_BY + ALSO_READABLE)
     public ResponseEntity<PageResponse<DoctorResponse>> getAll(
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) @ParameterObject Pageable pageable
     ) {
@@ -57,7 +72,7 @@ public class DoctorController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','PATIENT')")
+    @PreAuthorize(READABLE_BY + ALSO_READABLE)
     public ResponseEntity<PageResponse<DoctorResponse>> search(
             @RequestParam(required = false) String fullName,
             @RequestParam(required = false) String email,

@@ -6,12 +6,15 @@ import com.clinic.dto.request.MedicalRecordSearchRequest;
 import com.clinic.dto.request.MedicalRecordUpdateRequest;
 import com.clinic.dto.response.MedicalRecordAmendmentResponse;
 import com.clinic.dto.response.MedicalRecordResponse;
+import com.clinic.dto.response.MyMedicalRecordResponse;
 import com.clinic.entity.Appointment;
 import com.clinic.entity.Doctor;
 import com.clinic.entity.MedicalRecord;
 import com.clinic.entity.MedicalRecordAmendment;
 import com.clinic.entity.Patient;
+import com.clinic.entity.UserRole;
 import com.clinic.exception.BadRequestException;
+import com.clinic.exception.ForbiddenException;
 import com.clinic.exception.ResourceNotFoundException;
 import com.clinic.mapper.MedicalRecordMapper;
 import com.clinic.repository.AppointmentRepository;
@@ -21,6 +24,7 @@ import com.clinic.repository.MedicalRecordRepository;
 import com.clinic.repository.PatientRepository;
 import com.clinic.security.CurrentUser;
 import com.clinic.service.MedicalRecordService;
+import com.clinic.service.OwnRecordFilter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -146,10 +151,92 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         return medicalRecordMapper.toResponse(getEntityById(id));
     }
 
+    /**
+     * Read with the ownership rule applied.
+     *
+     * <p>{@code users} is a single-table hierarchy, so a PATIENT-role account and
+     * its {@link Patient} profile are the same row and therefore the same id. That
+     * identity mapping is what makes {@code own_record:read} safe to grant: there is
+     * no separate "patient profile id" that could drift from the signed-in user.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public MedicalRecordResponse getByIdForCaller(String id) {
+        MedicalRecord record = getEntityById(id);
+        if (currentUser.is(UserRole.PATIENT)
+                && !currentUser.userId().equals(record.getPatient().getId())) {
+            // 403 rather than 404: the record exists, the caller simply may not have
+            // it. Collapsing to 404 would also hide genuine typos from the clinician.
+            throw new ForbiddenException("You may only access your own medical records");
+        }
+        return medicalRecordMapper.toResponse(record);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Page<MedicalRecordResponse> getAll(Pageable pageable) {
         return medicalRecordRepository.findAll(pageable).map(medicalRecordMapper::toResponse);
+    }
+
+    /**
+     * The caller's own records.
+     *
+     * <p>The owning id comes from {@link CurrentUser#userId()} and is prepended to
+     * the caller's filter as an unconditional predicate, so no combination of query
+     * parameters can produce a row belonging to somebody else.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MyMedicalRecordResponse> getOwnRecords(OwnRecordFilter filter, Pageable pageable) {
+        String callerId = currentUser.userId();
+        OwnRecordFilter effective = filter != null ? filter : OwnRecordFilter.of();
+
+        Specification<MedicalRecord> specification = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            // Ownership is not a filter the caller can turn off.
+            predicates.add(cb.equal(root.get("patient").get("id"), callerId));
+            if (effective.fromDate() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("recordDate"), effective.fromDate()));
+            }
+            if (effective.toDate() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("recordDate"), effective.toDate()));
+            }
+            if (effective.keyword() != null) {
+                String keyword = "%" + effective.keyword().toLowerCase(Locale.ROOT) + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("diagnosis")), keyword),
+                        cb.like(cb.lower(root.get("treatment")), keyword),
+                        cb.like(cb.lower(root.get("prescription")), keyword),
+                        cb.like(cb.lower(root.get("notes")), keyword)
+                ));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return medicalRecordRepository.findAll(specification, pageable).map(this::toOwnResponse);
+    }
+
+    /**
+     * Projects a record onto the patient's view.
+     *
+     * <p>Reads the entity rather than the clinician response so the excluded fields
+     * are never materialised in the first place.
+     */
+    private MyMedicalRecordResponse toOwnResponse(MedicalRecord record) {
+        return new MyMedicalRecordResponse(
+                record.getId(),
+                record.getRecordDate(),
+                record.getMedicalRecordType(),
+                record.getDiagnosis(),
+                record.getTreatment(),
+                record.getPrescription(),
+                record.getTestResults(),
+                record.getFollowUpRequired(),
+                record.getFollowUpDate(),
+                record.getNotes(),
+                record.getDoctor() != null ? record.getDoctor().getFullName() : null,
+                record.getSignedAt() != null
+        );
     }
 
     @Override

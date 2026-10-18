@@ -41,7 +41,7 @@ class MedicalRecordServiceImplTest {
     @Mock private DoctorRepository doctorRepository;
     @Mock private AppointmentRepository appointmentRepository;
     @Mock private CurrentUser currentUser;
-    private final MedicalRecordMapper medicalRecordMapper = new MedicalRecordMapper(new AppointmentMapper(new UserMapper()), new UserMapper());
+    private final MedicalRecordMapper medicalRecordMapper = new MedicalRecordMapper(new AppointmentMapper(), new UserMapper());
     private MedicalRecordServiceImpl medicalRecordService;
 
     @org.junit.jupiter.api.BeforeEach

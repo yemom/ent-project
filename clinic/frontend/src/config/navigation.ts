@@ -149,11 +149,9 @@ export const NAVIGATION_CONFIG: Record<string, NavGroup[]> = {
       href: '/hospital/reports',
       permission: PERMISSIONS.REPORT_READ,
     },
-    {
-      label: 'Settings',
-      icon: Settings,
-      href: '/hospital/settings',
-    },
+    // Hospital administration has no settings screen of its own; platform settings
+    // are a Super Admin concern. This entry pointed at /hospital/settings, which is
+    // not a route, so every hospital-admin page prefetched a URL that answered 404.
   ],
 
   DOCTOR: [
@@ -340,7 +338,10 @@ export const NAVIGATION_CONFIG: Record<string, NavGroup[]> = {
       icon: CalendarDays,
       children: [
         { label: 'My Appointments', href: '/patient/appointments' },
-        { label: 'Book Appointment', href: '/patient/appointments/book' },
+        // The booking form lives at /patient/book-appointment. It was linked here
+        // as /patient/appointments/book, which is not a route, so every patient
+        // page prefetched a URL that answered 404.
+        { label: 'Book Appointment', href: '/patient/book-appointment' },
       ],
     },
     {

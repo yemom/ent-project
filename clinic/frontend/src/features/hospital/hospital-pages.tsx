@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusAlert, type StatusType } from '@/components/shared/status-alert';
 import { PageHeader } from '@/components/layouts/page-header';
-import { listDoctors, listUsers } from '@/services/api/users';
+import { listDoctors, listStaffDirectory, listUsers } from '@/services/api/users';
 import {
   HOSPITAL_KEYS,
   createDepartment,
@@ -826,10 +826,20 @@ export function HospitalDashboardPage() {
 
 // ================================== staff ===================================
 
+/**
+ * Staff for the hospital administrator's directory.
+ *
+ * <p>A hospital administrator holds `staff:manage` but not `user:manage`, so
+ * `/admin/users` answers 403 for them. Asking for it unconditionally put a red 403
+ * in the console on every hospital page; the query now picks the directory the
+ * caller's role is actually allowed to read.
+ */
 function useStaff() {
+  const canReadAccounts = useAuthStore((state) => state.hasPermission(PERMISSIONS.USER_MANAGE));
+
   return useQuery({
     queryKey: ['users', { size: 100 }],
-    queryFn: () => listUsers({ size: 100 }),
+    queryFn: () => (canReadAccounts ? listUsers({ size: 100 }) : listStaffDirectory({ size: 100 })),
     staleTime: 60_000,
   });
 }

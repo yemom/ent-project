@@ -2,17 +2,29 @@
 
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bell, CalendarCheck2, Clock3, FileText, MapPin, Search, Star } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Bell, CalendarCheck2, ChevronDown, Clock3, FileText, MapPin, RefreshCw, Search, Star, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/layouts/page-header';
-import { createAppointment, listAppointments } from '@/services/api/appointments';
-import { listMedicalRecords, searchMedicalRecords } from '@/services/api/medical-records';
+import {
+  createAppointment,
+  listAppointments,
+  formatDateTime,
+  statusLabel,
+  statusVariant,
+} from '@/services/api/appointments';
+import { listMedicalRecords, listOwnMedicalRecords, searchMedicalRecords } from '@/services/api/medical-records';
 import { listPrescriptions } from '@/features/prescriptions';
 import { getPatient, listDoctors } from '@/services/api/users';
 import { useAuthStore } from '@/store/auth-store';
+import { getFriendlyErrorMessage } from '@/lib/error-handler';
+import { ErrorState } from '@/components/shared/error-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 type CountState = {
   appointments: number;
@@ -305,7 +317,7 @@ export function PatientBookingPage() {
 
 export function PatientAppointmentsPage() {
   const urlQuery = useSearchParams().get('q') ?? '';
-  const [appointments, setAppointments] = useState<Array<{ id: string; reason: string; status: string; scheduledAt: string }>>([]);
+  const [appointments, setAppointments] = useState<Array<{ id: string; reason: string | null; status: string; scheduledAt: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const user = useAuthStore((s) => s.user);
 
@@ -313,7 +325,9 @@ export function PatientAppointmentsPage() {
     if (!urlQuery.trim()) return appointments;
     const q = urlQuery.toLowerCase();
     return appointments.filter((appointment) =>
-      [appointment.reason, appointment.status, appointment.scheduledAt].some((value) => value.toLowerCase().includes(q))
+      [appointment.reason, appointment.status, appointment.scheduledAt]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLowerCase().includes(q))
     );
   }, [appointments, urlQuery]);
 
@@ -322,11 +336,11 @@ export function PatientAppointmentsPage() {
       try {
         setIsLoading(true);
         const data = await listAppointments(user ? { patientId: user.id, size: 30 } : { size: 30 });
-        setAppointments((data.content ?? []).map((a: any) => ({
+        setAppointments((data.content ?? []).map((a) => ({
           id: a.id,
-          reason: a.reasonForVisit || a.reason,
+          reason: a.reasonForVisit,
           status: a.status,
-          scheduledAt: a.appointmentDate || a.scheduledAt
+          scheduledAt: a.appointmentDate,
         })));
       } finally {
         setIsLoading(false);
@@ -345,8 +359,10 @@ export function PatientAppointmentsPage() {
           {!isLoading
             ? filteredAppointments.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
-                  <span>{item.reason} - {new Date(item.scheduledAt).toLocaleString()}</span>
-                  <Badge variant={item.status === 'CONFIRMED' ? 'success' : item.status === 'PENDING' ? 'warning' : 'outline'}>{item.status}</Badge>
+                  <span>
+                    {item.reason || 'General consultation'} · {formatDateTime(item.scheduledAt)}
+                  </span>
+                  <Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>
                 </div>
               ))
             : null}
@@ -356,55 +372,283 @@ export function PatientAppointmentsPage() {
   );
 }
 
+/**
+ * The signed-in patient's own medical records.
+ *
+ * <p>Reads `GET /medical-records/me`, which requires `own_record:read` and derives
+ * the patient from the server-side principal. This previously called
+ * `/medical-records/search`, a clinician endpoint gated on `diagnosis:write`, so the
+ * page always answered 403 and rendered an empty list.
+ *
+ * <p>Search, date range and paging are all sent as parameters the server applies
+ * <em>within</em> the caller's own records — there is no patient id anywhere in the
+ * request for a caller to change.
+ */
 export function PatientRecordsPage() {
   const urlQuery = useSearchParams().get('q') ?? '';
-  const [records, setRecords] = useState<Array<{ id: string; diagnosis: string; status: string; visitDate: string }>>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const user = useAuthStore((s) => s.user);
-
-  const filteredRecords = useMemo(() => {
-    if (!urlQuery.trim()) return records;
-    const q = urlQuery.toLowerCase();
-    return records.filter((record) => [record.diagnosis, record.status, record.visitDate].some((value) => value.toLowerCase().includes(q)));
-  }, [records, urlQuery]);
+  const [keyword, setKeyword] = useState(urlQuery);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [page, setPage] = useState(0);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        const data = await searchMedicalRecords(user ? { patientId: user.id, size: 30 } : { size: 30 });
-        setRecords((data.content ?? []).map((r) => ({
-          id: r.id,
-          diagnosis: r.diagnosis,
-          status: (r.status || r.medicalRecordType || 'SIGNED') as string,
-          visitDate: (r.recordDate || r.visitDate || new Date().toISOString()) as string
-        })));
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchData();
-  }, [user]);
+    setKeyword(urlQuery);
+  }, [urlQuery]);
+
+  const query = useQuery({
+    queryKey: ['patient', 'own-records', { keyword, fromDate, toDate, page }],
+    queryFn: () =>
+      listOwnMedicalRecords({
+        keyword: keyword.trim() || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+        page,
+        size: PAGE_SIZE,
+      }),
+    placeholderData: (previous) => previous,
+  });
+
+  const records = query.data?.content ?? [];
+  const totalElements = query.data?.totalElements ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
+  const hasFilters = Boolean(keyword.trim() || fromDate || toDate);
+
+  function resetFilters() {
+    setKeyword('');
+    setFromDate('');
+    setToDate('');
+    setPage(0);
+  }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Medical Records" description="Access charts, labs, and diagnoses in one place." />
+      <PageHeader
+        title="Medical Records"
+        description="Your consultation notes, test results and follow-up plans."
+      />
+
       <Card>
-        <CardContent className="space-y-3 p-6">
-          {isLoading ? <div className="text-sm text-muted-foreground">Loading records...</div> : null}
-          {!isLoading && filteredRecords.length === 0 ? <div className="text-sm text-muted-foreground">No records found.</div> : null}
-          {!isLoading
-            ? filteredRecords.map((record) => (
-                <div key={record.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
-                  <span>{record.diagnosis} - {new Date(record.visitDate).toLocaleDateString()}</span>
-                  <Badge variant="outline">{record.status}</Badge>
-                </div>
-              ))
-            : null}
+        <CardHeader className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Your records</CardTitle>
+              <CardDescription>
+                {query.isLoading
+                  ? 'Loading records…'
+                  : `${totalElements} record${totalElements === 1 ? '' : 's'}${
+                      hasFilters ? ' match your filters' : ''
+                    }`}
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => void query.refetch()}
+              disabled={query.isFetching}
+              aria-label="Refresh records"
+              title="Refresh"
+            >
+              <RefreshCw className={cn('h-4 w-4', query.isFetching && 'animate-spin')} />
+            </Button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="patient-records-keyword">Search</Label>
+              <Input
+                id="patient-records-keyword"
+                value={keyword}
+                onChange={(event) => {
+                  setKeyword(event.target.value);
+                  setPage(0);
+                }}
+                placeholder="Diagnosis, treatment or notes…"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="patient-records-from">From</Label>
+              <Input
+                id="patient-records-from"
+                type="date"
+                value={fromDate}
+                max={toDate || undefined}
+                onChange={(event) => {
+                  setFromDate(event.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="patient-records-to">To</Label>
+              <Input
+                id="patient-records-to"
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                onChange={(event) => {
+                  setToDate(event.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+          </div>
+
+          {hasFilters ? (
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="self-start">
+              <X className="h-4 w-4" /> Clear filters
+            </Button>
+          ) : null}
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {query.isError ? (
+            <ErrorState
+              title="Records could not be loaded"
+              message={getFriendlyErrorMessage(
+                query.error,
+                'We could not reach the records service. Please try again.',
+              )}
+              onRetry={() => void query.refetch()}
+            />
+          ) : query.isLoading ? (
+            <div className="space-y-3" aria-hidden>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-20 w-full rounded-2xl" />
+              ))}
+              <span className="sr-only">Loading your records…</span>
+            </div>
+          ) : records.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-12 text-center">
+              <FileText className="h-8 w-8 text-muted-foreground" aria-hidden />
+              <div>
+                <p className="font-medium">
+                  {hasFilters ? 'No records match your filters' : 'No records yet'}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {hasFilters
+                    ? 'Try widening the date range or clearing the search.'
+                    : 'Records appear here after a clinician documents a visit.'}
+                </p>
+              </div>
+              {hasFilters ? (
+                <Button variant="outline" onClick={resetFilters}>
+                  <X className="h-4 w-4" /> Clear filters
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {records.map((record) => {
+                const isOpen = expanded === record.id;
+                return (
+                  <li key={record.id} className="rounded-2xl border border-border bg-background p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold">
+                          {record.diagnosis || 'Consultation note'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatRecordDate(record.recordDate)}
+                          {record.doctorName ? ` · ${record.doctorName}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {record.medicalRecordType ? (
+                          <Badge variant="outline">{record.medicalRecordType}</Badge>
+                        ) : null}
+                        <Badge variant={record.signed ? 'success' : 'warning'}>
+                          {record.signed ? 'Final' : 'Draft'}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setExpanded(isOpen ? null : record.id)}
+                      aria-expanded={isOpen}
+                      className="mt-3 inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {isOpen ? 'Hide details' : 'View details'}
+                      <ChevronDown className={cn('h-4 w-4 transition', isOpen && 'rotate-180')} aria-hidden />
+                    </button>
+
+                    {isOpen ? (
+                      <dl className="mt-3 grid gap-3 border-t border-border pt-3 text-sm sm:grid-cols-2">
+                        <RecordField label="Diagnosis" value={record.diagnosis} />
+                        <RecordField label="Treatment" value={record.treatment} />
+                        <RecordField label="Prescription" value={record.prescription} />
+                        <RecordField label="Test results" value={record.testResults} />
+                        <RecordField label="Notes" value={record.notes} />
+                        <RecordField
+                          label="Follow-up"
+                          value={
+                            record.followUpRequired
+                              ? record.followUpDate
+                                ? `Required by ${formatRecordDate(record.followUpDate)}`
+                                : 'Required'
+                              : 'Not required'
+                          }
+                        />
+                      </dl>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {totalPages > 1 && !query.isError ? (
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <p className="text-sm text-muted-foreground">
+                Page {page + 1} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={page === 0 || query.isFetching}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+                  disabled={page >= totalPages - 1 || query.isFetching}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>
   );
+}
+
+/** Records per page; matches the server default so the first paint is the real page. */
+const PAGE_SIZE = 10;
+
+function RecordField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="space-y-0.5">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className={value ? 'text-foreground' : 'text-muted-foreground'}>{value || '—'}</dd>
+    </div>
+  );
+}
+
+/**
+ * `recordDate` is a plain local date. Appended `T00:00:00` so the browser parses it
+ * as local midnight; `new Date('2026-01-01')` is UTC and can render a day early.
+ */
+function formatRecordDate(value?: string | null): string {
+  if (!value) return '—';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
 }
 
 export function PatientPrescriptionsPage() {
@@ -648,7 +892,12 @@ export function PatientNotificationsPage() {
   useEffect(() => {
     async function fetchData() {
       const data = await listAppointments(user ? { patientId: user.id, size: 5 } : { size: 5 });
-      const notifications = (data.content ?? []).map((a) => `Appointment ${a.status.toLowerCase()}: ${a.reason}`);
+      const notifications = (data.content ?? []).map(
+        (a) =>
+          `Appointment ${a.status.toLowerCase()}: ${a.reasonForVisit ?? 'General consultation'} on ${formatDateTime(
+            a.appointmentDate,
+          )}`,
+      );
       setItems(notifications);
     }
     fetchData().catch(() => setItems([]));

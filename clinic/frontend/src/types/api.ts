@@ -30,7 +30,18 @@ export function canonicalRole(role?: string | null): UserRole | null {
   return (CANONICAL_ROLE[role] ?? role) as UserRole;
 }
 
-// Appointment
+/**
+ * An appointment as the schedule tables present it.
+ *
+ * <p>This is a view model, not the API contract. The wire shape is
+ * `AppointmentRecord` in `services/api/appointments`; this flattens the time to a
+ * clock string and the free-text reason to a `type` so the existing schedule
+ * screens keep their column layout.
+ *
+ * <p>`status` and `type` widened to `string`: they were declared as narrow literal
+ * unions that the server has never used (`IN_PROGRESS`, `PENDING`, `TELEHEALTH` are
+ * not in `AppointmentStatus`), so every real value needed a cast to satisfy them.
+ */
 export interface Appointment {
   id: string;
   time: string;
@@ -39,9 +50,9 @@ export interface Appointment {
     fullName: string;
     avatarUrl?: string;
   };
-  status: 'CONFIRMED' | 'IN_PROGRESS' | 'PENDING' | 'CANCELLED';
+  status: string;
   room?: string;
-  type: 'CHECKUP' | 'FOLLOW_UP' | 'SURGERY' | 'TELEHEALTH';
+  type: string;
 }
 
 // Prescription

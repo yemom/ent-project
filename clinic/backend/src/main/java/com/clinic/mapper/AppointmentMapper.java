@@ -2,24 +2,21 @@ package com.clinic.mapper;
 
 import com.clinic.dto.request.AppointmentCreateRequest;
 import com.clinic.dto.request.AppointmentUpdateRequest;
+import com.clinic.dto.response.AppointmentPartyResponse;
 import com.clinic.dto.response.AppointmentResponse;
 import com.clinic.dto.response.AppointmentSummaryResponse;
 import com.clinic.entity.Appointment;
 import com.clinic.entity.AppointmentStatus;
 import com.clinic.entity.Doctor;
 import com.clinic.entity.Patient;
+import com.clinic.entity.User;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AppointmentMapper {
 
-    private final UserMapper userMapper;
-
-    public AppointmentMapper(UserMapper userMapper) {
-        this.userMapper = userMapper;
-    }
-
-    public Appointment toEntity(AppointmentCreateRequest request, Patient patient, Doctor doctor) {
+    public Appointment toEntity(AppointmentCreateRequest request, Patient patient, Doctor doctor,
+                                AppointmentStatus status) {
         if (request == null) {
             return null;
         }
@@ -29,7 +26,7 @@ public class AppointmentMapper {
                 .doctor(doctor)
                 .appointmentDate(request.appointmentDate())
                 .duration(request.duration())
-                .status(AppointmentStatus.SCHEDULED)
+                .status(status != null ? status : AppointmentStatus.SCHEDULED)
                 .reasonForVisit(request.reasonForVisit())
                 .notes(request.notes())
                 .reminderSent(false)
@@ -100,8 +97,8 @@ public class AppointmentMapper {
 
         return new AppointmentResponse(
                 appointment.getId(),
-                userMapper.toSummaryResponse(appointment.getPatient()),
-                userMapper.toSummaryResponse(appointment.getDoctor()),
+                toPartyResponse(appointment.getPatient()),
+                toPartyResponse(appointment.getDoctor()),
                 appointment.getAppointmentDate(),
                 appointment.getDuration(),
                 appointment.getStatus(),
@@ -114,6 +111,41 @@ public class AppointmentMapper {
                 appointment.getCancellationDate(),
                 appointment.getCreatedAt(),
                 appointment.getUpdatedAt()
+        );
+    }
+
+    /**
+     * Projects either side of an appointment onto the scheduler-facing view.
+     *
+     * <p>Accepts {@link User} rather than a concrete subtype so one method serves
+     * both roles. The patient-only and doctor-only columns are read reflectively
+     * through the declared types instead of casting, which keeps the appointment
+     * mapper free of a dependency on every subclass in the single-table
+     * hierarchy.
+     */
+    public AppointmentPartyResponse toPartyResponse(User party) {
+        if (party == null) {
+            return null;
+        }
+
+        String registrationNumber = null;
+        String specialization = null;
+
+        if (party instanceof Patient patient) {
+            registrationNumber = patient.getRegistrationNumber();
+        }
+        if (party instanceof Doctor doctor) {
+            specialization = doctor.getSpecialization();
+        }
+
+        return new AppointmentPartyResponse(
+                party.getId(),
+                party.getFullName(),
+                party.getEmail(),
+                party.getRole(),
+                party.getActive(),
+                registrationNumber,
+                specialization
         );
     }
 }

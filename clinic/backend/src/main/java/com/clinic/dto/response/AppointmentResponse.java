@@ -6,8 +6,8 @@ import java.time.LocalDateTime;
 
 public record AppointmentResponse(
         String id,
-        UserSummaryResponse patient,
-        UserSummaryResponse doctor,
+        AppointmentPartyResponse patient,
+        AppointmentPartyResponse doctor,
         LocalDateTime appointmentDate,
         Integer duration,
         AppointmentStatus status,
