@@ -300,7 +300,7 @@ export function Sidebar({
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex lg:flex-col fixed inset-y-0 left-0 z-30 border-r border-[#66944b] transition-all duration-200",
+          "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-[#1e293b] transition-all duration-200 lg:flex",
           collapsed ? "w-20" : "w-64",
         )}
       >
@@ -319,7 +319,7 @@ export function Sidebar({
       {/* Mobile Drawer Content */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 border-r border-[#66944b] shadow-2xl transition-transform duration-200 lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 border-r border-[#1e293b] shadow-2xl transition-transform duration-200 lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >

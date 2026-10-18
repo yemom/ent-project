@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, Sparkles } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { useCurrentUser } from '@/hooks/use-auth';
@@ -25,6 +26,20 @@ interface AppShellProps {
 const STORAGE_COLLAPSED_KEY = 'cms_sidebar_desktop_collapsed';
 
 export function AppShell({ role, children }: AppShellProps) {
+  const pathname = usePathname();
+  const dashboardRoutes = new Set([
+    '/admin',
+    '/hospital',
+    '/doctor',
+    '/nurse',
+    '/reception',
+    '/laboratory',
+    '/pharmacist',
+    '/cashier',
+    '/patient',
+  ]);
+  const isDashboard = dashboardRoutes.has(pathname);
+
   // Synchronise user permissions & profile in background
   useCurrentUser();
 
@@ -61,7 +76,7 @@ export function AppShell({ role, children }: AppShellProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-foreground">
+    <div className="min-h-screen bg-[#f7f8fa] text-foreground dark:bg-slate-950">
       {/* Sidebar navigation */}
       <Sidebar
         role={role}
@@ -84,9 +99,9 @@ export function AppShell({ role, children }: AppShellProps) {
           onOpenMobile={() => setMobileOpen(true)}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl space-y-6">
-            <AiForecastCard />
+        <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1480px] space-y-6">
+            {isDashboard ? <AiForecastCard /> : null}
             {children}
           </div>
         </main>
@@ -97,15 +112,15 @@ export function AppShell({ role, children }: AppShellProps) {
           <Button
             type="button"
             aria-label="Open AI assistant"
-            className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-xl sm:right-8"
+            className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full bg-[#2563eb] shadow-lg shadow-blue-900/20 transition-transform hover:scale-105 sm:right-8"
           >
             <MessageCircle className="h-6 w-6" aria-hidden />
             <span className="sr-only">Open AI assistant</span>
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-5xl overflow-hidden p-0">
-          <div className="border-b border-border bg-background px-6 py-4">
-            <DialogTitle className="flex items-center gap-2 text-base">
+        <DialogContent className="max-w-6xl overflow-hidden rounded-2xl border-border/80 p-0">
+          <div className="border-b border-border bg-background px-6 py-5">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="h-4 w-4 text-primary" aria-hidden />
               AI Assistant
             </DialogTitle>
@@ -113,8 +128,8 @@ export function AppShell({ role, children }: AppShellProps) {
               Answers from live records for your role. Read-only unless an action is explicitly confirmed.
             </DialogDescription>
           </div>
-          <div className="grid max-h-[calc(100vh-10rem)] min-h-[32rem] md:grid-cols-[12rem_1fr]">
-            <aside className="hidden border-r border-border bg-slate-50/80 p-4 md:block">
+          <div className="grid max-h-[calc(100vh-10rem)] min-h-[38rem] md:grid-cols-[15rem_1fr]">
+            <aside className="hidden border-r border-border bg-[#fafbfc] p-4 md:block">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Conversations
               </p>
@@ -122,11 +137,11 @@ export function AppShell({ role, children }: AppShellProps) {
                 Current session
               </div>
               <p className="mt-5 text-xs leading-5 text-muted-foreground">
-                Ask about the forecast, appointments, workload, stock, laboratory queues, or
-                financial records available to your account.
+                Ask about appointments, workload, stock, laboratory queues, patients, or financial
+                records available to your account.
               </p>
             </aside>
-            <div className="overflow-y-auto p-4 sm:p-6">
+            <div className="overflow-y-auto bg-white p-4 sm:p-6">
               <AiAssistantPanel compact className="border-0 shadow-none" />
             </div>
           </div>

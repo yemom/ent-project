@@ -23,7 +23,10 @@ import { spawn } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DIST_DIR = process.env.NEXT_DIST_DIR ?? '.next';
+// Keep development output separate from `next start`/`next build` output. A
+// production server may still be serving `.next` on port 3000; clearing that
+// directory while starting dev corrupts the server's React Client Manifest.
+const DIST_DIR = process.env.NEXT_DIST_DIR ?? '.next-dev';
 const root = process.cwd();
 
 if (process.env.NEXT_SKIP_DIST_CLEAN !== 'true') {

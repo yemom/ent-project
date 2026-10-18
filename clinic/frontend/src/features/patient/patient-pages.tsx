@@ -32,12 +32,6 @@ type CountState = {
   prescriptions: number;
 };
 
-const demoDoctors = [
-  { name: 'Dr. Sarah Jenkins', specialty: 'Senior Cardiologist', location: 'Main Medical Plaza', slot: 'Tomorrow, 09:30', rating: '4.9' },
-  { name: 'Dr. Michael Chen', specialty: 'Neurologist', location: 'East Wing Health Hub', slot: 'Wed, 14:00', rating: '4.8' },
-  { name: 'Dr. Elena Rodriguez', specialty: 'Family Medicine', location: 'Downtown Clinic', slot: 'Fri, 10:00', rating: '5.0' }
-];
-
 export function PatientDashboardPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -190,10 +184,17 @@ export function PatientBookingPage() {
   const [query, setQuery] = useState(urlQuery);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [selectedSlot, setSelectedSlot] = useState('09:00 AM');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [realDoctors, setRealDoctors] = useState<any[]>([]);
+  const [realDoctors, setRealDoctors] = useState<Array<{
+    id: string;
+    name: string;
+    specialty: string;
+    location: string;
+    slot: string;
+    rating: string;
+  }>>([]);
+  const [doctorsError, setDoctorsError] = useState<string | null>(null);
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
@@ -204,16 +205,16 @@ export function PatientBookingPage() {
     async function fetchDoctors() {
       try {
         const data = await listDoctors({ size: 50 });
-        setRealDoctors((data.content ?? []).map((d: any) => ({
+        setRealDoctors((data.content ?? []).map((d) => ({
           id: d.id,
           name: d.fullName,
           specialty: d.specialization || 'Specialist',
-          location: 'Clinic Center',
-          slot: 'Available today',
-          rating: '5.0'
+          location: 'Clinic location not specified',
+          slot: d.available ? 'Currently available' : 'Availability by appointment',
+          rating: ''
         })));
       } catch (err) {
-        // Silent fail - demo doctors will be shown as fallback
+        setDoctorsError(getFriendlyErrorMessage(err, 'We could not load available doctors.'));
       }
     }
     fetchDoctors();
@@ -222,7 +223,7 @@ export function PatientBookingPage() {
   const selectedDoctor = useMemo(() => realDoctors.find((doctor) => doctor.id === selectedDoctorId) ?? null, [realDoctors, selectedDoctorId]);
 
   const filteredDoctors = useMemo(() => {
-    const pool = realDoctors.length > 0 ? realDoctors : demoDoctors;
+    const pool = realDoctors;
     if (!query.trim()) return pool;
     const q = query.toLowerCase();
     return pool.filter((d) => 
@@ -271,6 +272,16 @@ export function PatientBookingPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {doctorsError ? (
+                  <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 md:col-span-2 xl:col-span-3">
+                    {doctorsError}
+                  </div>
+                ) : null}
+                {!doctorsError && filteredDoctors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+                    No doctors matched your search. Try another name or specialty.
+                  </p>
+                ) : null}
                 {filteredDoctors.map((doctor) => (
                   <div key={doctor.id ?? doctor.name} className="rounded-3xl border border-border bg-muted/10 p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
@@ -278,9 +289,11 @@ export function PatientBookingPage() {
                         <p className="font-semibold">{doctor.name}</p>
                         <p className="text-sm text-teal-700">{doctor.specialty}</p>
                       </div>
-                      <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
-                        <Star className="h-3 w-3 fill-current" /> {doctor.rating}
-                      </div>
+                      {doctor.rating ? (
+                        <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                          <Star className="h-3 w-3 fill-current" /> {doctor.rating}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="mt-4 space-y-2 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {doctor.location}</div>
@@ -313,7 +326,7 @@ export function PatientBookingPage() {
                 <Card className="border-0 shadow-none">
                   <CardHeader className="px-0 pt-0">
                     <CardTitle className="text-2xl text-slate-900">Select Date &amp; Time</CardTitle>
-                    <CardDescription>Choose a day and an available slot that works for you.</CardDescription>
+                    <CardDescription>Choose a requested time. The clinic will confirm availability.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6 px-0 pb-0">
                     <div className="grid gap-3 md:grid-cols-2">
@@ -332,26 +345,6 @@ export function PatientBookingPage() {
                       <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Brief reason for visit" className="h-11 rounded-2xl" />
                     </div>
 
-                    <div className="flex flex-wrap gap-3 rounded-3xl border border-border bg-muted/20 p-4">
-                      {['09:00 AM', '10:30 AM', '01:45 PM', '03:00 PM'].map((slot) => (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => {
-                            setSelectedSlot(slot);
-                            const normalized = slot.replace(' AM', '').replace(' PM', '');
-                            const [hourMinute, suffix] = [normalized, slot.includes('PM') ? 'PM' : 'AM'];
-                            const [hour, minute] = hourMinute.split(':');
-                            const hour24 = suffix === 'PM' && Number(hour) !== 12 ? String(Number(hour) + 12).padStart(2, '0') : String(hour).padStart(2, '0');
-                            setTime(`${hour24}:${minute}`);
-                          }}
-                          className={`rounded-full border px-4 py-2 text-sm transition ${selectedSlot === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-white text-foreground'}`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
-                    </div>
-
                     <div className="flex gap-3">
                       <Button type="submit" className="rounded-2xl" disabled={isSubmitting}>
                         {isSubmitting ? 'Booking...' : 'Confirm Appointment'}
@@ -367,11 +360,9 @@ export function PatientBookingPage() {
                       <CardTitle>Available Slots</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {['09:00 AM', '10:30 AM', '01:45 PM', '03:00 PM'].map((slot) => (
-                        <div key={slot} className="rounded-2xl border border-border bg-muted/50 px-4 py-3 text-sm font-medium text-muted-foreground">
-                          {slot}
-                        </div>
-                      ))}
+                      <p className="text-sm text-muted-foreground">
+                        Slots are confirmed by the clinic after you submit this request.
+                      </p>
                     </CardContent>
                   </Card>
                 </div>

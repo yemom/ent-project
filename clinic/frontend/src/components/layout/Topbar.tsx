@@ -85,9 +85,9 @@ export function Topbar({ collapsed, onToggleCollapse, onOpenMobile }: TopbarProp
         </Button>
 
         {/* Breadcrumbs */}
-        <nav aria-label="Breadcrumb" className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+        <nav aria-label="Breadcrumb" className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
           <Link href="/" className="hover:text-foreground transition-colors">
-            Home
+            Clinic Care
           </Link>
           {pathSegments.map((segment, index) => {
             const isLast = index === pathSegments.length - 1;
@@ -119,6 +119,16 @@ export function Topbar({ collapsed, onToggleCollapse, onOpenMobile }: TopbarProp
           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <MoonStar className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
         </Button>
+
+        <div className="hidden items-center gap-2 border-l border-border pl-3 sm:flex">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+            {initial}
+          </div>
+          <div className="hidden leading-tight lg:block">
+            <p className="max-w-32 truncate text-xs font-semibold text-foreground">{user?.fullName || 'User'}</p>
+            <p className="text-[10px] uppercase tracking-wide text-primary">{user?.role?.replace(/_/g, ' ') || 'USER'}</p>
+          </div>
+        </div>
 
         {/* User Dropdown */}
         <DropdownMenu>

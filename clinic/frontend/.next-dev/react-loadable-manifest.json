@@ -1,0 +1,18 @@
+{
+  "..\\node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
+    "id": "..\\node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js"
+    ]
+  },
+  "components\\layouts\\lazy-components.tsx -> @/components/charts/overview-chart": {
+    "id": "components\\layouts\\lazy-components.tsx -> @/components/charts/overview-chart",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_charts_overview-chart_tsx.js"
+    ]
+  },
+  "features\\notifications\\hooks\\use-notifications.ts -> @/features/notifications/services/notifications.service": {
+    "id": "features\\notifications\\hooks\\use-notifications.ts -> @/features/notifications/services/notifications.service",
+    "files": []
+  }
+}

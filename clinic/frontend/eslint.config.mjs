@@ -9,6 +9,7 @@ export default [
   {
     ignores: [
       '.next/**',
+      '.next-dev/**',
       '.next-build/**',
       '.next-e2e/**',
       '.next-verify/**',
