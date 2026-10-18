@@ -62,9 +62,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
 
 # -XX:+UseSerialGC and TieredStopAtLevel=1 cut JVM start-up time and footprint,
 # which matters most on the free Render plan where instances sleep and wake.
+# Keep the Java heap bounded so the process does not get OOM-killed when Docker
+# is also building or running the frontend.
 ENTRYPOINT ["java", \
   "-XX:+UseSerialGC", \
   "-XX:TieredStopAtLevel=1", \
+  "-Xms128m", \
+  "-Xmx384m", \
   "-Xshare:auto", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-jar", "/app/app.jar"]
