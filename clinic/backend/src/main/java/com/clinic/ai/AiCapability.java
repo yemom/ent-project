@@ -237,6 +237,36 @@ public enum AiCapability {
     }
 
     /**
+     * Arguments this capability cannot answer without, and the prompt for each.
+     *
+     * <p>Declared here rather than in the UI so the two cannot disagree. When this was
+     * missing, {@code AVAILABLE_SLOTS} was offered in the capability list but the
+     * panel had no way to ask which doctor, so every use of it came back as an
+     * error — and because a missing argument was raised as {@code ForbiddenException}
+     * it surfaced as "you do not have permission to access this resource", which
+     * pointed at authorisation rather than at the one field that was missing.
+     *
+     * <p>Optional arguments (date ranges, for instance) are deliberately not listed:
+     * the service applies sensible defaults and the user should not have to know the
+     * field names.
+     */
+    public java.util.List<RequiredArgument> requiredArguments() {
+        return switch (this) {
+            case AVAILABLE_SLOTS -> java.util.List.of(
+                    new RequiredArgument("doctorId",
+                            "Which doctor? Enter their name or email as shown in the staff directory."));
+            case CLINICAL_DOCUMENTATION, PATIENT_OWN_RECORD -> java.util.List.of(
+                    new RequiredArgument("patientId",
+                            "Which patient? Open the patient first, or enter their patient ID."));
+            default -> java.util.List.of();
+        };
+    }
+
+    /** One input a capability needs before it can produce an honest answer. */
+    public record RequiredArgument(String name, String prompt) {
+    }
+
+    /**
      * Whether serving this capability puts free-text clinical content into a prompt.
      *
      * <p>Drives the {@code AI_ALLOW_IDENTIFIABLE_DATA} gate and the "this is a

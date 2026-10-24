@@ -268,26 +268,32 @@ public class PatientServiceImpl implements PatientService {
         auditLogService.record(AuditAction.PATIENT_ASSIGNED, "PATIENT", patientId,
                 "Assigned to doctor " + doctor.getFullName());
 
-        // The assigned doctor is notified.
-        notificationService.createForUser(
+        // The assigned doctor is notified. Keyed on the assignment, so re-saving the
+        // same assignment — a retry, or a receptionist pressing Assign twice — does
+        // not stack identical rows in the doctor's bell.
+        notificationService.createForUserOnce(
                 doctor.getId(),
                 NotificationType.PATIENT_ASSIGNED,
                 "New patient assigned",
                 String.format("%s has been assigned to you by %s.",
                         patient.getFullName(), currentUser.require().getUsername()),
                 patientId,
-                "/doctor/patients/" + patientId);
+                "/doctor/patients/" + patientId,
+                NotificationType.PATIENT_ASSIGNED.name(),
+                saved.getId());
 
         // So is the assigned nurse, so the nursing panel is not a silent gap.
         if (saved.getNurseId() != null) {
-            notificationService.createForUser(
+            notificationService.createForUserOnce(
                     saved.getNurseId(),
                     NotificationType.PATIENT_ASSIGNED,
                     "New patient assigned",
                     String.format("%s has been assigned to you by %s.",
                             patient.getFullName(), currentUser.require().getUsername()),
                     patientId,
-                    "/nurse/patients");
+                    "/nurse/patients",
+                    NotificationType.PATIENT_ASSIGNED.name(),
+                    saved.getId());
         }
 
         return PatientAssignmentResponse.from(saved);

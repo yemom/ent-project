@@ -44,10 +44,27 @@ public class GlobalExceptionHandler {
                 .body(new ApiErrorResponse(Instant.now(), 401, "Invalid username or password", request.getRequestURI()));
     }
 
+    /**
+     * Forbidden.
+     *
+     * <p>The message is kept when the application threw {@link ForbiddenException},
+     * because those messages are written for the user and name what to do next
+     * ("you are not assigned to this patient"). Discarding them left a caller staring
+     * at a bare "You do not have permission to access this resource" when the server
+     * had already worked out precisely what was wrong.
+     *
+     * <p>A raw Spring {@link AccessDeniedException} — from {@code @PreAuthorize} —
+     * keeps the generic message instead. Its own message is the evaluated
+     * authorization expression, which describes the security rules rather than
+     * answering the caller, and echoing it back leaks the policy.
+     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        String message = (ex instanceof ForbiddenException && ex.getMessage() != null && !ex.getMessage().isBlank())
+                ? ex.getMessage()
+                : "You do not have permission to access this resource";
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ApiErrorResponse(Instant.now(), 403, "You do not have permission to access this resource", request.getRequestURI()));
+                .body(new ApiErrorResponse(Instant.now(), 403, message, request.getRequestURI()));
     }
 
     /**

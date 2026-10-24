@@ -67,6 +67,13 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# IDE compiler output. `.vscode/settings.json` points JDT LS at `target/ide-classes`
+# so it never writes into `target/classes` alongside Maven; that collision produced
+# interleaved, unverifiable class files. Both sit under `target/` already, but the
+# negation rules above re-include any directory named `target` under src, so this is
+# spelled out rather than relying on that.
+target/ide-classes/
+
 # Test-harness byproducts. e2e-secret.txt holds a generated JWT signing key, and the
 # e2e-*.log files capture startup output that includes request URLs. Neither belongs
 # in version control.

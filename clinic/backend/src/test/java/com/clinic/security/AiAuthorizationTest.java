@@ -268,7 +268,15 @@ class AiAuthorizationTest {
         mockMvc.perform(post("/api/v1/ai/actions/propose").with(asUser(doctorId))
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content(proposeBody()))
-                .andExpect(status().isServiceUnavailable());
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aPatientCannotPrepareAnAppointmentAction() throws Exception {
+        mockMvc.perform(post("/api/v1/ai/actions/propose").with(asUser(patientId))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(proposeBodyForPatient(otherPatientId)))
+                .andExpect(status().isForbidden());
     }
 
     // ------------------------------------------------------------------
@@ -385,7 +393,11 @@ class AiAuthorizationTest {
     }
 
     private String proposeBody() {
-        return ("{\"type\":\"BOOK\",\"patientId\":\"" + patientId + "\",\"doctorId\":\"" + doctorId
+        return proposeBodyForPatient(patientId);
+    }
+
+    private String proposeBodyForPatient(String requestedPatientId) {
+        return ("{\"type\":\"BOOK\",\"patientId\":\"" + requestedPatientId + "\",\"doctorId\":\"" + doctorId
                 + "\",\"appointmentDate\":\"2030-01-02T09:00\",\"durationMinutes\":30}");
     }
 

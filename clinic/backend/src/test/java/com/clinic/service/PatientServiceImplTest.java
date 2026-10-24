@@ -81,7 +81,15 @@ class PatientServiceImplTest {
         when(doctorRepository.findById(doctorId.toString())).thenReturn(Optional.of(doctor));
         when(assignmentRepository.findByPatientIdAndReleasedAtIsNull(patientId.toString()))
                 .thenReturn(Optional.empty());
-        when(assignmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        // The persisted assignment is what keys the notification, so it needs an id.
+        // Without one the discriminator is null and the test would pass on a weaker
+        // matcher than the behaviour it is meant to pin.
+        UUID assignmentId = UUID.randomUUID();
+        when(assignmentRepository.save(any())).thenAnswer(invocation -> {
+            com.clinic.entity.PatientAssignment saved = invocation.getArgument(0);
+            saved.setId(assignmentId.toString());
+            return saved;
+        });
         when(currentUser.userId()).thenReturn("reception-1");
         when(currentUser.require()).thenReturn(new com.clinic.security.CustomUserPrincipal(patient));
 
@@ -89,9 +97,13 @@ class PatientServiceImplTest {
 
         assertEquals(doctorId.toString(), response.doctorId());
         assertTrue(response.active());
-        verify(notificationService).createForUser(eq(doctorId.toString()),
-                any(com.clinic.entity.NotificationType.class), anyString(), anyString(),
-                eq(patientId.toString()), anyString());
+        // `…Once`, not the plain overload: the assignment row is the event key, so a
+        // receptionist pressing Assign twice produces one notification rather than
+        // stacking duplicates in the doctor's bell. The plain overload was the bug.
+        verify(notificationService).createForUserOnce(eq(doctorId.toString()),
+                eq(com.clinic.entity.NotificationType.PATIENT_ASSIGNED), anyString(), anyString(),
+                eq(patientId.toString()), anyString(),
+                eq("PATIENT_ASSIGNED"), eq(assignmentId.toString()));
     }
 
     @Test

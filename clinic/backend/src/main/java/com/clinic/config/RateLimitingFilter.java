@@ -104,16 +104,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-
+        // Forwarded headers are client-controlled unless the deployment has a
+        // separately configured trusted-proxy chain. Using them here would let a
+        // caller rotate the rate-limit key on every request.
         return request.getRemoteAddr();
     }
 

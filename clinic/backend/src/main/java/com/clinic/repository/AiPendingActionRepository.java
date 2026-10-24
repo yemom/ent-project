@@ -2,10 +2,12 @@ package com.clinic.repository;
 
 import com.clinic.entity.AiPendingAction;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +16,7 @@ import java.util.Optional;
 public interface AiPendingActionRepository extends JpaRepository<AiPendingAction, String> {
 
     /** Ownership-scoped: a confirmation id alone is never sufficient. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM AiPendingAction a "
             + "WHERE a.id = :id AND a.ownerUserId = :ownerUserId")
     Optional<AiPendingAction> findOwnedById(@Param("id") String id,

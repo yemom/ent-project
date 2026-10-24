@@ -992,9 +992,11 @@ export function AdminPharmacyPage() {
 
 // ============================================================================
 // AdminAnalyticsPage
-// 
-// Provides charts and analytics to visualize clinic performance.
-// (Currently uses mock data for the OverviewChart)
+//
+// Operational volume computed from the live records behind
+// `GET /api/v1/stats/hospital`. The trend chart plots the returned
+// `appointmentsTrend` series and shows an empty state when there is nothing to
+// plot, rather than falling back to a hardcoded array.
 // ============================================================================
 export function AdminAnalyticsPage() {
   const { data, isLoading, error } = useHospitalStats();

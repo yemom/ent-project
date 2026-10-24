@@ -160,18 +160,18 @@ app:
 
 # AI assistant.
 #
-# Disabled unless AI_ENABLED is set, and usable only once AI_API_URL and AI_API_KEY
-# are also set. There is no default endpoint, key or model: a hospital chooses a
-# provider deliberately, after deciding where its data is allowed to go.
+# Disabled unless AI_ENABLED is set, and usable only once the selected provider's
+# endpoint and model are set. Hosted providers also require AI_API_KEY; local
+# Ollama does not. Local Ollama keeps identifiable clinical context on the host.
 #
 # AI_ALLOW_IDENTIFIABLE_DATA defaults to false and must be turned on explicitly
 # before any capability that carries patient-identifiable clinical text will run.
 # Everything else — counts, dates, categories, status breakdowns — works with it off.
 ai:
   enabled: ${AI_ENABLED:false}
-  provider: ${AI_PROVIDER:openai-compatible}
-  api-url: ${AI_API_URL:}
-  model: ${AI_MODEL:}
+  provider: ${AI_PROVIDER:local-ollama}
+  api-url: ${AI_API_URL:http://localhost:11434}
+  model: ${AI_MODEL:llama3.2}
   # Server-side only. Never a NEXT_PUBLIC_* variable, never returned by an endpoint.
   api-key: ${AI_API_KEY:}
   request-timeout-millis: ${AI_REQUEST_TIMEOUT_MS:20000}

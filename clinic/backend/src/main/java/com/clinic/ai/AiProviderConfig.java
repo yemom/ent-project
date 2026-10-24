@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Primary;
 /**
  * Provider selection.
  *
- * <p>Two beans can exist: the concrete providers (today, one
- * {@link OpenAiCompatibleProvider}) and this selection bean, which is marked
+ * <p>Concrete providers are selected by the configured provider name. This
+ * selection bean is marked
  * {@link Primary} so that every injection point of {@link AiProvider} resolves to
  * the chosen one.
  *
@@ -28,13 +28,20 @@ public class AiProviderConfig {
 
     @Bean
     @Primary
-    public AiProvider aiProvider(ObjectProvider<OpenAiCompatibleProvider> candidates,
+    public AiProvider aiProvider(ObjectProvider<OpenAiCompatibleProvider> openAiCandidates,
+                                 ObjectProvider<OllamaProvider> ollamaCandidates,
                                  AiProperties properties) {
-        for (OpenAiCompatibleProvider candidate : candidates) {
-            if (candidate.isAvailable()) {
-                log.info("AI assistant enabled with the {} provider (model={})",
-                        candidate.name(), properties.getModel());
-                return candidate;
+        if ("local-ollama".equalsIgnoreCase(properties.getProvider())) {
+            for (OllamaProvider candidate : ollamaCandidates) {
+                if (candidate.isAvailable()) {
+                    return selected(candidate, properties);
+                }
+            }
+        } else {
+            for (OpenAiCompatibleProvider candidate : openAiCandidates) {
+                if (candidate.isAvailable()) {
+                    return selected(candidate, properties);
+                }
             }
         }
 
@@ -45,6 +52,12 @@ public class AiProviderConfig {
                 properties.getApiUrl() != null && !properties.getApiUrl().isBlank(),
                 properties.getApiKey() != null && !properties.getApiKey().isBlank());
         return new UnavailableAiProvider(properties);
+    }
+
+    private AiProvider selected(AiProvider provider, AiProperties properties) {
+        log.info("AI assistant enabled with the {} provider (model={})",
+                provider.name(), properties.getModel());
+        return provider;
     }
 
     /**

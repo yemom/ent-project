@@ -6,6 +6,7 @@ This repository contains the Clinic application: a Java Spring Boot backend and 
 Quick links
 - Backend README: [backend/README.md](backend/README.md)
 - Frontend README: [frontend/README.md](frontend/README.md)
+- Graduation project guide: [GRADUATION_PROJECT.md](GRADUATION_PROJECT.md)
 
 Repository — high level
 ```
@@ -103,4 +104,3 @@ Notes, tips and gotchas
 - Keep Flyway migrations in `backend/src/main/resources/db/migration/` as the source-of-truth. Whenever schema changes, add a new migration and, if needed, update `backend/src/test/resources/schema.sql` for tests.
 - Tests run with `spring.jpa.hibernate.ddl-auto=validate` in `test` profile; schema drift causes ApplicationContext failures.
 - The frontend build may log an ESLint patching warning in some environments — it is not blocking for `next build` in this repo, but you can run `npx eslint .` to surface issues.
-

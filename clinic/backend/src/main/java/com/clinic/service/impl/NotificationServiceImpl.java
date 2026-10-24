@@ -9,6 +9,7 @@ import com.clinic.repository.NotificationRepository;
 import com.clinic.repository.UserRepository;
 import com.clinic.security.CurrentUser;
 import com.clinic.service.NotificationEventKey;
+import com.clinic.service.NotificationQuery;
 import com.clinic.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -50,10 +51,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<NotificationResponse> listForCurrentUser(Pageable pageable) {
+    public Page<NotificationResponse> listForCurrentUser(NotificationQuery query, Pageable pageable) {
         var principal = currentUser.require();
+        NotificationQuery effective = query == null ? NotificationQuery.ALL : query;
         return notificationRepository
-                .findVisibleTo(principal.getUserId(), principal.getUser().getRole(), pageable)
+                .findVisibleTo(principal.getUserId(), principal.getUser().getRole(),
+                        effective.type(), effective.read(), pageable)
                 .map(NotificationResponse::from);
     }
 

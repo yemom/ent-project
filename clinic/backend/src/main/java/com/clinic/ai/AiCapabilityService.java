@@ -7,6 +7,7 @@ import com.clinic.entity.Invoice;
 import com.clinic.entity.LabOrderStatus;
 import com.clinic.entity.LabResultStatus;
 import com.clinic.entity.UserRole;
+import com.clinic.exception.BadRequestException;
 import com.clinic.exception.ForbiddenException;
 import com.clinic.repository.AppointmentRepository;
 import com.clinic.repository.DoctorRepository;
@@ -341,9 +342,18 @@ public class AiCapabilityService {
     private AiCapabilityResult availableSlots(Map<String, Object> args) {
         String doctorId = asString(args.get("doctorId"));
         if (doctorId == null || doctorId.isBlank()) {
-            // Without a doctor there is no honest answer: "slots exist somewhere in
-            // the hospital" is not useful and invites the caller to enumerate staff.
-            throw new ForbiddenException("Specify a doctor to search for available slots");
+            // 400, not 403. The caller *is* allowed to ask this question — the server
+            // already cleared them at the capability gate — they simply did not say
+            // which doctor. A 403 told them "you do not have permission", which is
+            // both false and unactionable: no amount of retrying helps, and it hides
+            // the one thing that would.
+            //
+            // Answering for every doctor would be the real enumeration risk, and that
+            // is deliberately not done: the question cannot be answered honestly
+            // without knowing who is being asked about.
+            throw new BadRequestException(
+                    "Specify a doctor to search for available slots — for example "
+                            + "\"Which slots are free for Dr Mensah?\".");
         }
 
         LocalDate from = parseDate(args.get("from"), LocalDate.now());
@@ -546,7 +556,13 @@ public class AiCapabilityService {
 
         String patientId = asString(args.get("patientId"));
         if (patientId == null || patientId.isBlank()) {
-            throw new ForbiddenException("Specify the patient whose documentation to draft");
+            // 400 for the same reason as `availableSlots`: this is a missing input,
+            // not a permission decision. The caller cleared the capability gate
+            // already, and "you do not have permission" would send them looking for
+            // a rights problem they do not have.
+            throw new BadRequestException(
+                    "Specify the patient whose documentation to draft — open the patient "
+                            + "first, or enter their patient ID.");
         }
 
         var page = medicalRecordService.search(

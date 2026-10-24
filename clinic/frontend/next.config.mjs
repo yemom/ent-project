@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Output directory, overridable per process type.
  *
- * `next build` and `next start` use `.next`; `next dev` uses `.next-dev`.
+ * `next build` and the standalone production server use `.next`; `next dev` uses `.next-dev`.
  * When two of them overlap they overwrite each other's files mid-run, and the
  * survivor then fails on missing manifests:
  *
@@ -45,7 +45,7 @@ const distDir = process.env.NEXT_DIST_DIR ?? '.next';
  *  - `SUPPORTED_DIST_DIRS` is the single list that `tsconfig.json` mirrors, so a
  *    new output directory has to be added in both places on purpose.
  *
- * `.next` is used by `next build` / `next start`; `.next-dev` is used by
+ * `.next` is used by `next build` / the standalone production server; `.next-dev` is used by
  * `next dev`; `.next-e2e` is set by
  * `scripts/dev-e2e.mjs`; `.next-build` and `.next-verify` are the isolated
  * directories used when verifying a production build alongside a running dev

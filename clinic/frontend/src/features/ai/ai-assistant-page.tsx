@@ -23,8 +23,8 @@ export function AiAssistantPage() {
           <p className="text-xs text-muted-foreground">Clinic / Assistant</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">AI Assistant</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Answers from live records for {role ? role.replace(/_/g, ' ').toLowerCase() : 'your account'}.
-            Read-only unless an action is explicitly confirmed.
+            Evidence-grounded support for {role ? role.replace(/_/g, ' ').toLowerCase() : 'your account'}.
+            Clinical drafts are never diagnoses and always require clinician review.
           </p>
         </div>
         <span className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground">
@@ -60,7 +60,7 @@ export function AiAssistantPage() {
         </section>
         <section className="rounded-xl border border-border bg-background p-4">
           <h2 className="font-medium text-foreground">Human review</h2>
-          <p className="mt-1">Clinical answers are drafts and must be reviewed by a qualified clinician.</p>
+          <p className="mt-1">Clinical documentation is a draft only. Verify every claim against the source record before signing.</p>
         </section>
       </div>
     </div>

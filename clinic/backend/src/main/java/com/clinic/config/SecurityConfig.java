@@ -152,11 +152,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Use allowedOriginPatterns so that dynamic local LAN origins (e.g. http://10.200.13.117:3001,
-        // Wi-Fi/hotspot IPs, any localhost port) and Vercel domains are allowed alongside allowCredentials(true).
-        // Spring reflects the requesting Origin in Access-Control-Allow-Origin, which is spec-compliant.
+        // Credentials are enabled because the browser sends the bearer refresh flow
+        // through this API. Never combine that with a wildcard origin: reflecting
+        // arbitrary Origin headers would let any website make authenticated
+        // cross-origin requests.
         List<String> patterns = new ArrayList<>();
-        patterns.add("*"); // Matches any origin and reflects it in Access-Control-Allow-Origin
+        patterns.addAll(DEFAULT_ALLOWED_ORIGINS);
         if (extraAllowedOrigins != null) {
             for (String origin : extraAllowedOrigins) {
                 if (origin != null && !origin.isBlank()) {

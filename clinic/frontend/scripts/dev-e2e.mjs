@@ -27,7 +27,7 @@
  * database that disappears under it.
  */
 import { spawn } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { cpSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST_DIR = '.next-e2e';
@@ -62,7 +62,30 @@ function run(args) {
 
 await rmSync(join(root, DIST_DIR), { recursive: true, force: true });
 await run(['build']);
-await run(['start', '--port', PORT]);
 
-// `next start` does not exit on its own; reaching here means something went wrong.
+// `output: standalone` produces a self-contained server and Next.js warns when
+// it is launched through `next start`. The production Docker image uses the
+// same entry point; keep the E2E server on that path so the test artifact
+// matches deployment behavior.
+cpSync(join(root, 'public'), join(root, DIST_DIR, 'standalone', 'public'), {
+  recursive: true,
+});
+cpSync(
+  join(root, DIST_DIR, 'static'),
+  join(root, DIST_DIR, 'standalone', DIST_DIR, 'static'),
+  { recursive: true },
+);
+await new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [join(root, DIST_DIR, 'standalone', 'server.js')], {
+    stdio: 'inherit',
+    env: { ...env, PORT },
+  });
+  child.on('error', reject);
+  child.on('exit', (code) =>
+    code === 0 ? resolve() : reject(new Error(`standalone server exited ${code}`)),
+  );
+});
+
+// The standalone server does not exit on its own; reaching here means something
+// went wrong.
 process.exit(1);

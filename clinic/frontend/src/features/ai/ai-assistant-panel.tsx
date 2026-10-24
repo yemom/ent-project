@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   CalendarClock,
@@ -22,7 +22,10 @@ import {
   confirmAiAction,
   getAiCapabilities,
   getAiForecast,
+  listPendingAiActions,
+  proposeAiAction,
   rejectAiAction,
+  type AiPendingAction,
   type AiChatResponse,
 } from '@/services/api/ai';
 
@@ -62,6 +65,7 @@ export function AiAssistantPanel({
   contextArguments?: Record<string, string | number | undefined>;
 }) {
   const role = useAuthStore((state) => state.user?.role);
+  const queryClient = useQueryClient();
   const capabilities = useQuery({
     queryKey: ['ai', 'capabilities'],
     queryFn: getAiCapabilities,
@@ -81,21 +85,40 @@ export function AiAssistantPanel({
     staleTime: 5 * 60_000,
     retry: 1,
   });
+  const pendingActions = useQuery({
+    queryKey: ['ai', 'actions', 'pending'],
+    queryFn: listPendingAiActions,
+    enabled: capabilities.isSuccess && capabilities.data.available,
+    staleTime: 30_000,
+    retry: 1,
+  });
 
   const [capabilityId, setCapabilityId] = useState<string | null>(null);
+  /**
+   * Answers typed into the selected capability's own inputs, keyed by argument name.
+   *
+   * <p>Kept as one flat record rather than per-capability state so switching between
+   * capabilities does not lose what the user already typed.
+   */
+  const [capabilityArguments, setCapabilityArguments] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [turns, setTurns] = useState<AiChatResponse[]>([]);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [proposal, setProposal] = useState<{
-    id: string;
-    description: string;
-  } | null>(null);
-  const [proposalBusy, setProposalBusy] = useState(false);
+  const [proposal, setProposal] = useState<AiPendingAction | null>(null);
   const [proposalMessage, setProposalMessage] = useState<string | null>(null);
+  const [proposalBusy, setProposalBusy] = useState(false);
+  const [proposalForm, setProposalForm] = useState({
+    patientId: String(contextArguments?.patientId ?? ''),
+    doctorId: '',
+    appointmentDate: '',
+    durationMinutes: '30',
+    reason: '',
+  });
+  const [proposalCreateError, setProposalCreateError] = useState<string | null>(null);
+  const [resolvedProposal, setResolvedProposal] = useState<AiPendingAction | null>(null);
 
   const conversationId = turns[turns.length - 1]?.conversationId ?? null;
-  const lastTurn = turns[turns.length - 1];
 
   /**
    * Guards against a double submission.
@@ -115,11 +138,24 @@ export function AiAssistantPanel({
       setProposal(null);
       setProposalMessage(null);
       try {
+        // Page-level context (an open patient, say) and the answers typed into the
+        // capability's own inputs are merged, with the typed value winning: it is the
+        // more specific of the two. Undefined and blank entries are dropped so an
+        // untouched field never overwrites real context with an empty value.
+        const merged: Record<string, string | number> = {};
+        for (const [key, value] of Object.entries(contextArguments ?? {})) {
+          if (value !== undefined && String(value).trim() !== '') merged[key] = value;
+        }
+        for (const [key, value] of Object.entries(capabilityArguments)) {
+          const trimmed = String(value ?? '').trim();
+          if (trimmed) merged[key] = trimmed;
+        }
+
         const response = await askAiAssistant({
           capabilityId: capability,
           message: question,
           conversationId,
-          arguments: contextArguments,
+          arguments: merged,
         });
         setTurns((previous) => [...previous, response]);
       } catch (err) {
@@ -129,7 +165,7 @@ export function AiAssistantPanel({
         setIsPending(false);
       }
     },
-    [conversationId, contextArguments]
+    [conversationId, contextArguments, capabilityArguments]
   );
 
   const resolveProposal = useCallback(
@@ -137,19 +173,60 @@ export function AiAssistantPanel({
       setProposalBusy(true);
       setProposalMessage(null);
       try {
-        const result = accept
-          ? await confirmAiAction(id)
-          : (await rejectAiAction(id), { resultMessage: 'Discarded.' });
-        setProposalMessage(result.resultMessage ?? (accept ? 'Applied.' : 'Discarded.'));
-        if (accept) setProposal(null);
+        if (accept) {
+          const result = await confirmAiAction(id);
+          setProposalMessage(result.resultMessage ?? 'Applied.');
+          setResolvedProposal(result);
+        } else {
+          await rejectAiAction(id);
+          setProposalMessage('Discarded.');
+          setResolvedProposal(null);
+        }
+        setProposal(null);
+        await queryClient.invalidateQueries({ queryKey: ['ai', 'actions', 'pending'] });
       } catch (err) {
         setProposalMessage(aiErrorMessage(err));
+        await queryClient.invalidateQueries({ queryKey: ['ai', 'actions', 'pending'] });
       } finally {
         setProposalBusy(false);
       }
     },
-    []
+    [queryClient]
   );
+
+  const createBookingProposal = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault();
+      if (proposalBusy) return;
+      setProposalBusy(true);
+      setProposalCreateError(null);
+      setProposalMessage(null);
+      setResolvedProposal(null);
+      try {
+        const created = await proposeAiAction({
+          type: 'BOOK',
+          conversationId,
+          patientId: proposalForm.patientId.trim(),
+          doctorId: proposalForm.doctorId.trim(),
+          appointmentDate: proposalForm.appointmentDate,
+          durationMinutes: Number(proposalForm.durationMinutes),
+          reason: proposalForm.reason.trim() || undefined,
+        });
+        setProposal(created);
+        setProposalMessage('Proposal prepared. Review it before confirming.');
+        await queryClient.invalidateQueries({ queryKey: ['ai', 'actions', 'pending'] });
+      } catch (err) {
+        setProposalCreateError(aiErrorMessage(err));
+      } finally {
+        setProposalBusy(false);
+      }
+    },
+    [conversationId, proposalBusy, proposalForm, queryClient]
+  );
+
+  const updateProposalField = (field: keyof typeof proposalForm, value: string) => {
+    setProposalForm((current) => ({ ...current, [field]: value }));
+  };
 
   const available = capabilities.data?.capabilities ?? [];
   const selected = useMemo(
@@ -293,6 +370,34 @@ export function AiAssistantPanel({
               </div>
             </fieldset>
 
+            {/*
+              Argument inputs, rendered from the server's declaration rather than a
+              hard-coded list. A capability that cannot answer without one — "which
+              doctor?", "which patient?" — used to fail on every attempt with an error
+              that named authorisation rather than the missing field.
+            */}
+            {selected?.requiredArguments?.map((argument) => (
+              <div key={argument.name} className="space-y-1.5">
+                <label
+                  htmlFor={`ai-arg-${argument.name}`}
+                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  {argument.prompt}
+                </label>
+                <input
+                  id={`ai-arg-${argument.name}`}
+                  value={capabilityArguments[argument.name] ?? ''}
+                  onChange={(event) =>
+                    setCapabilityArguments((current) => ({
+                      ...current,
+                      [argument.name]: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            ))}
+
             <form onSubmit={handleSubmit} className="space-y-2">
               <label htmlFor="ai-question" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Your question
@@ -346,6 +451,109 @@ export function AiAssistantPanel({
                 {error}
               </div>
             ) : null}
+
+            {available.some((capability) => capability.id === 'available_slots') ? (
+              <section className="rounded-xl border border-border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold">Appointment proposal</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Prepare a typed suggestion from authorised data. No appointment is created until you confirm it.
+                    </p>
+                  </div>
+                  <Badge variant="outline">Human confirmation required</Badge>
+                </div>
+                <form onSubmit={createBookingProposal} className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label htmlFor="ai-proposal-patient" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Patient ID
+                    </label>
+                    <input
+                      id="ai-proposal-patient"
+                      required
+                      value={proposalForm.patientId}
+                      onChange={(event) => updateProposalField('patientId', event.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="ai-proposal-doctor" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Clinician ID
+                    </label>
+                    <input
+                      id="ai-proposal-doctor"
+                      required
+                      value={proposalForm.doctorId}
+                      onChange={(event) => updateProposalField('doctorId', event.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="ai-proposal-date" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Proposed date and time
+                    </label>
+                    <input
+                      id="ai-proposal-date"
+                      type="datetime-local"
+                      required
+                      value={proposalForm.appointmentDate}
+                      onChange={(event) => updateProposalField('appointmentDate', event.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="ai-proposal-duration" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Duration (minutes)
+                    </label>
+                    <input
+                      id="ai-proposal-duration"
+                      type="number"
+                      min={5}
+                      max={480}
+                      required
+                      value={proposalForm.durationMinutes}
+                      onChange={(event) => updateProposalField('durationMinutes', event.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label htmlFor="ai-proposal-reason" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Reason (optional)
+                    </label>
+                    <input
+                      id="ai-proposal-reason"
+                      maxLength={500}
+                      value={proposalForm.reason}
+                      onChange={(event) => updateProposalField('reason', event.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Button type="submit" size="sm" disabled={proposalBusy}>
+                      {proposalBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                      {proposalBusy ? 'Preparing…' : 'Prepare proposal'}
+                    </Button>
+                  </div>
+                </form>
+                {proposalCreateError ? (
+                  <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {proposalCreateError}
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+
+            <PendingProposals
+              actions={pendingActions.data ?? []}
+              loading={pendingActions.isLoading}
+              error={pendingActions.error ? aiErrorMessage(pendingActions.error) : null}
+              activeProposal={proposal}
+              resolvedProposal={resolvedProposal}
+              message={proposalMessage}
+              busy={proposalBusy}
+              onRefresh={() => void pendingActions.refetch()}
+              onResolve={(id, accept) => void resolveProposal(id, accept)}
+            />
 
             {/*
               Answers are rendered as text, never as HTML. Model output is
@@ -451,6 +659,99 @@ export function AiForecastCard({ className }: { className?: string }) {
       />
     </div>
   );
+}
+
+function PendingProposals({
+  actions,
+  loading,
+  error,
+  activeProposal,
+  resolvedProposal,
+  message,
+  busy,
+  onRefresh,
+  onResolve,
+}: {
+  actions: AiPendingAction[];
+  loading: boolean;
+  error: string | null;
+  activeProposal: AiPendingAction | null;
+  resolvedProposal: AiPendingAction | null;
+  message: string | null;
+  busy: boolean;
+  onRefresh: () => void;
+  onResolve: (id: string, accept: boolean) => void;
+}) {
+  const visible = activeProposal && !actions.some((action) => action.id === activeProposal.id)
+    ? [activeProposal, ...actions]
+    : actions;
+
+  return (
+    <section className="rounded-xl border border-border p-4" aria-labelledby="ai-pending-proposals">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 id="ai-pending-proposals" className="text-sm font-semibold">Appointment proposals</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Review the patient, clinician, time, and reason before applying any change.
+          </p>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={loading}>
+          Refresh
+        </Button>
+      </div>
+      {loading ? <p className="mt-3 text-sm text-muted-foreground">Loading pending proposals…</p> : null}
+      {error ? <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {!loading && !error && visible.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">No proposals are waiting for your decision.</p>
+      ) : null}
+      <div className="mt-3 space-y-3">
+        {visible.map((action) => {
+          const awaiting = action.status === 'PROPOSED';
+          return (
+            <article key={action.id} className="rounded-lg border border-border bg-background p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">{action.type?.replaceAll('_', ' ') ?? 'Appointment change'}</p>
+                  <p className="mt-1 text-sm text-foreground">{action.description ?? 'Details unavailable.'}</p>
+                </div>
+                <Badge variant={awaiting ? 'warning' : 'outline'}>{action.status}</Badge>
+              </div>
+              <dl className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                <div><dt className="font-medium text-foreground">Created</dt><dd>{formatProposalDate(action.createdAt)}</dd></div>
+                <div><dt className="font-medium text-foreground">Expires</dt><dd>{formatProposalDate(action.expiresAt)}</dd></div>
+                {action.appointmentId ? <div><dt className="font-medium text-foreground">Appointment</dt><dd>{action.appointmentId}</dd></div> : null}
+              </dl>
+              {action.resultMessage ? <p className="mt-3 text-sm text-muted-foreground">{action.resultMessage}</p> : null}
+              {awaiting ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" size="sm" disabled={busy} onClick={() => onResolve(action.id, true)}>
+                    <Check className="h-4 w-4" aria-hidden />
+                    Confirm
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onResolve(action.id, false)}>
+                    <X className="h-4 w-4" aria-hidden />
+                    Reject
+                  </Button>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
+      {resolvedProposal ? (
+        <p role="status" className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+          Persisted state: {resolvedProposal.status.toLowerCase()}.
+        </p>
+      ) : null}
+      {message ? <p role="status" className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
+    </section>
+  );
+}
+
+function formatProposalDate(value: string | null): string {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function ForecastSummary({

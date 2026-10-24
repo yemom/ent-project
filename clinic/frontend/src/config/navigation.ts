@@ -19,6 +19,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Sparkles,
   Stethoscope,
   User,
   UserCheck,
@@ -282,7 +283,7 @@ export const NAVIGATION_CONFIG: Record<string, NavGroup[]> = {
     {
       label: 'Prescriptions/Orders',
       icon: PillBottle,
-      href: '/pharmacist/prescriptions',
+      href: '/pharmacist/orders',
       badgeKey: 'pendingPrescriptions',
     },
     {
@@ -376,6 +377,40 @@ export const NAVIGATION_CONFIG: Record<string, NavGroup[]> = {
 // Map legacy aliases
 NAVIGATION_CONFIG.ADMIN = NAVIGATION_CONFIG.SUPER_ADMIN;
 NAVIGATION_CONFIG.LABORATORY = NAVIGATION_CONFIG.LAB_TECHNICIAN;
+
+/**
+ * Entries every role gets, appended rather than repeated in nine menus.
+ *
+ * <p>Both are role-neutral by design:
+ *
+ * <ul>
+ *   <li><b>Assistant</b> — what a role can ask is decided by the server:
+ *       `/ai/capabilities` returns only the capabilities its permissions allow. So
+ *       the entry is unconditional; showing a role a screen that says "there is
+ *       nothing to answer with your current access" is honest, whereas hiding the
+ *       feature from a role that <em>can</em> use it is not.</li>
+ *   <li><b>Notifications</b> — the bell's dropdown is a ten-row triage list. Without
+ *       a full page there is no way to reach older items, filter by category, or
+ *       page through history.</li>
+ * </ul>
+ *
+ * <p>Appending here means a role added later cannot quietly miss either, and the
+ * legacy aliases — which share the same array objects — inherit both without a
+ * second pass.
+ */
+const SHARED_NAV: NavGroup[] = [
+  { label: 'Assistant', icon: Sparkles, href: '/ai' },
+  { label: 'Notifications', icon: Bell, href: '/notifications', badgeKey: 'unreadNotifications' },
+];
+
+for (const groups of Object.values(NAVIGATION_CONFIG)) {
+  const existing = new Set(groups.map((group) => group.label));
+  for (const group of SHARED_NAV) {
+    if (!existing.has(group.label)) {
+      groups.push(group);
+    }
+  }
+}
 
 export function getNavigationForRole(role?: string | null): NavGroup[] {
   if (!role) return [];

@@ -10,6 +10,7 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  type NotificationListParams,
 } from '@/features/notifications/services/notifications.service';
 
 /** Polling cadence for the fallback path when SSE is not connected. */
@@ -79,16 +80,34 @@ export function useUnreadCount() {
   return query;
 }
 
-/** Recent notifications for the dropdown. */
-export function useNotifications(page = 0, size = 15) {
+/**
+ * The notification list, filtered and paginated.
+ *
+ * <p>The page and filters are part of the query key rather than applied after the
+ * response, so switching a filter fetches a different cached result instead of
+ * refetching the whole list and hiding the difference.
+ *
+ * <p>Both the dropdown and the full page use this, so the bell and the page share
+ * one cache entry for the same filter — marking a notification read in the dropdown
+ * updates the page too.
+ */
+export function useNotifications({
+  page = 0,
+  size = 15,
+  type = null,
+  read = 'all',
+}: NotificationListParams = {}) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const query = useQuery({
-    queryKey: [...NOTIFICATION_LIST_KEY, page, size] as const,
-    queryFn: () => listNotifications(page, size),
+    queryKey: [...NOTIFICATION_LIST_KEY, page, size, type, read] as const,
+    queryFn: () => listNotifications({ page, size, type, read }),
     enabled: isAuthenticated,
     refetchInterval: POLL_INTERVAL_MS,
     staleTime: 15_000,
+    // Keeps the previous page visible while the next one loads, so paging does not
+    // collapse the list into a skeleton.
+    placeholderData: (previous) => previous,
   });
 
   const refetch = query.refetch;
@@ -97,29 +116,47 @@ export function useNotifications(page = 0, size = 15) {
   return query;
 }
 
+/**
+ * Marks one notification read, updating the cache optimistically.
+ *
+ * <p>The unread badge is only decremented when the row was actually unread.
+ * Decrementing unconditionally would let a second call on an already-read row
+ * silently shrink the badge below the true count, and nothing would correct it
+ * until the next poll — the badge and the list would then disagree with the
+ * server. The guard reads the cached copy rather than taking the caller at its
+ * word, so it does not depend on every call site checking first.
+ */
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
 
   return useCallback(
     async (id: string) => {
-      // Optimistic: the bell should feel instant.
-      queryClient.setQueryData(NOTIFICATION_UNREAD_KEY, (current: number | undefined) =>
-        typeof current === 'number' ? Math.max(0, current - 1) : current
-      );
+      let wasUnread = false;
+
       queryClient.setQueriesData({ queryKey: NOTIFICATION_LIST_KEY }, (current: unknown) => {
         const page = current as { content?: Array<{ id: string; readAt: string | null }> } | undefined;
         if (!page?.content) return current;
+        const target = page.content.find((item) => item.id === id);
+        if (target && !target.readAt) wasUnread = true;
         return {
           ...page,
           content: page.content.map((item) =>
-            item.id === id ? { ...item, readAt: new Date().toISOString() } : item
+            item.id === id ? { ...item, readAt: item.readAt ?? new Date().toISOString() } : item
           ),
         };
       });
 
+      if (wasUnread) {
+        queryClient.setQueryData(NOTIFICATION_UNREAD_KEY, (current: number | undefined) =>
+          typeof current === 'number' ? Math.max(0, current - 1) : current
+        );
+      }
+
       try {
         await markNotificationRead(id);
       } finally {
+        // Re-read from the server either way, so a rejected call cannot leave an
+        // optimistic badge in place.
         void queryClient.invalidateQueries({ queryKey: NOTIFICATION_UNREAD_KEY });
       }
     },
@@ -127,6 +164,13 @@ export function useMarkNotificationRead() {
   );
 }
 
+/**
+ * Marks everything read and returns how many rows the server actually changed.
+ *
+ * <p>The count is passed back rather than discarded: the caller reports "12 marked"
+ * instead of an unquantified success, and `0` is distinguishable from a request
+ * that never arrived — which a bare `Promise<void>` cannot express.
+ */
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient();
 
@@ -138,6 +182,6 @@ export function useMarkAllNotificationsRead() {
       const readAt = new Date().toISOString();
       return { ...page, content: page.content.map((item) => ({ ...item, readAt })) };
     });
-    await markAllNotificationsRead();
+    return markAllNotificationsRead();
   }, [queryClient]);
 }

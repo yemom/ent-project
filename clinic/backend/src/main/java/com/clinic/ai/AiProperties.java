@@ -73,12 +73,15 @@ public class AiProperties {
     private List<String> allowedHosts = new ArrayList<>();
 
     public boolean isConfigured() {
-        return enabled
-                && apiUrl != null && !apiUrl.isBlank()
-                && model != null && !model.isBlank()
-                && apiKey != null
-                && !apiKey.isBlank()
-                && !apiKey.startsWith("REPLACE_WITH_");
+        return isConfiguredFor(provider);
+    }
+
+    public boolean isConfiguredFor(String providerName) {
+        boolean hasEndpoint = apiUrl != null && !apiUrl.isBlank();
+        boolean hasModel = model != null && !model.isBlank();
+        boolean localProvider = "local-ollama".equalsIgnoreCase(providerName);
+        boolean hasKey = apiKey != null && !apiKey.isBlank() && !apiKey.startsWith("REPLACE_WITH_");
+        return enabled && hasEndpoint && hasModel && (localProvider || hasKey);
     }
 
     public boolean isEnabled() {

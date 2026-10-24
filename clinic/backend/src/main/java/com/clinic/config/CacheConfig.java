@@ -25,7 +25,6 @@ public class CacheConfig {
 
         return builder -> builder
                 .cacheDefaults(defaultConfig)
-                .withCacheConfiguration(CacheNames.LAB_NOTIFICATION_COUNTS, defaultConfig.entryTtl(Duration.ofMinutes(2)))
                 .withCacheConfiguration(CacheNames.DOCTOR_AVAILABILITY, defaultConfig.entryTtl(Duration.ofMinutes(30)));
     }
 }

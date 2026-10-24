@@ -14,7 +14,7 @@
  * Exits non-zero when any link is dead.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,13 @@ const navFile = path.join(root, 'src', 'config', 'navigation.ts');
 /** Collects every route path the App Router can serve. */
 function collectRoutes(dir, prefix = '') {
   const routes = new Set();
+
+  // `src/app/page.tsx` serves `/`. Checking only the children would omit the root
+  // and report a link to `/` as dead when it is the landing page.
+  if (prefix === '' && existsSync(path.join(dir, 'page.tsx'))) {
+    routes.add('/');
+  }
+
   for (const entry of readdirSync(dir)) {
     const full = path.join(dir, entry);
     if (!statSync(full).isDirectory()) continue;

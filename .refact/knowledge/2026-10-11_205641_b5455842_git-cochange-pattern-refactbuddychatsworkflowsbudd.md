@@ -6,7 +6,7 @@ tags:
 - git
 - pattern
 created: 2026-10-11
-updated: 2026-10-18
+updated: 2026-10-20
 filenames:
 - .refact/buddy/chats/workflows/buddy_pr_issue_matchmaker.json
 - .refact/buddy/state.json
@@ -15,7 +15,7 @@ kind: pattern
 status: proposed
 superseded_by: null
 deprecated_at: null
-review_after: 2026-10-18
+review_after: 2026-10-20
 source_chat_id: null
 created_at: 2026-10-11T17:56:41.692886+00:00
 summary: null

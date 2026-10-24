@@ -8,6 +8,14 @@ node_modules/
 # `.next-verify` is the output directory used when verifying a build against a
 # running backend; it is build output like any other and must not be committed.
 .next-verify/
+# `.next-dev` is the default dist dir for `npm run dev` (see frontend/scripts/dev.mjs).
+# It must be ignored for the same reason as the others, and more sharply: it is the
+# ONE build directory a long-running process rewrites continuously. While its files
+# were tracked, every `git status`/`git add` opened read handles on exactly the files
+# the dev server was rewriting, and on Windows that collision surfaced as
+#   [Error: UNKNOWN: unknown error, open '.next-dev/react-loadable-manifest.json']
+# repeating forever, because the conflict was structural rather than transient.
+.next-dev/
 .vercel/
 out/
 dist/

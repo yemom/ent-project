@@ -17,7 +17,7 @@ import java.util.Set;
  */
 public interface NotificationService {
 
-    Page<NotificationResponse> listForCurrentUser(Pageable pageable);
+    Page<NotificationResponse> listForCurrentUser(NotificationQuery query, Pageable pageable);
 
     long unreadCountForCurrentUser();
 

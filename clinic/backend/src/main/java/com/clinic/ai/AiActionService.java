@@ -92,6 +92,11 @@ public class AiActionService {
                                           String appointmentDate,
                                           Integer durationMinutes,
                                           String reason) {
+        requireActionPermission(AiPendingAction.TYPE_BOOK_APPOINTMENT);
+        if (currentUser.is(com.clinic.entity.UserRole.PATIENT)
+                && !currentUser.userId().equals(patientId)) {
+            throw new ForbiddenException("You may only prepare appointments for yourself.");
+        }
         requireAvailable();
 
         if (patientId == null || patientId.isBlank()
@@ -134,6 +139,7 @@ public class AiActionService {
     public AiPendingAction proposeCancellation(String conversationId,
                                                String appointmentId,
                                                String reason) {
+        requireActionPermission(AiPendingAction.TYPE_CANCEL);
         requireAvailable();
         if (appointmentId == null || appointmentId.isBlank()) {
             throw new BadRequestException("An appointment is required");
@@ -162,6 +168,7 @@ public class AiActionService {
                                              String appointmentId,
                                              String newDate,
                                              Integer durationMinutes) {
+        requireActionPermission(AiPendingAction.TYPE_RESCHEDULE);
         requireAvailable();
         if (appointmentId == null || appointmentId.isBlank()) {
             throw new BadRequestException("An appointment is required");
@@ -359,6 +366,13 @@ public class AiActionService {
         AiService.AiAvailability availability = aiService.availability();
         if (!availability.available()) {
             throw new ServiceUnavailableException(availability.reason());
+        }
+    }
+
+    private void requireActionPermission(String actionType) {
+        AiCapability capability = AiCapability.forActionType(actionType);
+        if (capability == null || !capability.isAvailableTo(currentUser.role())) {
+            throw new ForbiddenException("You do not have permission to prepare this action.");
         }
     }
 

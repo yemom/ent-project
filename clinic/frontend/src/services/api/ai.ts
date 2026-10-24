@@ -11,12 +11,24 @@ import { getFriendlyErrorMessage } from '@/lib/error-handler';
  */
 
 /** One question the assistant can answer, already authorised for this caller. */
+/** One input a capability cannot answer without. Declared by the server. */
+export interface AiRequiredArgument {
+  name: string;
+  prompt: string;
+}
+
 export interface AiCapability {
   id: string;
   label: string;
   description: string;
   suggestedQuestion: string;
   requiresHumanReview: boolean;
+  /**
+   * Empty for most capabilities. When non-empty the panel renders an input per
+   * argument and sends the values back, so a capability that needs a doctor or a
+   * patient is usable instead of failing on every attempt.
+   */
+  requiredArguments?: AiRequiredArgument[];
 }
 
 export interface AiCapabilitiesResponse {

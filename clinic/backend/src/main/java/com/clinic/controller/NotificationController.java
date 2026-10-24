@@ -3,7 +3,10 @@ package com.clinic.controller;
 import com.clinic.config.ApiPaths;
 import com.clinic.dto.response.NotificationResponse;
 import com.clinic.dto.response.PageResponse;
+import com.clinic.entity.NotificationType;
+import com.clinic.exception.BadRequestException;
 import com.clinic.security.CurrentUser;
+import com.clinic.service.NotificationQuery;
 import com.clinic.service.NotificationService;
 import com.clinic.service.impl.NotificationStreamService;
 import lombok.extern.slf4j.Slf4j;
@@ -19,8 +22,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Notification endpoints. Every action is scoped to the caller's identity taken
@@ -44,14 +52,43 @@ public class NotificationController {
         this.currentUser = currentUser;
     }
 
+    /**
+     * The caller's own notifications, newest first.
+     *
+     * <p>{@code type} and {@code read} narrow the list and are both optional. They
+     * are intersected with the recipient scope inside the query rather than applied
+     * afterwards, so a filter can never widen what a caller sees.
+     *
+     * <p>An unknown {@code type} is rejected rather than ignored: silently treating
+     * a typo as "no filter" returns the unfiltered list, which is a confusing way
+     * to say "that category does not exist".
+     */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PageResponse<NotificationResponse>> list(
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean read,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             @ParameterObject Pageable pageable
     ) {
-        Page<NotificationResponse> page = notificationService.listForCurrentUser(pageable);
+        Page<NotificationResponse> page = notificationService.listForCurrentUser(
+                new NotificationQuery(parseType(type), read), pageable);
         return ResponseEntity.ok(PageResponse.of(page));
+    }
+
+    /** @return the requested category, or {@code null} for "all categories" */
+    private static NotificationType parseType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return NotificationType.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Unknown notification type '" + raw + "'. Valid values are: "
+                    + Arrays.stream(NotificationType.values())
+                            .map(Enum::name)
+                            .collect(Collectors.joining(", ")) + ".");
+        }
     }
 
     @GetMapping("/unread-count")

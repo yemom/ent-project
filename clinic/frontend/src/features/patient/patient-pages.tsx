@@ -946,34 +946,7 @@ export function PatientProfilePage() {
 }
 
 export function PatientNotificationsPage() {
-  const [items, setItems] = useState<string[]>([]);
-  const user = useAuthStore((s) => s.user);
-
-  useEffect(() => {
-    async function fetchData() {
-      const data = await listAppointments(user ? { patientId: user.id, size: 5 } : { size: 5 });
-      const notifications = (data.content ?? []).map(
-        (a) =>
-          `Appointment ${a.status.toLowerCase()}: ${a.reasonForVisit ?? 'General consultation'} on ${formatDateTime(
-            a.appointmentDate,
-          )}`,
-      );
-      setItems(notifications);
-    }
-    fetchData().catch(() => setItems([]));
-  }, [user]);
-
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Notifications" description="View reminders, results, and care team updates." />
-      <Card>
-        <CardContent className="space-y-3 p-6">
-          {items.length === 0 ? <div className="rounded-2xl bg-muted/50 p-4">No new notifications</div> : null}
-          {items.map((item) => (
-            <div key={item} className="rounded-2xl bg-muted/50 p-4">{item}</div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
+  // Moved to the shared screen at `/notifications`, which reads the real
+  // `GET /notifications` rather than presenting appointments as notifications.
+  return null;
 }

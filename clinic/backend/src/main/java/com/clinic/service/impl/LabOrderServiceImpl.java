@@ -5,15 +5,12 @@ import com.clinic.dto.request.UpdateLabOrderStatusRequest;
 import com.clinic.dto.response.LabOrderResponse;
 import com.clinic.entity.LabOrder;
 import com.clinic.entity.LabOrderStatus;
-import com.clinic.entity.NotificationType;
 import com.clinic.entity.User;
-import com.clinic.entity.UserRole;
 import com.clinic.exception.ResourceNotFoundException;
 import com.clinic.mapper.LabOrderMapper;
 import com.clinic.repository.LabOrderRepository;
 import com.clinic.repository.UserRepository;
 import com.clinic.service.LabOrderService;
-import com.clinic.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -35,16 +32,16 @@ public class LabOrderServiceImpl implements LabOrderService {
 
     private final LabOrderRepository labOrderRepository;
     private final UserRepository userRepository;
-    private final NotificationService notificationService;
+    private final LabEventNotifier labEventNotifier;
     private final LabOrderMapper mapper;
 
     public LabOrderServiceImpl(LabOrderRepository labOrderRepository,
                                UserRepository userRepository,
-                               NotificationService notificationService,
+                               LabEventNotifier labEventNotifier,
                                LabOrderMapper mapper) {
         this.labOrderRepository = labOrderRepository;
         this.userRepository = userRepository;
-        this.notificationService = notificationService;
+        this.labEventNotifier = labEventNotifier;
         this.mapper = mapper;
     }
 
@@ -55,15 +52,9 @@ public class LabOrderServiceImpl implements LabOrderService {
         LabOrder saved = labOrderRepository.save(order);
         log.info("Created lab order id={} for patient={}", saved.getId(), saved.getPatientId());
 
-        // Lab staff and the pharmacy need to know an investigation was requested.
-        notificationService.notifyRoles(
-                Set.of(UserRole.LAB_TECHNICIAN, UserRole.LABORATORY, UserRole.PHARMACIST),
-                NotificationType.LAB_ORDER_CREATED,
-                "New lab order",
-                String.format("Lab order %s was created for patient %s (%s urgency).",
-                        saved.getId(), saved.getPatientId(), saved.getUrgency()),
-                saved.getId(),
-                "/laboratory/orders/" + saved.getId());
+        // Announced after the save: a rejected request must not tell the laboratory
+        // that work exists which was never created.
+        labEventNotifier.onOrderCreated(saved);
         return mapper.toResponse(saved);
     }
 
@@ -102,9 +93,16 @@ public class LabOrderServiceImpl implements LabOrderService {
     @CacheEvict(cacheNames = LAB_ORDERS, allEntries = true)
     public LabOrderResponse updateStatus(String id, UpdateLabOrderStatusRequest request) {
         LabOrder order = getEntityById(id);
+
+        // Read before the write so the notifier can tell a real move from a repeat
+        // of the status the order is already in.
+        String previousStatus = order.getStatus() == null ? null : order.getStatus().name();
+
         order.setStatus(LabOrderStatus.valueOf(request.status().toUpperCase()));
         LabOrder updated = labOrderRepository.save(order);
         log.info("Updated lab order status id={} status={}", id, request.status());
+
+        labEventNotifier.onOrderStatusChanged(updated, previousStatus);
         return mapper.toResponse(updated);
     }
 

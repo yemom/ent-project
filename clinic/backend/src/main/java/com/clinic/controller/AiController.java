@@ -237,7 +237,10 @@ public class AiController {
                 capability.label(),
                 capability.description(),
                 suggestedQuestion(capability),
-                capability.involvesClinicalText());
+                capability.involvesClinicalText(),
+                capability.requiredArguments().stream()
+                        .map(arg -> new AiCapabilitiesResponse.RequiredArgument(arg.name(), arg.prompt()))
+                        .toList());
     }
 
     /** Ready-made questions, so the UI never invents prompts a user cannot ground. */
@@ -246,7 +249,7 @@ public class AiController {
             case APPOINTMENT_METRICS ->
                     "Summarise today's appointments using the authorised scheduling data.";
             case AVAILABLE_SLOTS ->
-                    "Find appointment slots available for this doctor.";
+                    "Which appointment slots are free for this doctor over the next week?";
             case PATIENT_REGISTRATIONS ->
                     "How many new patients registered in the last 30 days?";
             case STAFF_WORKLOAD ->

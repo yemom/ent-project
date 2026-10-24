@@ -7,9 +7,9 @@ export * from './hooks/use-lab-orders';
 export * from './hooks/use-lab-results';
 export * from './services/lab-orders.service';
 export * from './services/lab-results.service';
-// Lab notifications now live in @/features/notifications (the generalised
-// Notification entity). The legacy lab-only bell and hooks remain for
-// compatibility but are no longer rendered by the app shell.
-export * from './hooks/use-lab-notifications';
-export * from './services/lab-notifications.service';
+// Notifications live in @/features/notifications. The lab-only bell, hook and
+// service were removed rather than left "for compatibility": they were never
+// rendered, and the API they called took a userId from the client, so any
+// authenticated lab role could read another user's notification list through it.
+// Keeping an unused, unscoped endpoint alive is not compatibility — it is a hole.
 export * from './types';

@@ -150,7 +150,7 @@ export function Sidebar({
           href={navGroups[0]?.href || "/"}
           className="flex items-center gap-3 font-semibold text-white tracking-wide transition hover:opacity-90"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-md shadow-primary/20">
             C
           </div>
           {!collapsed && (
@@ -158,7 +158,7 @@ export function Sidebar({
               <span className="text-base font-bold text-white tracking-tight">
                 Clinic Care
               </span>
-              <span className="text-[10px] text-blue-400 font-medium tracking-wider uppercase">
+              <span className="text-[10px] text-primary font-medium tracking-wider uppercase">
                 Enterprise CMS
               </span>
             </div>
@@ -209,7 +209,7 @@ export function Sidebar({
                       className={cn(
                         "flex h-11 w-full items-center justify-center rounded-xl transition duration-150",
                         isActive
-                          ? "bg-[#2563eb] text-white shadow-sm"
+                          ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-slate-400 hover:bg-slate-800/80 hover:text-white",
                       )}
                       aria-label={group.label}
@@ -288,7 +288,10 @@ export function Sidebar({
       {/* Pinned User Card */}
       <UserCard
         collapsed={collapsed}
-        fullName={user?.fullName || (userRole === "SUPER_ADMIN" ? "Super Admin" : "User")}
+        fullName={
+          user?.fullName ||
+          (userRole === "SUPER_ADMIN" ? "Super Admin" : "User")
+        }
         role={userRole}
         onLogout={handleLogout}
       />
@@ -300,7 +303,7 @@ export function Sidebar({
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-[#1e293b] transition-all duration-200 lg:flex",
+          "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-[#0f766e] transition-all duration-200 lg:flex",
           collapsed ? "w-20" : "w-64",
         )}
       >
@@ -319,7 +322,7 @@ export function Sidebar({
       {/* Mobile Drawer Content */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 border-r border-[#1e293b] shadow-2xl transition-transform duration-200 lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 border-r border-[#0f766e] shadow-2xl transition-transform duration-200 lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -358,7 +361,7 @@ function SidebarItem({
       className={cn(
         "group flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition duration-150",
         active
-          ? "bg-[#2563eb] text-white shadow-sm"
+          ? "bg-primary text-primary-foreground shadow-sm"
           : "text-slate-300 hover:bg-slate-800/70 hover:text-white",
       )}
     >
@@ -375,7 +378,7 @@ function SidebarItem({
         <span
           className={cn(
             "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
-            active ? "bg-white text-blue-700" : "bg-blue-600 text-white",
+            active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
           )}
         >
           {badgeCount}
@@ -422,7 +425,7 @@ function SidebarGroup({
             className={cn(
               "h-4 w-4 shrink-0 transition-colors",
               isGroupActive
-                ? "text-blue-400"
+                ? "text-primary"
                 : "text-slate-400 group-hover:text-white",
             )}
           />
@@ -430,7 +433,7 @@ function SidebarGroup({
         </div>
         <div className="flex items-center gap-2">
           {typeof badgeCount === "number" && badgeCount > 0 && (
-            <span className="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
+            <span className="inline-flex items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
               {badgeCount}
             </span>
           )}
@@ -476,7 +479,7 @@ function SidebarSubItem({
       className={cn(
         "group flex items-center justify-between rounded-lg px-3 py-2 text-[13px] font-medium transition duration-150",
         active
-          ? "bg-[#2563eb] text-white shadow-sm"
+          ? "bg-primary text-primary-foreground shadow-sm"
           : "text-slate-400 hover:bg-slate-800/60 hover:text-white",
       )}
     >
@@ -485,7 +488,7 @@ function SidebarSubItem({
         <span
           className={cn(
             "inline-flex items-center justify-center rounded-full px-1.5 py-0.2 text-[11px] font-semibold",
-            active ? "bg-white text-blue-700" : "bg-blue-600 text-white",
+            active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
           )}
         >
           {badgeCount}
@@ -516,7 +519,7 @@ function UserCard({ collapsed, fullName, role, onLogout }: UserCardProps) {
           type="button"
           onClick={onLogout}
           title="Sign out"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm shadow hover:bg-red-600 transition"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm shadow hover:bg-red-600 transition"
         >
           {initial}
         </button>
@@ -528,7 +531,7 @@ function UserCard({ collapsed, fullName, role, onLogout }: UserCardProps) {
     <div className="border-t border-[#1e293b] p-3">
       <div className="flex items-center justify-between rounded-xl p-2 bg-[#0d1628]/60 hover:bg-[#0d1628] transition">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-sm">
             {initial}
           </div>
           <div className="flex flex-col overflow-hidden">

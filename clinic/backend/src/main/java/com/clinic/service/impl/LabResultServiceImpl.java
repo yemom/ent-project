@@ -7,13 +7,11 @@ import com.clinic.dto.response.LabResultResponse;
 import com.clinic.entity.LabOrder;
 import com.clinic.entity.LabResult;
 import com.clinic.entity.LabResultStatus;
-import com.clinic.entity.NotificationType;
 import com.clinic.exception.ResourceNotFoundException;
 import com.clinic.mapper.LabResultMapper;
 import com.clinic.repository.LabOrderRepository;
 import com.clinic.repository.LabResultRepository;
 import com.clinic.service.LabResultService;
-import com.clinic.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.Set;
 
 import static com.clinic.config.CacheNames.LAB_RESULTS;
 
@@ -35,16 +32,16 @@ public class LabResultServiceImpl implements LabResultService {
 
     private final LabResultRepository labResultRepository;
     private final LabOrderRepository labOrderRepository;
-    private final NotificationService notificationService;
+    private final LabEventNotifier labEventNotifier;
     private final LabResultMapper mapper;
 
     public LabResultServiceImpl(LabResultRepository labResultRepository,
                                 LabOrderRepository labOrderRepository,
-                                NotificationService notificationService,
+                                LabEventNotifier labEventNotifier,
                                 LabResultMapper mapper) {
         this.labResultRepository = labResultRepository;
         this.labOrderRepository = labOrderRepository;
-        this.notificationService = notificationService;
+        this.labEventNotifier = labEventNotifier;
         this.mapper = mapper;
     }
 
@@ -72,36 +69,14 @@ public class LabResultServiceImpl implements LabResultService {
 
         LabResult saved = labResultRepository.save(result);
         log.info("Created lab result id={} critical={}", saved.getId(), saved.getCritical());
-        notifyOrderingDoctorIfFinal(saved);
-        notifyDoctorIfCritical(saved);
+
+        // A critical finding alerts the ordering doctor even while the result is
+        // still a draft: waiting for finalisation would delay exactly the findings
+        // that must not wait. Both emits are idempotent, so creating a result that
+        // is both critical and final notifies once per event rather than twice.
+        labEventNotifier.onResultRecorded(saved);
+        labEventNotifier.onResultFinalized(saved);
         return mapper.toResponse(saved);
-    }
-
-    /**
-     * A critical result notifies the ordering doctor immediately, not only on
-     * finalisation.
-     *
-     * <p>Waiting for the result to be marked final would delay the alert for
-     * exactly the findings that must not wait, so a critical draft notifies too.
-     */
-    private void notifyDoctorIfCritical(LabResult result) {
-        if (!Boolean.TRUE.equals(result.getCritical()) || result.getLabOrder() == null) {
-            return;
-        }
-
-        String doctorId = result.getLabOrder().getDoctorId();
-        if (doctorId == null || doctorId.isBlank()) {
-            return;
-        }
-
-        notificationService.createForUser(
-                doctorId,
-                com.clinic.entity.NotificationType.LAB_RESULT_READY,
-                "Critical laboratory result",
-                String.format("A critical result was recorded for order %s.",
-                        result.getLabOrder().getId()),
-                result.getLabOrder().getId(),
-                "/doctor/laboratory");
     }
 
     @Override
@@ -155,14 +130,24 @@ public class LabResultServiceImpl implements LabResultService {
     @CacheEvict(cacheNames = LAB_RESULTS, allEntries = true)
     public LabResultResponse updateStatus(String id, UpdateLabResultStatusRequest request) {
         LabResult result = getEntityById(id);
+
+        // Read before the write. Without this, verifying the same result twice — a
+        // retry, or a technician clicking Verify again — re-announces "your result
+        // is ready" every time, and the doctor learns nothing new but has a longer
+        // inbox to clear.
+        boolean wasFinal = LabResultStatus.FINAL.equals(result.getStatus());
+
         result.setStatus(LabResultStatus.valueOf(request.status().toUpperCase()));
-        if (LabResultStatus.FINAL.toString().equals(request.status().toUpperCase())) {
+        if (!wasFinal && LabResultStatus.FINAL.equals(result.getStatus())) {
             result.setSubmittedAt(LocalDateTime.now());
         }
         result.setUpdatedAt(LocalDateTime.now());
         LabResult updated = labResultRepository.save(result);
         log.info("Updated lab result status id={} status={}", id, request.status());
-        notifyOrderingDoctorIfFinal(updated);
+
+        if (!wasFinal) {
+            labEventNotifier.onResultFinalized(updated);
+        }
         return mapper.toResponse(updated);
     }
 
@@ -176,26 +161,5 @@ public class LabResultServiceImpl implements LabResultService {
     private LabResult getEntityById(String id) {
         return labResultRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lab result not found with id: " + id));
-    }
-
-    /** A validated result goes back to the doctor who ordered the investigation. */
-    private void notifyOrderingDoctorIfFinal(LabResult result) {
-        if (!LabResultStatus.FINAL.equals(result.getStatus()) || result.getLabOrder() == null) {
-            return;
-        }
-
-        String doctorId = result.getLabOrder().getDoctorId();
-        if (doctorId == null || doctorId.isBlank()) {
-            return;
-        }
-
-        notificationService.createForUser(
-                doctorId,
-                NotificationType.LAB_RESULT_READY,
-                "Lab result ready",
-                String.format("Lab result %s for order %s is ready for review.",
-                        result.getId(), result.getLabOrder().getId()),
-                result.getId(),
-                "/doctor/laboratory?orderId=" + result.getLabOrder().getId());
     }
 }

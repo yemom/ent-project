@@ -27,14 +27,29 @@ public record AiCapabilitiesResponse(
      * @param description          what the question is answered from
      * @param suggestedQuestion    a ready-made question the UI can offer
      * @param requiresHumanReview  whether answers must be reviewed before use
+     * @param requiredArguments    argument names the caller must supply before the
+     *                            capability can answer, with a human prompt for each.
+     *                            Declared by the server so the UI renders the right
+     *                            input instead of hard-coding which capabilities
+     *                            need one — which silently drifts.
      */
     public record Capability(
             String id,
             String label,
             String description,
             String suggestedQuestion,
-            boolean requiresHumanReview
+            boolean requiresHumanReview,
+            List<RequiredArgument> requiredArguments
     ) {
+    }
+
+    /**
+     * One argument a capability cannot proceed without.
+     *
+     * @param name   the key the frontend sends back in {@code arguments}
+     * @param prompt what to ask the user for, phrased so they know what will happen
+     */
+    public record RequiredArgument(String name, String prompt) {
     }
 
     public static AiCapabilitiesResponse unavailable(String reason, String provider) {

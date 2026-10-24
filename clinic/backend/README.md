@@ -105,6 +105,35 @@ clinic/
 
 ##  Core Features
 
+### AI-assisted clinical documentation
+
+The assistant includes a clinician-only `clinical_documentation` capability for
+drafting visit summaries and handover notes from records the current user is
+already authorised to read. It is deliberately a draft workflow: the server
+labels responses as requiring human review, does not write diagnoses or
+prescriptions, and records an access audit event without storing prompt content in
+the audit table.
+
+For a privacy-preserving local graduation-project deployment, install
+[Ollama](https://ollama.com), pull a model, and start the backend with:
+
+```powershell
+ollama pull llama3.2
+$env:AI_ENABLED = "true"
+$env:AI_PROVIDER = "local-ollama"
+$env:AI_API_URL = "http://localhost:11434"
+$env:AI_MODEL = "llama3.2"
+mvn spring-boot:run
+```
+
+The browser never receives the Ollama URL or credentials. Keep
+`AI_ALLOW_IDENTIFIABLE_DATA=false` unless the deployment has explicitly approved
+sending identifiable clinical text to its model host. The assistant remains
+unavailable when Ollama is not running rather than fabricating a response.
+
+See the repository-level [graduation guide](../../GRADUATION_PROJECT.md) for the
+demo scenario, architecture, research questions, and acceptance criteria.
+
 ### 1. **Entity Models**
 
 - User (Base with role)

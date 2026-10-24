@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import NextLink from 'next/link';
 import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +14,31 @@ import {
 } from '@/features/notifications/hooks/use-notifications';
 import type { NotificationType } from '@/features/notifications/types';
 
-const TYPE_BADGES: Record<string, string> = {
+/**
+ * Badge colour per notification category.
+ *
+ * <p>Grouped by workflow rather than by colour: scheduling, pharmacy and
+ * laboratory each keep one hue so a reader learns "amber means scheduling" instead
+ * of re-reading every badge. Categories added later fall through to the muted
+ * default rather than crashing, which is why the lookup is total over a widened
+ * {@link NotificationType}.
+ */
+const TYPE_BADGES: Record<NotificationType, string> = {
+  APPOINTMENT_CREATED: 'bg-amber-100 text-amber-700',
+  APPOINTMENT_RESCHEDULED: 'bg-amber-100 text-amber-700',
+  APPOINTMENT_CANCELLED: 'bg-amber-100 text-amber-700',
+  APPOINTMENT_STATUS_CHANGED: 'bg-amber-100 text-amber-700',
+  APPOINTMENT_REMINDER: 'bg-amber-100 text-amber-700',
+  PRESCRIPTION_CREATED: 'bg-emerald-100 text-emerald-700',
+  PRESCRIPTION_STATUS_CHANGED: 'bg-emerald-100 text-emerald-700',
+  PRESCRIPTION_READY: 'bg-emerald-100 text-emerald-700',
   LAB_ORDER_CREATED: 'bg-sky-100 text-sky-700',
   LAB_RESULT_READY: 'bg-teal-100 text-teal-700',
   PATIENT_ASSIGNED: 'bg-violet-100 text-violet-700',
-  APPOINTMENT_REMINDER: 'bg-amber-100 text-amber-700',
-  PRESCRIPTION_READY: 'bg-emerald-100 text-emerald-700',
+  SYSTEM: 'bg-muted text-muted-foreground',
 };
+
+const DEFAULT_BADGE = 'bg-muted text-muted-foreground';
 
 function formatWhen(value: string) {
   const date = new Date(value);
@@ -41,7 +60,9 @@ export function NotificationBell() {
   const router = useRouter();
 
   const { data: unreadCount = 0, isLoading: countLoading } = useUnreadCount();
-  const { data: page, isLoading: listLoading } = useNotifications(0, 10);
+  // Unread only: the dropdown is a triage list. The full page is where history
+  // and the other filters live.
+  const { data: page, isLoading: listLoading } = useNotifications({ size: 10, read: 'unread' });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
@@ -135,7 +156,7 @@ export function NotificationBell() {
                       <span className="text-sm font-medium">{notification.title}</span>
                       <Badge
                         className={`text-[10px] ${
-                          TYPE_BADGES[notification.type as NotificationType] ?? 'bg-muted text-muted-foreground'
+                          TYPE_BADGES[notification.type as NotificationType] ?? DEFAULT_BADGE
                         }`}
                       >
                         {notification.type.replace(/_/g, ' ').toLowerCase()}
@@ -151,6 +172,21 @@ export function NotificationBell() {
                 );
               })
             )}
+          </div>
+
+          {/*
+            The dropdown is a ten-row triage list. Without this there is no way to
+            reach older notifications, the per-category filters, or pagination —
+            the three things the full page exists for.
+          */}
+          <div className="border-t border-border/60 p-2">
+            <NextLink
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="block rounded-lg px-3 py-2 text-center text-xs font-medium text-primary hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              View all notifications
+            </NextLink>
           </div>
         </div>
       ) : null}
