@@ -52,7 +52,7 @@ RUN chown -R clinic:clinic /app
 
 USER clinic
 
-ENV PORT=8080
+ENV PORT=10000
 EXPOSE ${PORT}
 
 # Container-level liveness. Uses the DB-free /api/v1/health endpoint so a slow or

@@ -72,13 +72,14 @@ Write-Output "Port: $Port"
 # ------------------------------------------------------------------ start server
 if ($UseRunningInstance) {
   Write-Output "Using the running server on port $Port."
-} else {
+}
+else {
   if (Test-Path $tempRoot) { Remove-Item -Recurse -Force $tempRoot }
   New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
   Write-Output "Creating a throwaway cluster..."
   & (Join-Path $pgBin "initdb.exe") -D $dataDir -U $User_ -A trust --encoding=UTF8 --locale=C 2>&1 |
-    Select-Object -Last 2
+  Select-Object -Last 2
   if ($LASTEXITCODE -ne 0) { throw "initdb failed" }
 
   Write-Output "Starting on port $Port..."
@@ -87,8 +88,8 @@ if ($UseRunningInstance) {
   # hung script rather than as a server that started. -w makes it wait for the
   # server to accept connections before returning, which is what we actually want.
   Start-Process -FilePath (Join-Path $pgBin "pg_ctl.exe") `
-      -ArgumentList "-D `"$dataDir`" -l `"$logFile`" -o `"-p $Port -c listen_addresses=127.0.0.1`" -w start" `
-      -NoNewWindow | Out-Null
+    -ArgumentList "-D `"$dataDir`" -l `"$logFile`" -o `"-p $Port -c listen_addresses=127.0.0.1`" -w start" `
+    -NoNewWindow | Out-Null
   $startedHere = $true
 
   $ready = $false
@@ -100,7 +101,8 @@ if ($UseRunningInstance) {
     if (Wait-Job $probe -Timeout 10) {
       $r = Receive-Job $probe
       if ($r -match "1") { $ready = $true }
-    } else {
+    }
+    else {
       Stop-Job $probe
     }
     Remove-Job $probe -Force -ErrorAction SilentlyContinue
@@ -122,10 +124,11 @@ function Invoke-Psql {
   if ($Database) { $a += @("-d", $Database) }
   $a += @("-c", $Sql)
   $job = Start-Job -ScriptBlock { param($exe, $arguments) & $exe @arguments 2>&1 } `
-         -ArgumentList $psql, $a
+    -ArgumentList $psql, $a
   try {
     if (Wait-Job $job -Timeout 30) { Receive-Job $job } else { Stop-Job $job; return "TIMEOUT" }
-  } finally {
+  }
+  finally {
     Remove-Job $job -Force -ErrorAction SilentlyContinue
   }
 }
@@ -141,7 +144,7 @@ try {
 
   # ------------------------------------------------------------------- run the app
   $jar = Get-ChildItem (Join-Path $backend "target") -Filter "clinicl-*.jar" -ErrorAction SilentlyContinue |
-    Select-Object -First 1
+  Select-Object -First 1
   if (-not $jar) {
     throw "No jar in backend\target. Run: mvn -o clean package -DskipTests"
   }
@@ -165,18 +168,18 @@ try {
   $env:CORS_ALLOWED_ORIGINS = "http://localhost:3100"
   $env:SERVER_PORT = "$appPort"
   # Throwaway credentials for a local check database; never a real deployment's.
-  $env:SUPER_ADMIN_NAME = "Migration Check"
-  $env:SUPER_ADMIN_EMAIL = "migration-check@example.invalid"
-  $env:SUPER_ADMIN_PASSWORD = "MigrationCheck!2026"
+  $env:SUPER_ADMIN_NAME = "Esrom Basazinaw"
+  $env:SUPER_ADMIN_EMAIL = "12yemom@gmail.com"
+  $env:SUPER_ADMIN_PASSWORD = "Fekerte@zegeye1221"
 
   # Quoted explicitly: Start-Process splits ArgumentList on spaces, and the
   # repository path contains them ("AAiT PROJECTS"). Without the quotes java
   # reports "Unable to access jarfile D:\AAiT".
   $app = Start-Process -FilePath "java" `
-      -ArgumentList "-jar `"$($jar.FullName)`"" `
-      -WorkingDirectory $backend `
-      -NoNewWindow -PassThru `
-      -RedirectStandardOutput $log -RedirectStandardError $err
+    -ArgumentList "-jar `"$($jar.FullName)`"" `
+    -WorkingDirectory $backend `
+    -NoNewWindow -PassThru `
+    -RedirectStandardOutput $log -RedirectStandardError $err
 
   $started = $false
   for ($i = 0; $i -lt 90; $i++) {
@@ -185,19 +188,20 @@ try {
     try {
       $health = Invoke-RestMethod -Uri "http://localhost:$appPort/api/v1/health" -TimeoutSec 3
       if ($health.status -eq "UP") { $started = $true; break }
-    } catch {}
+    }
+    catch {}
   }
 
   Write-Output ""
   Write-Output "--- Flyway ---"
   Select-String -Path $log -Pattern "Migrating schema|Successfully applied|Current version" |
-    ForEach-Object { $_.Line.Trim() }
+  ForEach-Object { $_.Line.Trim() }
 
   if (-not $started) {
     Write-Output ""
     Write-Output "STARTUP FAILED. First error:"
     Select-String -Path $log, $err -Pattern "ERROR|Caused by:|Migration V|Message    :" |
-      Select-Object -First 20 | ForEach-Object { "  " + $_.Line.Trim() }
+    Select-Object -First 20 | ForEach-Object { "  " + $_.Line.Trim() }
     exit 1
   }
 
@@ -212,11 +216,11 @@ try {
 }
 finally {
   Get-CimInstance Win32_Process -Filter "Name='java.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -like "*clinicl*.jar*" } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Where-Object { $_.CommandLine -like "*clinicl*.jar*" } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
   if ($startedHere -and (Test-Path $dataDir)) {
     Start-Process -FilePath (Join-Path $pgBin "pg_ctl.exe") `
-        -ArgumentList "-D `"$dataDir`" -m immediate stop" -NoNewWindow | Out-Null
+      -ArgumentList "-D `"$dataDir`" -m immediate stop" -NoNewWindow | Out-Null
   }
 }

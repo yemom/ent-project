@@ -1,6 +1,6 @@
 # Runtime Validation Report
 
-**Generated**: 2026-10-24T17:45:00+03:00
+**Generated**: 2026-10-24T19:35:00+03:00
 **Target**: `clinic/backend` and `clinic/frontend`
 
 ## Summary
@@ -8,34 +8,35 @@
 | Step | Status | Exit code | Details |
 | --- | --- | ---: | --- |
 | Prerequisites | PASS | 0 | Java 21, Maven 3.9.14, Node.js 22.15.1, PostgreSQL 18 available; Docker daemon unavailable |
-| Backend tests | PASS | 0 | 315 tests, 0 failures, 0 errors, 0 skipped |
+| Backend tests | PASS | 0 | 317 tests discovered; 316 passed, 0 failures, 0 errors, 1 Docker-gated concurrency test skipped |
 | Backend package | PASS | 0 | Spring Boot executable JAR produced |
-| PostgreSQL migrations | PASS | 0 | Fresh throwaway PostgreSQL cluster; all 27 Flyway migrations applied; JPA `validate` passed |
+| PostgreSQL migrations | PASS | 0 | Fresh throwaway PostgreSQL cluster; all 28 Flyway migrations applied; JPA `validate` passed |
 | Frontend type-check | PASS | 0 | `tsc --noEmit` |
 | Frontend lint | PASS | 0 | 0 errors, 165 warnings |
 | Frontend production build | PASS | 0 | 101 static pages generated |
 | Backend API E2E | PASS | 0 | All repository checks passed |
-| Frontend Playwright E2E | PASS | 0 | 37 tests passed |
-| Controlled AI provider | PASS | 0 | Local Ollama-compatible stub returned the expected response |
+| Frontend Playwright E2E | FAIL | 1 | 43 tests collected; 19 passed and 8 failed. The six new proposal tests passed. Eight existing role/admin tests failed because `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` were not set in the environment. |
+| Controlled AI provider | PASS | 0 | Local Ollama-compatible HTTP stub returned the expected response; no real Ollama/hosted inference was available |
 | AI proposal authorization regression | PASS | 0 | 19 tests, 0 failures, 0 errors, 0 skipped |
 
-**Overall**: NEEDS SIGNOFF
+**Overall**: BLOCKED
 
-The application is suitable for staging validation. Production signoff remains
-blocked until a real deployment validates its configured AI provider, email
-delivery, secrets, and frontend proposal workflow.
+The implementation has strong local backend/build evidence, but the release
+gate is blocked by the non-zero full browser-suite result, missing E2E admin
+credentials, unexecuted PostgreSQL/Testcontainers concurrency evidence, and
+unverified real AI/email integrations.
 
 ## Commands and evidence
 
 ```text
 mvn -f clinic/backend/pom.xml clean test
-  exit 0; 315 tests, 0 failures, 0 errors, 0 skipped
+  exit 0; 317 tests discovered, 316 passed, 0 failures, 0 errors, 1 Docker-gated skip
 
 mvn -f clinic/backend/pom.xml package -DskipTests
   exit 0; executable JAR created
 
 clinic/scripts/verify-migrations.ps1
-  exit 0; PostgreSQL v18 throwaway cluster, Flyway v27, Hibernate validate passed
+  exit 0; PostgreSQL v18 throwaway cluster, Flyway v28, Hibernate validate passed
 
 cd clinic/frontend; npm run typecheck
   exit 0
@@ -50,7 +51,13 @@ clinic/backend/e2e-start-and-run.ps1
   exit 0; all API checks passed
 
 cd clinic/frontend; npm run e2e
-  exit 0; 37 passed
+  exit 1; 43 collected, 19 passed, 8 failed. The proposal tests passed; eight
+  existing role/admin tests could not authenticate because
+  `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` were unset.
+
+cd clinic/frontend; npx playwright test e2e/ai-appointment-proposals.spec.ts
+  exit 0; 6 passed against a running frontend development server with
+  browser-level API routing
 
 controlled local Ollama-compatible provider smoke test
   exit 0; capabilities available and chat response matched the controlled response
@@ -59,23 +66,31 @@ mvn -f clinic/backend/pom.xml -Dtest=AiAuthorizationTest test
   exit 0; 19 tests, 0 failures, 0 errors, 0 skipped
 ```
 
-The Playwright suite was run against the standalone server entry point with the
-allowed `localhost` origin. Using `127.0.0.1` instead is expected to fail CORS
-under the current exact-origin configuration.
+The proposal Playwright spec passed in the full run with browser-level API
+routing. This verifies the rendered workflow and action sequencing, but not
+live backend persistence. The full suite's failed tests were existing role and
+admin scenarios blocked before login because the required credentials were not
+loaded. Using `127.0.0.1` instead is expected to fail CORS under the current
+exact-origin configuration.
 
 ## Database migration results
 
 - Fresh isolated PostgreSQL cluster created on a dynamically selected port.
 - Database recreated from empty state.
-- Flyway migrations V1 through V27 applied successfully.
+- Flyway migrations V1 through V28 applied successfully, including the
+  PostgreSQL exclusion constraint preventing overlapping active appointments for
+  the same doctor.
 - JPA schema validation passed after migration.
 - No production database was used.
 - The script documents recovery for failed Flyway markers; rollback is not
   automated because the migrations are forward-only. Recovery requires
   confirming transactional DDL state and removing only a failed history row.
 - Docker/Testcontainers validation was not possible because `docker info`
-  reported that the daemon was unavailable. Local PostgreSQL provided the
-  equivalent migration validation for this run.
+  reported that the Docker Desktop Linux engine was unavailable. An explicit
+  `RUN_POSTGRES_CONCURRENCY_TESTS=true` run exited non-zero when Testcontainers
+  could not initialize Docker; the test is now configured to skip cleanly when
+  Docker is absent. Local PostgreSQL migration validation passed, but this is
+  not evidence of concurrent service-level reservation behavior.
 
 ## AI-provider results and limitations
 
@@ -96,6 +111,7 @@ Not verified:
 - Provider latency under production network conditions.
 - Production token/account quotas.
 - Actual email delivery.
+- PostgreSQL/Testcontainers concurrent confirmation execution.
 
 ## Role and workflow coverage
 
@@ -135,8 +151,11 @@ confirmation/rejection, refresh reconciliation, and duplicate-click protection.
 The backend also checks proposal permissions at creation time, constrains patient
 callers to their own booking proposals, and re-checks permissions at confirmation.
 
-Browser-level create/confirm/reject/expire/conflict/concurrent-confirmation
-coverage remains a release gap rather than an asserted pass.
+The new browser spec covers proposal creation, pending-list rendering after
+reload, duplicate confirmation protection, rejection, expiry, conflict
+feedback, and network/server failure states. It uses deterministic browser
+API routing, so live backend persistence, authorization, and database
+concurrency remain unverified in browser E2E.
 
 ## Fixes made during this validation
 
@@ -154,6 +173,14 @@ coverage remains a release gap rather than an asserted pass.
   added server-side proposal permission checks and patient ownership validation.
 - [backend/src/test/java/com/clinic/security/AiAuthorizationTest.java](./backend/src/test/java/com/clinic/security/AiAuthorizationTest.java):
   added regression coverage for unauthorized proposal creation.
+- [backend/src/main/resources/db/migration/V28__prevent_overlapping_doctor_appointments.sql](./backend/src/main/resources/db/migration/V28__prevent_overlapping_doctor_appointments.sql):
+  added the PostgreSQL exclusion constraint that closes the appointment
+  double-booking race.
+- [backend/src/test/java/com/clinic/integration/PostgresAppointmentConcurrencyTest.java](./backend/src/test/java/com/clinic/integration/PostgresAppointmentConcurrencyTest.java):
+  added Docker-gated PostgreSQL concurrency evidence; it skips when Docker is
+  unavailable and must be executed in a Docker-enabled staging environment.
+- [frontend/e2e/ai-appointment-proposals.spec.ts](./frontend/e2e/ai-appointment-proposals.spec.ts):
+  added six browser workflow tests for proposal lifecycle and failure states.
 
 ## Deployment blockers and required variables
 
@@ -174,8 +201,9 @@ Before production:
   Dockerfile does.
 
 The proposal workflow remains blocked from production signoff until browser
-coverage exercises persisted create/confirm/reject behavior, expiry and
-conflict handling, and concurrent confirmation against PostgreSQL. A real
-Ollama/hosted provider and production email delivery are also not verified.
+coverage exercises persisted create/confirm/reject behavior against the
+backend. The full browser suite must also be rerun with valid staging
+credentials. Concurrent confirmation against PostgreSQL/Testcontainers, a real
+Ollama/hosted provider, and production email delivery are also not verified.
 
 No secret values are recorded in this report.

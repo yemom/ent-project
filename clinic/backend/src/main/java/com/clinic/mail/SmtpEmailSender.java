@@ -2,7 +2,7 @@ package com.clinic.mail;
 
 import com.clinic.config.MailProperties;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.MailSendException;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * local relay, a hospital mail gateway, or a transactional provider's SMTP API
  * without a code change. See {@code MAIL_*} in the backend README.
  *
- * <p>Failure handling: a {@code MailSendException} is translated into
+ * <p>Failure handling: a {@code MailException} is translated into
  * {@link MailDeliveryException} so callers above this layer never see a Spring
  * mail type. The underlying cause's message can contain the recipient address, so
  * it is logged at warn with the exception only — never the message body, which for
@@ -54,8 +54,9 @@ public class SmtpEmailSender implements EmailSender {
 
         try {
             mailSender.send(mail);
-        } catch (MailSendException ex) {
-            log.warn("Email delivery failed for subject=\"{}\": {}", message.subject(), ex.getMessage());
+        } catch (MailException ex) {
+            log.warn("Email delivery failed via SMTP host={} port={} errorType={}",
+                    properties.getHost(), properties.getPort(), ex.getClass().getSimpleName());
             throw new MailDeliveryException("The email could not be delivered", ex);
         }
     }

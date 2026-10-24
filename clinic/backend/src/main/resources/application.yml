@@ -81,7 +81,8 @@ spring:
         enabled: false
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT:10000}
+  address: ${SERVER_ADDRESS:0.0.0.0}
   shutdown: graceful
   compression:
     enabled: true
@@ -145,8 +146,10 @@ app:
     password: ${MAIL_PASSWORD:}
     from: ${MAIL_FROM:no-reply@clinic.local}
     start-tls: ${MAIL_START_TLS:true}
+    ssl-enable: ${MAIL_SSL_ENABLE:false}
     connection-timeout-seconds: ${MAIL_CONNECTION_TIMEOUT_SECONDS:10}
     timeout-seconds: ${MAIL_TIMEOUT_SECONDS:10}
+    write-timeout-seconds: ${MAIL_WRITE_TIMEOUT_SECONDS:10}
   password-reset:
     # Short on purpose. The token travels through a recipient's inbox, where a link
     # can sit unread for days; a long window turns an old mail into a live key.

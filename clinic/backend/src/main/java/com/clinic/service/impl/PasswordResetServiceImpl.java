@@ -143,13 +143,6 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         });
 
         String token = generateToken();
-        tokenRepository.save(PasswordResetToken.builder()
-                .id(UUID.randomUUID().toString())
-                .userId(user.getId())
-                .tokenHash(sha256Hex(token))
-                .expiresAt(now.plus(tokenTtl))
-                .createdAt(now)
-                .build());
 
         try {
             emailSender.send(new EmailMessage(
@@ -157,15 +150,24 @@ public class PasswordResetServiceImpl implements PasswordResetService {
                     "Reset your " + clinicName + " password",
                     buildEmailBody(user.getFullName(), token, tokenTtl)));
         } catch (RuntimeException ex) {
-            // The token must not survive a failed send: an undelivered link is a
-            // live credential sitting in a table for nobody.
-            tokenRepository.deleteAll(tokenRepository.findByUserIdAndUsedAtIsNull(user.getId()));
             auditLogService.record(AuditAction.USER_PASSWORD_RESET, "USER", user.getId(),
                     "Password reset email could not be delivered (clientIp=" + clientIp + ")");
-            log.warn("Password reset email delivery failed for userId={}: {}", user.getId(), ex.getMessage());
+            log.warn("Password reset email delivery failed for userId={} errorType={}",
+                    user.getId(), ex.getClass().getSimpleName());
             throw new ServiceUnavailableException(
                     "We could not send the reset email. Please try again shortly or contact the clinic.");
         }
+
+        // Persist the one-time credential only after SMTP accepted the message.
+        // This avoids relying on transaction rollback to remove a token after a
+        // transport failure.
+        tokenRepository.save(PasswordResetToken.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(user.getId())
+                .tokenHash(sha256Hex(token))
+                .expiresAt(now.plus(tokenTtl))
+                .createdAt(now)
+                .build());
 
         // The audit entry records that a reset was requested, never the token and
         // never the link. `userId` is the resource identifier a reviewer needs.

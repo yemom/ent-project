@@ -17,10 +17,10 @@ import java.util.Properties;
  * {@code spring.mail.*} (transport) with {@code app.mail.from} (sender identity).
  * One namespace means one place to document and one place to misconfigure.
  *
- * <p>The bean is constructed unconditionally, including when no host is set, so
- * that wiring failures surface at startup rather than at the first password reset
- * in production. {@link SmtpEmailSender#isConfigured()} is what reports the
- * absence, and the reset workflow checks it before issuing a token.
+ * <p>The bean is constructed unconditionally, including when no host is set, but
+ * JavaMail does not open a network connection during bean construction.
+ * {@link SmtpEmailSender#isConfigured()} reports the absence, and the reset
+ * workflow checks it before issuing a token.
  */
 @Configuration
 public class MailConfig {
@@ -28,6 +28,10 @@ public class MailConfig {
     @Bean
     @ConditionalOnMissingBean(JavaMailSenderImpl.class)
     public JavaMailSenderImpl mailSender(MailProperties properties) {
+        if (properties.isStartTls() && properties.isSslEnable()) {
+            throw new IllegalStateException("MAIL_START_TLS and MAIL_SSL_ENABLE cannot both be enabled");
+        }
+
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
         sender.setHost(properties.getHost());
         sender.setPort(properties.getPort());
@@ -41,8 +45,12 @@ public class MailConfig {
             // Refuse to downgrade rather than silently send a reset token in clear.
             jvmProps.put("mail.smtp.starttls.required", "true");
         }
+        jvmProps.put("mail.smtp.ssl.enable", String.valueOf(properties.isSslEnable()));
         jvmProps.put("mail.smtp.connectiontimeout", String.valueOf(properties.getConnectionTimeoutSeconds() * 1000));
         jvmProps.put("mail.smtp.timeout", String.valueOf(properties.getTimeoutSeconds() * 1000));
+        jvmProps.put("mail.smtp.writetimeout", String.valueOf(properties.getWriteTimeoutSeconds() * 1000));
+        jvmProps.put("mail.smtp.auth", String.valueOf(
+                properties.getUsername() != null && !properties.getUsername().isBlank()));
         // One connection per send: the volume here is a handful of requests an
         // hour, and a shared pool would outlive a credential rotation.
         jvmProps.put("mail.smtp.connectionpool", "false");
