@@ -21,6 +21,11 @@ spring:
     tomcat:
       min-spare-threads: 5
 
+# Local Maven runs use the same API port the frontend expects. Docker Compose
+# explicitly sets PORT=8080 for its container-to-container mapping.
+server:
+  port: ${PORT:8090}
+
 logging:
   level:
     com.clinic: INFO

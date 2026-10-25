@@ -118,12 +118,16 @@ if (process.env.NEXT_SKIP_DIST_CLEAN !== 'true') {
 // rather than racing through the clean-up.
 writeFileSync(SENTINEL, String(process.pid), 'utf8');
 
+// Launch Next's JS entrypoint directly instead of `next.cmd` through cmd.exe.
+// On Windows, killing the shell can leave its node child alive. That orphan then
+// serves stale `.next-dev` chunks after this launcher releases its sentinel and
+// clears the output directory on the next start.
+const nextCli = resolve(root, 'node_modules', 'next', 'dist', 'bin', 'next');
 const child = spawn(
-  process.platform === 'win32' ? 'next.cmd' : 'next',
-  ['dev', ...process.argv.slice(2)],
+  process.execPath,
+  ['--', nextCli, 'dev', '--hostname', '0.0.0.0', ...process.argv.slice(2)],
   {
     stdio: 'inherit',
-    shell: process.platform === 'win32',
     env: { ...process.env, NEXT_DIST_DIR: DIST_DIR },
   }
 );

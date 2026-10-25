@@ -25,7 +25,7 @@ param(
   # cluster and with the application's own test port.
   [int]$Port = 0,
   [string]$User_ = "postgres",
-  [string]$Database = "clinic_migration_check"
+  [string]$Database = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -51,10 +51,30 @@ function Find-PgBin {
 }
 
 $pgBin = Find-PgBin
-$tempRoot = Join-Path $env:TEMP "clinic-pg-verify"
+$tempRoot = Join-Path $env:TEMP ("clinic-pg-verify-" + [Guid]::NewGuid().ToString("N"))
 $dataDir = Join-Path $tempRoot "data"
 $logFile = Join-Path $tempRoot "server.log"
 $startedHere = $false
+$databaseCreated = $false
+$app = $null
+$savedEnvironment = @{}
+$environmentKeys = @(
+  "SPRING_PROFILES_ACTIVE", "SPRING_DATASOURCE_URL", "SPRING_DATASOURCE_USERNAME",
+  "SPRING_DATASOURCE_PASSWORD", "SPRING_FLYWAY_ENABLED",
+  "SPRING_JPA_HIBERNATE_DDL_AUTO", "APP_JWT_SECRET", "APP_RATE_LIMIT_ENABLED",
+  "CORS_ALLOWED_ORIGINS", "PORT", "SUPER_ADMIN_NAME", "SUPER_ADMIN_EMAIL",
+  "SUPER_ADMIN_PASSWORD"
+)
+foreach ($key in $environmentKeys) { $savedEnvironment[$key] = [Environment]::GetEnvironmentVariable($key, "Process") }
+
+# Always use a fresh, uniquely named database. In particular, never drop a
+# caller-supplied database when -UseRunningInstance is selected.
+if ([string]::IsNullOrWhiteSpace($Database)) {
+  $Database = "clinic_migration_check_$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
+}
+if ($Database -notmatch '^[A-Za-z][A-Za-z0-9_]{0,62}$') {
+  throw "Database name must be a simple PostgreSQL identifier."
+}
 
 # Asking the OS for a free port rather than hard-coding one: a fixed port collides
 # with any other local PostgreSQL, and the resulting "could not create any TCP/IP
@@ -74,7 +94,6 @@ if ($UseRunningInstance) {
   Write-Output "Using the running server on port $Port."
 }
 else {
-  if (Test-Path $tempRoot) { Remove-Item -Recurse -Force $tempRoot }
   New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
   Write-Output "Creating a throwaway cluster..."
@@ -135,12 +154,10 @@ function Invoke-Psql {
 
 try {
   Write-Output ""
-  Write-Output "Resetting the check database..."
-  # A clean database each time: Flyway's own state must be built from scratch, or a
-  # previous run's half-applied migration would be skipped.
-  Invoke-Psql "DROP DATABASE IF EXISTS $Database;" | Out-Null
+  Write-Output "Creating an isolated check database..."
   $created = Invoke-Psql "CREATE DATABASE $Database;"
   if ($created -match "ERROR|TIMEOUT") { throw "could not create ${Database}: $created" }
+  $databaseCreated = $true
 
   # ------------------------------------------------------------------- run the app
   $jar = Get-ChildItem (Join-Path $backend "target") -Filter "clinicl-*.jar" -ErrorAction SilentlyContinue |
@@ -158,36 +175,36 @@ try {
   $env:SPRING_PROFILES_ACTIVE = "prod"
   $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://${Host_}:${Port}/${Database}"
   $env:SPRING_DATASOURCE_USERNAME = $User_
-  $env:SPRING_DATASOURCE_PASSWORD = ""
+  # The throwaway local cluster uses trust auth. For -UseRunningInstance, this
+  # value is passed to the app only; the database user must independently have
+  # access to create and use the isolated database above.
+  $env:SPRING_DATASOURCE_PASSWORD = if ([string]::IsNullOrEmpty($savedEnvironment["SPRING_DATASOURCE_PASSWORD"])) {
+    [Guid]::NewGuid().ToString("N")
+  } else { $savedEnvironment["SPRING_DATASOURCE_PASSWORD"] }
   $env:SPRING_FLYWAY_ENABLED = "true"
-  # validate, not update: this is production behaviour, and it is what turns a
-  # mismatch between the migrations and the JPA model into a startup failure.
   $env:SPRING_JPA_HIBERNATE_DDL_AUTO = "validate"
   $env:APP_JWT_SECRET = [Convert]::ToBase64String((1..64 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
   $env:APP_RATE_LIMIT_ENABLED = "false"
   $env:CORS_ALLOWED_ORIGINS = "http://localhost:3100"
-  $env:SERVER_PORT = "$appPort"
-  # Throwaway credentials for a local check database; never a real deployment's.
-  $env:SUPER_ADMIN_NAME = "Esrom Basazinaw"
-  $env:SUPER_ADMIN_EMAIL = "12yemom@gmail.com"
-  $env:SUPER_ADMIN_PASSWORD = "Fekerte@zegeye1221"
+  $env:PORT = "$appPort"
+  $env:SUPER_ADMIN_NAME = "Migration Check"
+  $env:SUPER_ADMIN_EMAIL = "migration-check@example.invalid"
+  $env:SUPER_ADMIN_PASSWORD = [Guid]::NewGuid().ToString("N") + "!aA1"
 
-  # Quoted explicitly: Start-Process splits ArgumentList on spaces, and the
-  # repository path contains them ("AAiT PROJECTS"). Without the quotes java
-  # reports "Unable to access jarfile D:\AAiT".
+  # Quote the jar path explicitly; the repository path contains spaces.
   $app = Start-Process -FilePath "java" `
     -ArgumentList "-jar `"$($jar.FullName)`"" `
     -WorkingDirectory $backend `
     -NoNewWindow -PassThru `
     -RedirectStandardOutput $log -RedirectStandardError $err
 
-  $started = $false
+  $ready = $false
   for ($i = 0; $i -lt 90; $i++) {
     Start-Sleep -Seconds 2
     if ($app.HasExited) { break }
     try {
-      $health = Invoke-RestMethod -Uri "http://localhost:$appPort/api/v1/health" -TimeoutSec 3
-      if ($health.status -eq "UP") { $started = $true; break }
+      $health = Invoke-RestMethod -Uri "http://localhost:$appPort/actuator/health/readiness" -TimeoutSec 3
+      if ($health.status -eq "UP") { $ready = $true; break }
     }
     catch {}
   }
@@ -195,32 +212,38 @@ try {
   Write-Output ""
   Write-Output "--- Flyway ---"
   Select-String -Path $log -Pattern "Migrating schema|Successfully applied|Current version" |
-  ForEach-Object { $_.Line.Trim() }
+    ForEach-Object { $_.Line.Trim() }
 
-  if (-not $started) {
-    Write-Output ""
-    Write-Output "STARTUP FAILED. First error:"
+  if (-not $ready) {
+    Write-Output "Application did not become ready; sanitized startup diagnostics follow."
     Select-String -Path $log, $err -Pattern "ERROR|Caused by:|Migration V|Message    :" |
-    Select-Object -First 20 | ForEach-Object { "  " + $_.Line.Trim() }
-    exit 1
+      Select-Object -First 20 | ForEach-Object { $_.Line.Trim() -replace '(?i)(password|secret|token|api.?key)\s*[=:]\s*[^ ,;]+', '$1=[redacted]' }
+    throw "Application readiness failed while validating the isolated migration database."
   }
 
-  # --------------------------------------------------------------- report the schema
   Write-Output ""
   Write-Output "--- Applied migrations ---"
   Invoke-Psql "SELECT version || '  ' || description FROM flyway_schema_history ORDER BY installed_rank;" $Database
-
   Write-Output ""
   Write-Output "MIGRATIONS APPLIED CLEANLY against PostgreSQL, and the JPA model validates against the result."
-  exit 0
 }
 finally {
-  Get-CimInstance Win32_Process -Filter "Name='java.exe'" -ErrorAction SilentlyContinue |
-  Where-Object { $_.CommandLine -like "*clinicl*.jar*" } |
-  ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  if ($app -and -not $app.HasExited) {
+    Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+    Wait-Process -Id $app.Id -Timeout 10 -ErrorAction SilentlyContinue
+  }
+
+  if ($databaseCreated -and $UseRunningInstance) {
+    # Cleanup is restricted to the unique database created by this invocation.
+    Invoke-Psql "DROP DATABASE $Database;" | Out-Null
+  }
 
   if ($startedHere -and (Test-Path $dataDir)) {
     Start-Process -FilePath (Join-Path $pgBin "pg_ctl.exe") `
-      -ArgumentList "-D `"$dataDir`" -m immediate stop" -NoNewWindow | Out-Null
+      -ArgumentList "-D `"$dataDir`" -m fast stop" -NoNewWindow -Wait | Out-Null
+  }
+
+  foreach ($key in $environmentKeys) {
+    [Environment]::SetEnvironmentVariable($key, $savedEnvironment[$key], "Process")
   }
 }

@@ -116,6 +116,13 @@ const nextConfig = {
     // when the package manager shim is unavailable in constrained Windows shells.
     ignoreBuildErrors: true,
   },
+  // The Windows build was failing with EPERM while parallel Next workers
+  // created route trace directories. A single build CPU avoids concurrent
+  // directory creation races in the constrained development environment.
+  experimental: {
+    cpus: 1,
+    parallelServerBuildTraces: false,
+  },
   // Without this Next.js infers the workspace root from the nearest lockfile and
   // warns on every build; it also walks the wrong tree for standalone tracing.
   outputFileTracingRoot: path.resolve(__dirname),
@@ -124,6 +131,8 @@ const nextConfig = {
     'localhost',
     '127.0.0.1',
     '10.200.13.137',
+    '192.168.137.1',
+    '192.168.20.27',
     '*.local',
   ],
   webpack: (config) => {

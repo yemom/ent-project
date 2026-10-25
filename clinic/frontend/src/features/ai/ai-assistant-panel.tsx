@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -15,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from 'recharts';
 import { useAuthStore } from '@/store/auth-store';
 import {
   aiErrorMessage,
@@ -27,6 +29,10 @@ import {
   rejectAiAction,
   type AiPendingAction,
   type AiChatResponse,
+  getAiConversation,
+  listAiConversations,
+  type AiMessage,
+  getAiAppointmentForecast,
 } from '@/services/api/ai';
 
 /**
@@ -92,6 +98,12 @@ export function AiAssistantPanel({
     staleTime: 30_000,
     retry: 1,
   });
+  const conversations = useQuery({
+    queryKey: ['ai', 'conversations'],
+    queryFn: listAiConversations,
+    enabled: capabilities.isSuccess && capabilities.data.available,
+    staleTime: 30_000,
+  });
 
   const [capabilityId, setCapabilityId] = useState<string | null>(null);
   /**
@@ -103,6 +115,8 @@ export function AiAssistantPanel({
   const [capabilityArguments, setCapabilityArguments] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [turns, setTurns] = useState<AiChatResponse[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [loadedMessages, setLoadedMessages] = useState<AiMessage[]>([]);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<AiPendingAction | null>(null);
@@ -118,7 +132,18 @@ export function AiAssistantPanel({
   const [proposalCreateError, setProposalCreateError] = useState<string | null>(null);
   const [resolvedProposal, setResolvedProposal] = useState<AiPendingAction | null>(null);
 
-  const conversationId = turns[turns.length - 1]?.conversationId ?? null;
+  const conversationId = activeConversationId ?? turns[turns.length - 1]?.conversationId ?? null;
+  const selectedConversation = useQuery({
+    queryKey: ['ai', 'conversation', activeConversationId],
+    queryFn: () => getAiConversation(activeConversationId!),
+    enabled: Boolean(activeConversationId),
+  });
+  useEffect(() => {
+    if (selectedConversation.data) {
+      setLoadedMessages(selectedConversation.data);
+      setTurns([]);
+    }
+  }, [selectedConversation.data]);
 
   /**
    * Guards against a double submission.
@@ -157,7 +182,10 @@ export function AiAssistantPanel({
           conversationId,
           arguments: merged,
         });
+        setActiveConversationId(response.conversationId);
+        setLoadedMessages([]);
         setTurns((previous) => [...previous, response]);
+        void queryClient.invalidateQueries({ queryKey: ['ai', 'conversations'] });
       } catch (err) {
         setError(aiErrorMessage(err));
       } finally {
@@ -165,7 +193,7 @@ export function AiAssistantPanel({
         setIsPending(false);
       }
     },
-    [conversationId, contextArguments, capabilityArguments]
+    [conversationId, contextArguments, capabilityArguments, queryClient]
   );
 
   const resolveProposal = useCallback(
@@ -228,7 +256,7 @@ export function AiAssistantPanel({
     setProposalForm((current) => ({ ...current, [field]: value }));
   };
 
-  const available = capabilities.data?.capabilities ?? [];
+  const available = useMemo(() => capabilities.data?.capabilities ?? [], [capabilities.data?.capabilities]);
   const selected = useMemo(
     () => available.find((capability) => capability.id === capabilityId) ?? available[0],
     [available, capabilityId]
@@ -256,7 +284,10 @@ export function AiAssistantPanel({
             {role ? <RoleBadge role={role} /> : null}
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">{aiErrorMessage(capabilities.error)}</CardContent>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p role="alert">{aiErrorMessage(capabilities.error)}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void capabilities.refetch()}>Retry</Button>
+        </CardContent>
       </Card>
     );
   }
@@ -275,7 +306,7 @@ export function AiAssistantPanel({
         <CardContent className="space-y-4 text-sm text-muted-foreground">
           {capabilities.data.unavailableReason ??
             'The assistant is not available right now. Everything else on this page works as usual.'}
-          <ForecastSummary data={forecast.data} loading={forecast.isLoading} />
+          {compact ? <ForecastSummary data={forecast.data} loading={forecast.isLoading} /> : null}
         </CardContent>
       </Card>
     );
@@ -286,24 +317,54 @@ export function AiAssistantPanel({
   // ------------------------------------------------------------------
 
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4" aria-hidden />
-          Assistant
-        </CardTitle>
-        <CardDescription>
-          Answers come from records you are authorised to read. Figures are calculated by the
-          system, not estimated.
+    <Card className={`overflow-hidden shadow-sm ${className ?? ''}`}>
+      <CardHeader className="border-b border-border bg-muted/20 px-4 py-4 sm:px-5">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle id={compact ? undefined : 'ai-chat-heading'} className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4" aria-hidden />
+            {compact ? 'Assistant' : 'Ask about the business'}
+          </CardTitle>
+          {!compact ? <Badge variant="outline">Review before changes</Badge> : null}
+        </div>
+        <CardDescription className="text-xs leading-5">
+          Answers use records you can access and show their sources. This assistant cannot apply changes without your confirmation.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <ForecastSummary
+      <CardContent className="flex flex-col gap-4 px-4 py-4 sm:px-5">
+        {compact ? <ForecastSummary
           data={forecast.data}
           loading={forecast.isLoading}
           onSuggestion={(question) => void ask(question, 'operational_forecast')}
-        />
+        /> : null}
+        {!compact ? (
+          <details className="order-1 rounded-lg border border-border px-3 py-2" aria-label="Conversation history">
+            <summary className="cursor-pointer text-xs font-medium">Saved conversations</summary>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">Continue a previous conversation or start a new one.</p>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => { setActiveConversationId(null); setLoadedMessages([]); setTurns([]); }}>New conversation</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => void conversations.refetch()} disabled={conversations.isFetching}>Refresh</Button>
+              </div>
+            </div>
+            {conversations.isLoading ? <p role="status" className="mt-2 text-xs text-muted-foreground">Loading saved conversations…</p> : null}
+            {conversations.error ? <p role="alert" className="mt-2 text-xs text-destructive">Could not load conversation history. Use Refresh to retry.</p> : null}
+            {conversations.data?.length ? (
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                {conversations.data.map((conversation) => (
+                  <button key={conversation.id} type="button" onClick={() => { setActiveConversationId(conversation.id); setTurns([]); }}
+                    aria-current={conversation.id === activeConversationId ? 'page' : undefined}
+                    className={`min-w-40 rounded-lg border px-3 py-2 text-left text-xs ${conversation.id === activeConversationId ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
+                    <span className="block truncate font-medium">{conversation.title ?? 'Assistant conversation'}</span>
+                    <span className="mt-1 block text-muted-foreground">{new Date(conversation.updatedAt).toLocaleString()}</span>
+                  </button>
+                ))}
+              </div>
+            ) : !conversations.isLoading && !conversations.error ? <p className="mt-2 text-xs text-muted-foreground">No saved conversations yet.</p> : null}
+          </details>
+        ) : null}
+        {selectedConversation.isLoading ? <p role="status" className="order-2 text-sm text-muted-foreground">Loading conversation…</p> : null}
+        {selectedConversation.error ? <div role="alert" className="order-2 rounded-lg border border-destructive/40 p-3 text-sm">Could not load this conversation. <Button size="sm" variant="outline" onClick={() => void selectedConversation.refetch()}>Retry</Button></div> : null}
         {capabilities.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading what you can ask about…</p>
         ) : available.length === 0 ? (
@@ -316,20 +377,20 @@ export function AiAssistantPanel({
               <Button
                 type="button"
                 variant="outline"
-                className="w-full justify-start gap-2"
+                className={compact ? 'w-full justify-start gap-2' : 'order-3 h-8 w-fit justify-start gap-2 text-xs'}
                 disabled={isPending}
                 onClick={() =>
                   void ask(
-                    'Prepare the authorised operational forecast for the next 30 days. Include the data period, projected value if available, and limitations.',
+                    'Summarise the authorised operational metrics, comparison period, any calculated projection, and limitations.',
                     'operational_forecast',
                   )
                 }
               >
                 <CalendarClock className="h-4 w-4" aria-hidden />
-                {isPending ? 'Preparing forecast…' : 'Generate AI forecast from real records'}
+                {isPending ? 'Preparing summary…' : 'Explain operational data'}
               </Button>
             )}
-            <fieldset>
+            <fieldset className={compact ? '' : 'order-4'}>
               <legend className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 What to ask about
               </legend>
@@ -338,13 +399,13 @@ export function AiAssistantPanel({
                 the reader can see what the assistant covers before asking. Arrow
                 keys move between them and the accessible name is the group label.
               */}
-              <div className="mt-2 grid gap-1.5" role="radiogroup" aria-label="Assistant capability">
+              <div className={`mt-2 flex gap-2 ${compact ? 'flex-col' : 'overflow-x-auto pb-1'}`} role="radiogroup" aria-label="Assistant capability">
                 {available.map((capability) => {
                   const isSelected = capability.id === selected?.id;
                   return (
                     <label
                       key={capability.id}
-                      className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      className={`flex cursor-pointer items-start gap-2 border transition-colors ${compact ? 'rounded-lg px-3 py-2 text-sm' : 'shrink-0 rounded-full px-3 py-1.5 text-xs'} ${
                         isSelected
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:bg-muted/50'
@@ -356,11 +417,11 @@ export function AiAssistantPanel({
                         value={capability.id}
                         checked={isSelected}
                         onChange={() => setCapabilityId(capability.id)}
-                        className="mt-1"
+                        className={compact ? 'mt-1' : 'sr-only'}
                       />
-                      <span>
+                      <span className="whitespace-nowrap">
                         <span className="font-medium">{capability.label}</span>
-                        <span className="block text-xs text-muted-foreground">
+                        <span className={`block text-xs text-muted-foreground ${compact ? '' : 'hidden'}`}>
                           {capability.description}
                         </span>
                       </span>
@@ -370,6 +431,20 @@ export function AiAssistantPanel({
               </div>
             </fieldset>
 
+            {!compact ? (
+              <div className="order-5 flex flex-wrap gap-1.5" aria-label="Suggested questions">
+                {available.slice(0, 4).map((capability) => (
+                  <button key={capability.id} type="button" disabled={isPending} title={capability.suggestedQuestion}
+                    onClick={() => void ask(capability.suggestedQuestion, capability.id)}
+                    className="max-w-full truncate rounded-full border border-border bg-background px-2.5 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50">
+                    {capability.suggestedQuestion.length > 46
+                      ? `${capability.suggestedQuestion.slice(0, 46)}…`
+                      : capability.suggestedQuestion}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
             {/*
               Argument inputs, rendered from the server's declaration rather than a
               hard-coded list. A capability that cannot answer without one — "which
@@ -377,7 +452,7 @@ export function AiAssistantPanel({
               that named authorisation rather than the missing field.
             */}
             {selected?.requiredArguments?.map((argument) => (
-              <div key={argument.name} className="space-y-1.5">
+              <div key={argument.name} className={`space-y-1.5 ${compact ? '' : 'order-6'}`}>
                 <label
                   htmlFor={`ai-arg-${argument.name}`}
                   className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
@@ -398,7 +473,7 @@ export function AiAssistantPanel({
               </div>
             ))}
 
-            <form onSubmit={handleSubmit} className="space-y-2">
+            <form onSubmit={handleSubmit} className={`space-y-2 ${compact ? '' : 'order-8'}`}>
               <label htmlFor="ai-question" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Your question
               </label>
@@ -446,14 +521,14 @@ export function AiAssistantPanel({
             {error ? (
               <div
                 role="alert"
-                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                className={`rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 ${compact ? '' : 'order-9'}`}
               >
                 {error}
               </div>
             ) : null}
 
             {available.some((capability) => capability.id === 'available_slots') ? (
-              <section className="rounded-xl border border-border bg-muted/20 p-4">
+              <section className={`rounded-xl border border-border bg-muted/20 p-4 ${compact ? '' : 'order-10'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h2 className="text-sm font-semibold">Appointment proposal</h2>
@@ -543,23 +618,32 @@ export function AiAssistantPanel({
               </section>
             ) : null}
 
-            <PendingProposals
-              actions={pendingActions.data ?? []}
-              loading={pendingActions.isLoading}
-              error={pendingActions.error ? aiErrorMessage(pendingActions.error) : null}
-              activeProposal={proposal}
-              resolvedProposal={resolvedProposal}
-              message={proposalMessage}
-              busy={proposalBusy}
-              onRefresh={() => void pendingActions.refetch()}
-              onResolve={(id, accept) => void resolveProposal(id, accept)}
-            />
+            <div className={compact ? '' : 'order-11'}>
+              <PendingProposals
+                actions={pendingActions.data ?? []}
+                loading={pendingActions.isLoading}
+                error={pendingActions.error ? aiErrorMessage(pendingActions.error) : null}
+                activeProposal={proposal}
+                resolvedProposal={resolvedProposal}
+                message={proposalMessage}
+                busy={proposalBusy}
+                onRefresh={() => void pendingActions.refetch()}
+                onResolve={(id, accept) => void resolveProposal(id, accept)}
+              />
+            </div>
 
             {/*
               Answers are rendered as text, never as HTML. Model output is
               untrusted input and this is the boundary that keeps it that way.
             */}
-            <div aria-live="polite" className="space-y-3">
+            <div aria-live="polite" className={`space-y-3 ${compact ? '' : 'order-7'}`}>
+              {loadedMessages.map((turn) => (
+                <div key={turn.id} className={`rounded-lg border p-3 ${turn.role === 'user' ? 'ml-6 bg-muted/50' : 'mr-6 bg-card'}`}>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{turn.role === 'user' ? 'You' : 'Assistant'} · {new Date(turn.createdAt).toLocaleString()}</p>
+                  <p className="whitespace-pre-wrap text-sm">{turn.content}</p>
+                  {turn.requiresHumanReview ? <p className="mt-2 rounded border border-amber-300 p-2 text-xs text-amber-900">Draft requires qualified clinician review.</p> : null}
+                </div>
+              ))}
               {turns.map((turn, index) => (
                 <div key={`${turn.conversationId}-${index}`} className="rounded-lg border border-border p-3">
                   <p className="whitespace-pre-wrap text-sm">{turn.answer}</p>
@@ -619,44 +703,154 @@ export function AiAssistantPanel({
   );
 }
 
+import { AiExecutiveDashboard } from '@/features/ai/ai-executive-dashboard';
+
 /**
- * Persistent dashboard forecast. It uses the same role-scoped endpoint as the
- * chat panel, but keeps verified operational facts visible without opening chat.
+ * Persistent dashboard forecast and assistant suite matching StockFlow's layout.
+ * Combines date range filtering, forecast chart, clinical assistant, and 'What the numbers say'.
  */
 export function AiForecastCard({ className }: { className?: string }) {
-  const role = useAuthStore((state) => state.user?.role);
+  return <AiExecutiveDashboard className={className} />;
+}
+
+function localDateValue(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function dateRangeEndingToday(days: number) {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(start.getDate() - days + 1);
+  return { from: localDateValue(start), to: localDateValue(end) };
+}
+
+export function AiAppointmentHistoryCard() {
   const capabilities = useQuery({
     queryKey: ['ai', 'capabilities'],
     queryFn: getAiCapabilities,
     staleTime: 5 * 60_000,
   });
-  const forecast = useQuery({
-    queryKey: ['ai', 'forecast'],
-    queryFn: getAiForecast,
-    enabled:
-      capabilities.isSuccess &&
-      capabilities.data.capabilities.some(
-        (capability) => capability.id === 'operational_forecast'
-      ),
-    staleTime: 5 * 60_000,
-    retry: 1,
+  const enabled = capabilities.data?.capabilities.some((item) => item.id === 'operational_forecast') === true;
+  const today = localDateValue(new Date());
+  const defaultRange = useMemo(() => dateRangeEndingToday(90), []);
+  const defaultFrom = defaultRange.from;
+  const [activeRange, setActiveRange] = useState('90');
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultRange.to);
+  const [draftFrom, setDraftFrom] = useState(defaultFrom);
+  const [draftTo, setDraftTo] = useState(defaultRange.to);
+  const [rangeError, setRangeError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: ['ai', 'appointment-history', from, to],
+    queryFn: () => getAiAppointmentForecast(from, to),
+    enabled: enabled && Boolean(from && to && from <= to && to <= today),
+    staleTime: 60_000,
   });
+  const applyRange = (start = draftFrom, end = draftTo, preset: string | null = null) => {
+    if (!start || !end || start > end || end > today) {
+      setRangeError('Choose a valid range ending today or earlier.');
+      return;
+    }
+    if (new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime() > 365 * 86400000) {
+      setRangeError('The history range cannot exceed 366 days.');
+      return;
+    }
+    setRangeError(null);
+    setActiveRange(preset ?? '');
+    setDraftFrom(start);
+    setDraftTo(end);
+    if (start === from && end === to) void query.refetch();
+    else {
+      setFrom(start);
+      setTo(end);
+    }
+  };
+  const data = query.data;
+  const chartData = data ? [
+    ...data.actual.map((point) => ({ ...point, actual: point.value, predicted: null as number | null })),
+    ...data.predicted.map((point) => ({ ...point, actual: null as number | null, predicted: point.value })),
+  ] : [];
+  const actualTotal = data?.actual.reduce((sum, point) => sum + point.value, 0) ?? 0;
+  const nextWeekTotal = data?.predicted.reduce((sum, point) => sum + point.value, 0) ?? 0;
 
   if (capabilities.isLoading) {
-    return <div className={className}><ForecastSummary loading /></div>;
+    return <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Loading appointment forecast…</CardContent></Card>;
   }
-  if (!capabilities.data?.capabilities.some((item) => item.id === 'operational_forecast')) {
-    return null;
-  }
+  if (!enabled) return null;
 
   return (
-    <div className={className}>
-      <ForecastSummary
-        data={forecast.data}
-        loading={forecast.isLoading}
-        error={forecast.error ? aiErrorMessage(forecast.error) : null}
-        role={role}
-      />
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle id="ai-appointment-trend" className="text-base">Appointment forecast</CardTitle>
+            <CardDescription className="mt-1">Recorded activity with a transparent seven-day baseline.</CardDescription>
+          </div>
+          <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">7-day baseline</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 px-5 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap gap-1.5" aria-label="Quick date range">
+            {[
+              { id: '30', label: 'Last 30 days', days: 30 },
+              { id: '90', label: 'Last 90 days', days: 90 },
+              { id: '365', label: 'Last 12 months', days: 365 },
+            ].map((range) => (
+              <Button key={range.id} type="button" size="sm" variant={activeRange === range.id ? 'default' : 'ghost'} className="h-8 px-2.5 text-xs" onClick={() => {
+                const selected = dateRangeEndingToday(range.days);
+                applyRange(selected.from, selected.to, range.id);
+              }}>{range.label}</Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="grid gap-1 text-[11px] text-muted-foreground">From<input aria-label="History start date" type="date" value={draftFrom} max={draftTo || today} onChange={(event) => { setActiveRange(''); setDraftFrom(event.target.value); }} className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground" /></label>
+            <span className="pb-2 text-xs text-muted-foreground">to</span>
+            <label className="grid gap-1 text-[11px] text-muted-foreground">To<input aria-label="History end date" type="date" value={draftTo} max={today} onChange={(event) => { setActiveRange(''); setDraftTo(event.target.value); }} className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground" /></label>
+            <Button type="button" size="sm" variant="outline" onClick={() => applyRange()} disabled={query.isFetching} className="h-8">{query.isFetching ? 'Loading…' : 'Apply'}</Button>
+          </div>
+        </div>
+        {rangeError ? <p role="alert" className="text-sm text-destructive">{rangeError}</p> : null}
+        {query.isLoading ? <p role="status" className="py-12 text-center text-sm text-muted-foreground">Loading dated appointment records…</p> : null}
+        {query.error ? <div role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm">Unable to load appointment history. <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>Retry</Button></div> : null}
+        {data ? <>
+          <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-4">
+            <MetricTile label="Recorded appointments" value={actualTotal.toLocaleString()} detail={`${data.actual.length} days in range`} />
+            <MetricTile label="Daily average" value={data.actual.length ? (actualTotal / data.actual.length).toFixed(1) : '0'} detail="Measured appointments per day" />
+            <MetricTile label="Next 7 days" value={data.sufficientHistory ? nextWeekTotal.toLocaleString() : '—'} detail={data.sufficientHistory ? 'Baseline estimate' : 'History threshold not met'} accent />
+            <MetricTile label="Data scope" value={data.scope.toLowerCase()} detail={`${data.observationCount} daily observations`} />
+          </div>
+          <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"><span>{data.metric} · {data.from} through {data.to}</span><span>Updated {new Date(data.computedAt).toLocaleString()}</span></div>
+          {data.sufficientHistory ? (
+            <div role="img" aria-label={`Daily appointment history from ${data.from} to ${data.to}, with a seven-day baseline estimate`} className="h-64 w-full rounded-xl border border-border bg-background px-2 py-3">
+              <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="date" tickFormatter={(value: string) => value.slice(5)} minTickGap={25} tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                <Tooltip labelFormatter={(value) => String(value)} contentStyle={{ borderRadius: 10, borderColor: 'hsl(var(--border))' }} />
+                <Legend verticalAlign="top" align="right" height={28} />
+                <Line type="monotone" dataKey="actual" name="Recorded appointments" stroke="#2563eb" strokeWidth={2.5} dot={false} connectNulls activeDot={{ r: 4 }} />
+                <Line type="monotone" dataKey="predicted" name="7-day baseline" stroke="#8b5cf6" strokeWidth={2.5} strokeDasharray="6 4" dot={false} connectNulls activeDot={{ r: 4 }} />
+              </LineChart></ResponsiveContainer>
+            </div>
+          ) : <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">Insufficient history for an estimate. {data.limitation}</p>}
+          <details className="rounded-lg border border-border px-3 py-2">
+            <summary className="cursor-pointer text-xs font-medium">How this forecast was produced</summary>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">{data.method}. {data.limitation} Sources: {data.sources.join(' · ')}.</p>
+          </details>
+          {data.insights.map((insight) => <article key={insight.title} className="rounded-xl border border-border bg-muted/20 p-3"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold">{insight.title}</p><Badge variant="outline">Measured</Badge></div><p className="mt-1 text-sm text-muted-foreground">{insight.explanation}</p><p className="mt-2 text-xs text-muted-foreground">{insight.period} · {insight.source}</p></article>)}
+        </> : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricTile({ label, value, detail, accent = false }: { label: string; value: string; detail: string; accent?: boolean }) {
+  return (
+    <div className={`min-w-0 rounded-xl border px-3 py-2.5 ${accent ? 'border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30' : 'border-border bg-muted/20'}`}>
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-xl font-semibold tracking-tight text-foreground">{value}</p>
+      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{detail}</p>
     </div>
   );
 }
@@ -760,15 +954,22 @@ function ForecastSummary({
   error,
   role,
   onSuggestion,
+  onRetry,
 }: {
   data?: { facts: Record<string, unknown>; sources: string[]; computedAt: string };
   loading: boolean;
   error?: string | null;
   role?: string;
   onSuggestion?: (question: string) => void;
+  onRetry?: () => void;
 }) {
-  if (loading) return <p className="rounded-lg border p-3">Loading authorised forecast data…</p>;
-  if (error) return <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{error}</p>;
+  if (loading) return <p className="rounded-lg border p-3" role="status">Loading authorised operational data…</p>;
+  if (error) return (
+    <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <span>{error}</span>
+      {onRetry ? <Button type="button" variant="outline" size="sm" onClick={onRetry}>Retry</Button> : null}
+    </div>
+  );
   if (!data) return null;
 
   const facts = data.facts;
@@ -779,41 +980,40 @@ function ForecastSummary({
     ? facts.suggestions.filter((suggestion): suggestion is string => typeof suggestion === 'string')
     : [];
   return (
-    <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-blue-950">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 font-semibold">
-        <CalendarClock className="h-4 w-4" aria-hidden />
-          Real-data operational forecast
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <CalendarClock className="h-4 w-4 text-primary" aria-hidden />
+            Operational snapshot
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{forecastMetricDescription(String(facts.metric ?? 'Operational metric'))}</p>
         </div>
         {role ? <RoleBadge role={role} /> : null}
       </div>
-      <p className="mt-1 text-xs text-blue-900">{forecastMetricDescription(String(facts.metric ?? 'Operational metric'))}</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {detailFacts.map(([key, value]) => (
-          <div key={key} className="rounded-md border border-blue-200/80 bg-white/60 px-2.5 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-blue-700">
+          <div key={key} className="min-w-0 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {formatForecastLabel(key)}
             </p>
-            <p className="mt-0.5 break-words text-sm font-medium">
+            <p className="mt-1 break-words text-lg font-semibold tracking-tight text-foreground">
               {formatForecastValue(value)}
             </p>
           </div>
         ))}
       </div>
-      {facts.reason ? <p className="mt-2 text-xs text-blue-900">{String(facts.reason)}</p> : null}
-      {facts.limitations ? <p className="mt-2 text-xs text-blue-900">{String(facts.limitations)}</p> : null}
+      {facts.reason || facts.limitations ? <p className="mt-3 text-xs leading-5 text-muted-foreground">{[facts.reason, facts.limitations].filter(Boolean).map(String).join(' ')}</p> : null}
       {suggestions.length > 0 ? (
-        <div className="mt-3 border-t border-blue-200/80 pt-3">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-blue-700">
-            Suggested next steps
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="mr-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Suggested next steps</p>
             {suggestions.map((suggestion) =>
               onSuggestion ? (
                 <button
                   key={suggestion}
                   type="button"
-                  className="rounded-full border border-blue-300 bg-white/80 px-3 py-1.5 text-left text-xs text-blue-900 transition-colors hover:bg-white"
+                  className="rounded-full border border-border bg-background px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
                   onClick={() => onSuggestion(suggestion)}
                 >
                   {suggestion}
@@ -821,7 +1021,7 @@ function ForecastSummary({
               ) : (
                 <span
                   key={suggestion}
-                  className="rounded-full border border-blue-200 bg-white/60 px-3 py-1.5 text-xs text-blue-900"
+                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground"
                 >
                   {suggestion}
                 </span>
@@ -830,9 +1030,11 @@ function ForecastSummary({
           </div>
         </div>
       ) : null}
-      <p className="mt-2 text-[11px] text-blue-800">
+      <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
         Computed {new Date(data.computedAt).toLocaleString()} from {data.sources.join(' · ')}.
-        This is directional information, not a guarantee.
+        {facts.forecastAvailable === true
+          ? ' The displayed projection is a simple comparison-based estimate, not a validated predictive model.'
+          : ' This is a current operational snapshot; dated historical observations are unavailable for a defensible time-series forecast.'}
       </p>
     </section>
   );

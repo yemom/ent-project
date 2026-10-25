@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
-$base = "http://localhost:8090/api/v1"
+$apiPort = if ($env:E2E_API_PORT -match '^\d+$') { [int]$env:E2E_API_PORT } else { 8090 }
+$base = "http://localhost:$apiPort/api/v1"
 
 # Super Admin credentials come from the environment, never from the source.
 #
@@ -87,7 +88,7 @@ function Post($token, $path, $obj) {
 # For the legacy lab endpoints, which are mounted at /api/lab-orders rather than
 # under /api/v1. Used instead of hand-building URLs at each call site.
 function PostLegacy($token, $path, $obj) {
-  return Invoke-Api "Post" "http://localhost:8090/api$path" $token $obj
+  return Invoke-Api "Post" "http://localhost:$apiPort/api$path" $token $obj
 }
 function Get($token, $path) {
   return Invoke-Api "Get" "$base$path" $token $null
@@ -495,4 +496,8 @@ ExpectStatus "deleted account cannot sign in" 401 { Login "throwaway.$run@exampl
 Write-Output ""
 Write-Output "=== SUMMARY ==="
 if ($script:failures.Count -eq 0) { Write-Output "ALL CHECKS PASSED" }
-else { Write-Output "FAILURES ($($script:failures.Count)):"; $script:failures | ForEach-Object { Write-Output "  - $_" } }
+else {
+  Write-Output "FAILURES ($($script:failures.Count)):"
+  $script:failures | ForEach-Object { Write-Output "  - $_" }
+  throw "API workflow suite failed with $($script:failures.Count) assertion(s)."
+}

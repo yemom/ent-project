@@ -19,14 +19,12 @@ if (-not $SkipRestart) {
   # Matched on the listening port rather than only on the command line, because a
   # JVM started with an absolute path, or whose CommandLine is not readable, still
   # holds the port.
-  $testPort = 8090
+  $testPort = if ($env:E2E_API_PORT -match '^\d+$') { [int]$env:E2E_API_PORT } else { 8090 }
   $owners = @(Get-NetTCPConnection -LocalPort $testPort -State Listen -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty OwningProcess -Unique)
-  $byCommand = @(Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
-    Where-Object { $_.CommandLine -like "*clinicl*.jar*" } |
-    Select-Object -ExpandProperty ProcessId)
-
-  $targets = @($owners + $byCommand | Sort-Object -Unique)
+  # Only stop a process that actually owns the selected test port. A clinic jar
+  # serving another port may be a developer's active application.
+  $targets = @($owners | Sort-Object -Unique)
   foreach ($pid_ in $targets) {
     Write-Output "Stopping stale backend (PID $pid_)"
     Stop-Process -Id $pid_ -Force -ErrorAction SilentlyContinue
@@ -99,7 +97,7 @@ Or export the variables before running this script. They must not be committed.
   Write-Output "Bootstrapping Super Admin: $env:SUPER_ADMIN_EMAIL"
 
   $env:APP_JWT_SECRET = $secret
-  $env:SERVER_PORT = "$testPort"
+  $env:PORT = "$testPort"
 
   Start-Process -FilePath "java" -ArgumentList "-jar", "target\clinicl-1.0.0.jar" `
     -NoNewWindow -RedirectStandardOutput "e2e-backend.log" -RedirectStandardError "e2e-backend.err"
@@ -108,7 +106,7 @@ Or export the variables before running this script. They must not be committed.
   for ($i = 0; $i -lt 60; $i++) {
     Start-Sleep -Seconds 2
     try {
-      $health = Invoke-RestMethod -Uri "http://localhost:8090/api/v1/health" -TimeoutSec 3
+      $health = Invoke-RestMethod -Uri "http://localhost:$testPort/api/v1/health" -TimeoutSec 3
       Write-Output "Backend up: $($health.status)"
       $up = $true
       break

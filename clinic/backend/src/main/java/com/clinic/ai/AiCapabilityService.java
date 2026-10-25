@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -170,6 +171,85 @@ public class AiCapabilityService {
             case MY_APPOINTMENTS -> myAppointments();
             case OPERATIONAL_FORECAST -> operationalForecast();
         };
+    }
+
+    /** Builds a role-scoped daily appointment series and a transparent 7-day baseline. */
+    @Transactional(readOnly = true)
+    public com.clinic.dto.response.AiHistoricalForecastResponse appointmentForecast(LocalDate requestedFrom,
+                                                                                    LocalDate requestedTo) {
+        assertAllowed(AiCapability.OPERATIONAL_FORECAST);
+        UserRole role = currentUser.role().canonical();
+        String scope;
+        String label;
+        String ownerId = null;
+        if (role == UserRole.DOCTOR) {
+            scope = "DOCTOR"; label = "Your appointment book"; ownerId = currentUser.userId();
+        } else if (role == UserRole.PATIENT) {
+            scope = "PATIENT"; label = "Your appointments"; ownerId = currentUser.userId();
+        } else if (RolePermissions.hasAny(role, com.clinic.security.Permissions.APPOINTMENT_MANAGE,
+                com.clinic.security.Permissions.REPORT_READ)) {
+            scope = "HOSPITAL"; label = "Hospital appointments";
+        } else {
+            LocalDate unavailableTo = requestedTo == null ? LocalDate.now() : requestedTo;
+            LocalDate unavailableFrom = requestedFrom == null ? unavailableTo.minusDays(89) : requestedFrom;
+            return new com.clinic.dto.response.AiHistoricalForecastResponse("appointments", "Not available",
+                    unavailableFrom, unavailableTo, LocalDateTime.now(), "none", 0, false,
+                    "Dated appointment history is not available to this role.", List.of(), List.of(),
+                    List.of("Role-authorized appointment data"), List.of());
+        }
+        LocalDate today = LocalDate.now();
+        LocalDate to = requestedTo == null ? today : requestedTo;
+        LocalDate from = requestedFrom == null ? to.minusDays(89) : requestedFrom;
+        if (to.isAfter(today) || from.isAfter(to)) {
+            throw new BadRequestException("Choose a valid date range ending today or earlier.");
+        }
+        if (ChronoUnit.DAYS.between(from, to) > 365) {
+            throw new BadRequestException("The appointment history range cannot exceed 366 days.");
+        }
+        List<Object[]> rows = appointmentRepository.dailyAppointmentSeries(
+                from.atStartOfDay(), to.plusDays(1).atStartOfDay(), scope, ownerId);
+        Map<LocalDate, Long> values = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            LocalDate day = row[0] instanceof java.sql.Date date ? date.toLocalDate()
+                    : row[0] instanceof LocalDate date ? date : LocalDate.parse(String.valueOf(row[0]));
+            values.put(day, ((Number) row[1]).longValue());
+        }
+        List<com.clinic.dto.response.AiHistoricalForecastResponse.Point> actual = new ArrayList<>();
+        for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            actual.add(new com.clinic.dto.response.AiHistoricalForecastResponse.Point(day, values.getOrDefault(day, 0L)));
+        }
+        long activeDays = actual.stream().filter(point -> point.value() > 0).count();
+        boolean sufficient = actual.size() >= 28 && activeDays >= 7;
+        List<com.clinic.dto.response.AiHistoricalForecastResponse.Point> predicted = new ArrayList<>();
+        String method = "7-day trailing daily mean; deterministic baseline, not a validated predictive model";
+        if (sufficient) {
+            double mean = actual.subList(actual.size() - 7, actual.size()).stream()
+                    .mapToLong(com.clinic.dto.response.AiHistoricalForecastResponse.Point::value).average().orElse(0);
+            long daily = Math.round(mean);
+            for (int i = 1; i <= 7; i++) {
+                predicted.add(new com.clinic.dto.response.AiHistoricalForecastResponse.Point(to.plusDays(i), daily));
+            }
+        }
+        List<com.clinic.dto.response.AiHistoricalForecastResponse.Insight> insights = new ArrayList<>();
+        if (actual.size() >= 28) {
+            long recent = actual.subList(actual.size() - 14, actual.size()).stream().mapToLong(
+                    com.clinic.dto.response.AiHistoricalForecastResponse.Point::value).sum();
+            long prior = actual.subList(actual.size() - 28, actual.size() - 14).stream().mapToLong(
+                    com.clinic.dto.response.AiHistoricalForecastResponse.Point::value).sum();
+            String comparison = prior == 0 ? (recent == 0
+                    ? "No appointments were recorded in either 14-day period."
+                    : "Appointments were recorded in the recent period; the comparison period had zero records.")
+                    : "The recent 14-day total was " + recent + " compared with " + prior + " in the prior 14 days.";
+            insights.add(new com.clinic.dto.response.AiHistoricalForecastResponse.Insight("MEASURED",
+                    "Appointment volume comparison", comparison, to.minusDays(27) + " to " + to,
+                    "Appointments module; daily persisted appointment counts"));
+        }
+        String limitation = sufficient
+                ? "The estimate repeats the rounded mean of the last seven calendar-day counts for seven days. No uncertainty interval is computed."
+                : "At least 28 calendar days and 7 days with appointments are required. No prediction is shown until that threshold is met.";
+        return new com.clinic.dto.response.AiHistoricalForecastResponse("daily appointments", label, from, to,
+                LocalDateTime.now(), method, actual.size(), sufficient, limitation, actual, predicted,
+                List.of("Appointments module", from + " to " + to, scope + " scope"), insights);
     }
 
     /**

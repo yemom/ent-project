@@ -19,9 +19,8 @@ services:
     image: ${FRONTEND_IMAGE:?set FRONTEND_IMAGE}
     container_name: clinic-frontend-1
     restart: unless-stopped
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost/api/v1}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+    # NEXT_PUBLIC_* values are compiled into the image. Build it with
+    # NEXT_PUBLIC_API_BASE_URL=/api/v1 so browsers use the Nginx same-origin route.
     expose:
       - "3000"
     networks:
@@ -31,9 +30,7 @@ services:
     image: ${FRONTEND_IMAGE:?set FRONTEND_IMAGE}
     container_name: clinic-frontend-2
     restart: unless-stopped
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost/api/v1}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+    # Keep both replicas on the same frontend image/configuration.
     expose:
       - "3000"
     networks:
@@ -45,6 +42,7 @@ services:
     restart: unless-stopped
     environment: &backend_environment
       SPRING_PROFILES_ACTIVE: prod
+      PORT: 8080
 
       # Local Docker PostgreSQL
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-clinic_db}
@@ -81,6 +79,13 @@ services:
     expose:
       - "8080"
 
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,6 +102,13 @@ services:
 
     expose:
       - "8080"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
 
     depends_on:
       postgres:

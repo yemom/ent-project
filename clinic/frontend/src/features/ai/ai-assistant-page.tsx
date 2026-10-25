@@ -1,68 +1,54 @@
 'use client';
 
-import { AiForecastCard, AiAssistantPanel } from '@/features/ai/ai-assistant-panel';
+import { Activity, ShieldCheck, Sparkles } from 'lucide-react';
+import { AiExecutiveDashboard } from '@/features/ai/ai-executive-dashboard';
 import { useAuthStore } from '@/store/auth-store';
 
-/**
- * The dedicated assistant screen.
- *
- * <p>The same panel is embedded in the role dashboards; this page is for the longer
- * working session, where the conversation has room to run. Capabilities are
- * decided by the server, so this page looks the same for every role apart from
- * what it can actually ask about.
- *
- * <p>The three notes below are stated rather than hidden, because a user who does
- * not know the limits of an assistant will act on a confident wrong answer.
- */
+/** Executive Forecast & Assistant workspace matching StockFlow BI layout. */
 export function AiAssistantPage() {
   const role = useAuthStore((state) => state.user?.role);
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <main className="space-y-5 pb-8">
+      <header className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card px-5 py-5 shadow-sm sm:flex-row sm:items-center sm:px-6">
         <div>
-          <p className="text-xs text-muted-foreground">Clinic / Assistant</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">AI Assistant</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Evidence-grounded support for {role ? role.replace(/_/g, ' ').toLowerCase() : 'your account'}.
-            Clinical drafts are never diagnoses and always require clinician review.
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+            <Sparkles className="h-4 w-4" aria-hidden /> CliniCel intelligence
+          </p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">Forecast &amp; assistant</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Explore appointment activity, projected clinical volume, and ask questions about verified hospital records.
           </p>
         </div>
-        <span className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground">
-          Read-only
-        </span>
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {role ? (
+            <span className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground">
+              {role.replace(/_/g, ' ')}
+            </span>
+          ) : null}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Role-secured data
+          </span>
+        </div>
+      </header>
 
-      <AiForecastCard />
+      {/* ── Unified StockFlow-style Executive BI Workspace ───────────────── */}
+      <AiExecutiveDashboard />
 
-      <div className="grid min-h-[34rem] gap-5 lg:grid-cols-[10rem_1fr]">
-        <aside className="rounded-xl border border-border bg-background p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Conversations
+      <div className="grid gap-4 md:grid-cols-2 pt-2">
+        <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="text-sm font-semibold text-foreground">Evidence and freshness</h2>
+          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+            Forecast figures use real role-scoped appointment history. Each answer cites its source tables and calculation timestamp.
+            The displayed baseline is deterministic and does not claim statistical confidence bounds or model accuracy.
           </p>
-          <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium">
-            Current session
-          </div>
-          <p className="mt-4 text-xs leading-5 text-muted-foreground">
-            Ask about the role-scoped forecast and operational records.
+        </section>
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+          <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-100">Human review</h2>
+          <p className="mt-1.5 text-sm leading-6 text-amber-900 dark:text-amber-200">
+            Clinical documentation is a draft for a qualified clinician to review. Appointment proposals stay pending until confirmed.
           </p>
-        </aside>
-        <AiAssistantPanel className="min-h-[34rem]" />
-      </div>
-
-      <div className="grid gap-4 text-sm text-muted-foreground md:grid-cols-3">
-        <section className="rounded-xl border border-border bg-background p-4">
-          <h2 className="font-medium text-foreground">Live figures</h2>
-          <p className="mt-1">Counts and balances are calculated from stored records and show their source period.</p>
-        </section>
-        <section className="rounded-xl border border-border bg-background p-4">
-          <h2 className="font-medium text-foreground">Suggested actions</h2>
-          <p className="mt-1">Forecast suggestions become questions you can send directly to the assistant.</p>
-        </section>
-        <section className="rounded-xl border border-border bg-background p-4">
-          <h2 className="font-medium text-foreground">Human review</h2>
-          <p className="mt-1">Clinical documentation is a draft only. Verify every claim against the source record before signing.</p>
         </section>
       </div>
-    </div>
+    </main>
   );
 }

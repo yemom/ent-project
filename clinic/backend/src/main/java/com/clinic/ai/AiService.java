@@ -128,6 +128,12 @@ public class AiService {
         return capabilityService.execute(capability, Map.of());
     }
 
+    @Transactional(readOnly = true)
+    public com.clinic.dto.response.AiHistoricalForecastResponse appointmentForecast(
+            java.time.LocalDate from, java.time.LocalDate to) {
+        return capabilityService.appointmentForecast(from, to);
+    }
+
     /**
      * Answers one question.
      *

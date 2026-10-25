@@ -229,11 +229,18 @@ export function LoginPage() {
           >
             <Server className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-medium">Server is waking up, please wait…</p>
+              <p className="font-medium">Can’t reach the clinic server</p>
               <p className="text-xs text-amber-700">
-                The clinic server was idle and is starting up. This usually takes
-                under a minute — your sign-in will continue automatically.
+                The API health check failed. Check that Docker is running and that
+                this device can reach the computer hosting the clinic API, then retry.
               </p>
+              <button
+                type="button"
+                className="mt-2 text-xs font-semibold underline"
+                onClick={() => void wakeUpServer()}
+              >
+                Retry connection
+              </button>
             </div>
           </div>
         ) : null}

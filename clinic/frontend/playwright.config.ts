@@ -43,6 +43,9 @@ export default defineConfig({
         command: 'npm run e2e:server',
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
-        timeout: 300_000,
+        // This starts an optimized standalone build before tests. On Windows the
+        // workspace's production build can take several minutes, so allow it to
+        // finish instead of timing out before the server is launched.
+        timeout: 600_000,
       },
 });

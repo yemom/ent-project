@@ -3,16 +3,21 @@ services:
     image: postgres:16-alpine
     container_name: clinic-postgres
     restart: unless-stopped
+    env_file:
+      - ./backend/.env.local
     environment:
-      POSTGRES_USER: clinic_user
-      POSTGRES_PASSWORD: clinic_secure_password_change_me
-      POSTGRES_DB: clinic_db
+      POSTGRES_USER: ${POSTGRES_USER:-clinic_user}
+      POSTGRES_DB: ${POSTGRES_DB:-clinic_db}
+    # Compose's env_file values are available inside the container but cannot be
+    # interpolated into environment fields. Map the ignored backend secret here
+    # so plain `docker compose up` uses the same password as Spring Boot.
+    command: ["sh", "-c", "export POSTGRES_PASSWORD=\"$${SPRING_DATASOURCE_PASSWORD}\"; exec docker-entrypoint.sh postgres"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clinic_user -d clinic_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,26 +29,26 @@ services:
     container_name: clinic-app
     restart: unless-stopped
     env_file:
-      - ./backend/.env
+      - ./backend/.env.local
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://clinic-postgres:5432/clinic_db
-      SPRING_DATASOURCE_USERNAME: clinic_user
-      SPRING_DATASOURCE_PASSWORD: clinic_secure_password_change_me
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-clinic_user}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-clinic_pass}
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_ENABLED: "true"
       REDIS_HOST: clinic-redis
       REDIS_PORT: 6379
-      APP_JWT_SECRET: c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=
       APP_JWT_EXPIRATION_MILLIS: 86400000
       APP_JWT_ISSUER: clinic
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
-      CORS_ALLOWED_ORIGINS: http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:3003,http://192.168.137.1:3001,http://192.168.20.27:3001
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:3003,http://${LAN_HOST:-localhost}:3000,http://192.168.137.1:3000,http://192.168.137.1:3001,http://192.168.20.27:3000,http://192.168.20.27:3001
     ports:
       - "8090:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v1/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness > /dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -74,12 +79,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: http://localhost:8090/api/v1
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3001}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://${LAN_HOST:-localhost}:8090/api/v1}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://${LAN_HOST:-localhost}:${FRONTEND_PORT:-3000}}
     container_name: clinic-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-3001}:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       clinic-app:
         condition: service_healthy

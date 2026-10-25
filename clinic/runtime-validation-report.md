@@ -207,3 +207,151 @@ credentials. Concurrent confirmation against PostgreSQL/Testcontainers, a real
 Ollama/hosted provider, and production email delivery are also not verified.
 
 No secret values are recorded in this report.
+
+## CliniCel AI workspace update (2026-10-25, follow-up)
+
+**Status**: PARTIALLY IMPLEMENTED. The dedicated workspace now includes a real,
+role-scoped appointment history series, a limited deterministic baseline, a
+measured comparison insight, date filters, and server-persisted conversation
+selection. The original endpoint remains available for role-specific operational
+facts. No fabricated values or prediction bounds are used.
+
+### Verified API and data mapping
+
+| UI feature | API endpoint | Data source / repository path | Permission | Evidence |
+| --- | --- | --- | --- | --- |
+| Capability and availability status | `GET /api/v1/ai/capabilities` | `AiService.availability()` and `AiCapabilityService.availableCapabilities()` | Authenticated caller; capabilities derived from current server principal and role permissions | Controller and service source inspection |
+| Operational snapshot | `GET /api/v1/ai/forecast` | `AiCapabilityService.operationalForecast()`; role-specific appointment, assignment, lab, pharmacy, or billing repositories | `OPERATIONAL_FORECAST` permission checked server-side | Controller, service, and capability source inspection |
+| Dated appointment series, baseline, measured comparison insight | `GET /api/v1/ai/forecast/appointments?from=YYYY-MM-DD&to=YYYY-MM-DD` | `AppointmentRepository.dailyAppointmentSeries` groups non-deleted persisted `appointments.appointment_date`; patient/doctor filters use their principal ID | `OPERATIONAL_FORECAST` checked server-side; hospital-wide scope only for roles with appointment/report permission; doctor and patient scopes are owner-only | `AiAuthorizationTest`: range validation, insufficient history, patient isolation, and baseline output |
+| Assistant answer | `POST /api/v1/ai/chat` | Capability service executes authorized repository/service reads; provider only verbalizes supplied facts | Capability allow-list and current-user permissions rechecked server-side; owned conversation IDs | `AiController.chat`, `AiService.chat`, `AiCapabilityService.execute` |
+| Conversation history | `GET /api/v1/ai/conversations`, `GET /api/v1/ai/conversations/{id}` | Owner-scoped conversation and message repositories | Caller ownership enforced; foreign conversation returns 404 | Controller source inspection; UI currently does not browse history |
+| Appointment proposal | `POST /api/v1/ai/actions/propose`, `GET /api/v1/ai/actions/pending`, `POST /api/v1/ai/actions/{id}/confirm`, `POST /api/v1/ai/actions/{id}/reject` | Persisted `AiPendingAction` and appointment records | Creation, ownership, expiry, permission, availability, and concurrency rechecked server-side; explicit human confirmation | Existing tests and prior Playwright evidence documented above |
+
+The original forecast response is `facts`, `sources`, and `computedAt`. The new
+series endpoint returns daily actual points, 7 daily baseline estimates when
+history is sufficient, method, observation count, scope, source range, timestamp,
+limitations, and measured 14-day comparison insight. Forecasting uses the rounded
+mean of the last seven calendar-day counts, repeated for seven future days. It is
+not a validated predictive model; no prediction interval is computed. At least
+28 calendar days and 7 nonzero days are required. Ranges are limited to 366 days,
+cannot extend past today, and reject reversed dates. Unsupported roles receive an
+explicit unavailable-history response without a hospital aggregate. The query
+returns daily counts only and never selects patient identities.
+
+The AI workspace includes a Recharts view with separate historical and dashed
+baseline series, date filters, accessible chart labeling, empty/insufficient/error
+states, and source/freshness/method text. The server-backed conversation list uses
+the existing owner-scoped conversation endpoints; the client does not label
+component-only state as saved history. Existing application shell embeds the same
+role-capability assistant in role contexts; no new role-specific permission was
+introduced.
+
+### Changes and verification
+
+- `clinic/frontend/src/features/ai/ai-assistant-page.tsx`: reorganized the
+  workspace into an operational-data section, a larger assistant area, and
+  evidence/freshness plus human-review panels.
+- `clinic/frontend/src/features/ai/ai-assistant-panel.tsx`: corrected the
+  generated-forecast label, described the fact card as a snapshot, surfaced the
+  time-series limitation, and added retry controls for capability and forecast
+  loading errors.
+- `clinic/frontend/src/services/api/ai.ts`: added the typed historical-series
+  response and date-range API client.
+- `clinic/backend/src/main/java/com/clinic/repository/AppointmentRepository.java`:
+  added a daily, non-identifying grouped-count query with optional principal scope.
+- `clinic/backend/src/main/java/com/clinic/ai/AiCapabilityService.java` and
+  `AiService.java`: added permission-checked bounded series calculation and
+  deterministic baseline.
+- `clinic/backend/src/main/java/com/clinic/controller/AiController.java` and
+  `dto/response/AiHistoricalForecastResponse.java`: exposed the typed endpoint.
+- `clinic/backend/src/test/java/com/clinic/security/AiAuthorizationTest.java`:
+  added future-date, insufficient-history, and patient-history isolation tests.
+- `clinic/frontend`: `npm run typecheck` passed (exit 0).
+- `clinic/frontend`: `npm run lint` passed (exit 0, 0 errors, 160 warnings).
+- `clinic/frontend`: targeted `npx eslint src/features/ai/ai-assistant-panel.tsx src/features/ai/ai-assistant-page.tsx src/services/api/ai.ts` passed (0 warnings/errors).
+- `clinic/frontend`: `npm run build` passed (exit 0; optimized production build,
+  101 static pages).
+- `clinic/backend`: `mvn -f clinic/backend/pom.xml -Dtest=AiAuthorizationTest test`
+  passed (exit 0; 22 tests, 0 failures, 0 errors, 0 skipped).
+- `git diff --check` passed.
+- Full backend regression/package, AI provider tests, API E2E, Playwright suites,
+  and live external provider/email integrations were not rerun in this follow-up.
+
+The StockFlow reference repository was specified by URL but was not available in
+the local checkout for direct file inspection; network access was unavailable.
+No reference files were copied. Remaining work includes full chat transcript
+source metadata on historical turns, a broader UI test suite for the new chart
+and conversation selector, and the previously recorded deployment/provider,
+email, database concurrency, and credential-gated E2E validation.
+
+## CliniCel Docker and runtime follow-up (2026-10-25)
+
+**Status: PARTIALLY IMPLEMENTED.** The confirmed `ERR_EMPTY_RESPONSE` cause in the
+Compose stack was a port mismatch: the backend Docker image defaulted to port
+10000, while Compose mappings, backend health checks, and the production Nginx
+upstream all targeted port 8080. Compose now explicitly sets the backend to 8080.
+Health checks use Spring Boot readiness so they wait for startup initialization.
+The production profile requires its database password and JWT secret instead of
+falling back to development defaults. The production frontend API base path is
+compiled as same-origin `/api/v1`, matching the Nginx proxy. The local runbook
+now documents the port and URL setup.
+
+Next.js `allowedDevOrigins` includes the observed browser development host
+addresses, addressing the reported HMR origin. No application-owned WebSocket
+endpoint was identified as the source of the browser's webpack HMR socket.
+
+Validation this follow-up:
+
+- `docker compose -f docker-compose.yml config --quiet`: passed with temporary
+  non-secret validation environment variables.
+- `docker compose -f docker-compose.prod.yml config --quiet`: passed with
+  temporary non-secret validation environment variables.
+- Python YAML parse for both Compose files: passed.
+- `node --check frontend/next.config.mjs`: passed.
+- Docker engine could not be reached in this Windows session, so containers were
+  not started. PostgreSQL on localhost:5432 did not respond. Consequently no
+  live database history or existing appointment overlap rows were inspected.
+- The existing modified `scripts/verify-migrations.ps1` ends in a malformed
+  assignment (`$env:SPRING_DATASOURCE_PASSWORD = ""=`). This working-tree edit
+  was preserved; its migration verification cannot be trusted or run until
+  repaired. No migration or database data was modified.
+
+The existing report above contains earlier frontend, backend, AI authorization,
+forecast, and API/E2E evidence. Those tests were not rerun in this infra
+follow-up. Production data migration state, the full browser suite with staging
+credentials, Docker-enabled concurrency checks, and real provider/email
+integrations remain unverified.
+
+## Final implementation and verification follow-up (2026-10-25)
+
+**Status: PARTIALLY IMPLEMENTED.** This section supersedes outdated blocker
+statements above where later verification succeeded. The generic development
+configuration no longer contains a default JWT signing key or datasource
+password; local ignored environment configuration supplies these values, tests
+use their test profile, and production requires explicit values.
+
+Verification completed:
+
+- `mvn -o clean test`: passed, 323 tests.
+- PostgreSQL concurrency test with Testcontainers: passed; one reservation wins
+  for a conflicting doctor/date insert.
+- Fresh disposable PostgreSQL migration run: V1–V28 applied and Hibernate
+  schema validation passed. No production database history or data was altered.
+- Existing backend API workflow against isolated H2: all 18 sections passed.
+- Frontend `npm run typecheck` and `npm run lint`: passed (lint reports 160
+  warnings and no errors).
+- Frontend optimized production build: passed with the Windows sandbox's needed
+  elevated filesystem access.
+- Browser suite: the initial complete 43-test run passed 36 tests; all seven
+  setup-dependent failures passed in a subsequent 17-test run after seeding the
+  isolated backend. A single complete rerun after seeding was not performed.
+- AI appointment proposal browser tests: 6 passed.
+- Compose configuration, migration script syntax, and `git diff --check`:
+  passed.
+
+Remaining verification requires external state: inspect the production
+`flyway_schema_history` and existing appointment rows before any data-changing
+migration; verify hosted AI and SMTP credentials/quotas; and perform the full
+browser suite in one run after seeded test setup. The StockFlow reference
+repository was not available for direct inspection, so no claim of pixel-level
+matching or copied reference implementation is made.

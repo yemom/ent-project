@@ -75,6 +75,22 @@ export interface AiForecastResponse {
   computedAt: string;
 }
 
+export interface AiHistoricalForecastResponse {
+  metric: string;
+  scope: string;
+  from: string;
+  to: string;
+  computedAt: string;
+  method: string;
+  observationCount: number;
+  sufficientHistory: boolean;
+  limitation: string;
+  actual: Array<{ date: string; value: number }>;
+  predicted: Array<{ date: string; value: number }>;
+  sources: string[];
+  insights: Array<{ kind: string; title: string; explanation: string; period: string; source: string }>;
+}
+
 /** A state-changing operation waiting for a human decision. */
 export interface AiPendingAction {
   id: string;
@@ -119,6 +135,11 @@ export async function askAiAssistant(
 
 export async function getAiForecast(): Promise<AiForecastResponse> {
   const { data } = await apiClient.get<AiForecastResponse>('/ai/forecast');
+  return data;
+}
+
+export async function getAiAppointmentForecast(from: string, to: string): Promise<AiHistoricalForecastResponse> {
+  const { data } = await apiClient.get<AiHistoricalForecastResponse>('/ai/forecast/appointments', { params: { from, to } });
   return data;
 }
 

@@ -28,7 +28,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/clinic_db}}
     username: ${SPRING_DATASOURCE_USERNAME:clinic_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:clinic_secure_password_change_me}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
       pool-name: ClinicHikariPool
       maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
@@ -129,7 +129,7 @@ logging:
 
 app:
   jwt:
-    secret: ${APP_JWT_SECRET:c2VjdXJlLWp3dC1zZWNyZXQta2V5LWZvci1jbGluaWNlbC1zdXJwYXNzLW1lLTMya2V5cwo=}
+    secret: ${APP_JWT_SECRET}
     # Short-lived access token; the frontend refreshes through rotation.
     expiration-millis: ${APP_JWT_EXPIRATION_MILLIS:900000}
     refresh-expiration-millis: ${APP_JWT_REFRESH_EXPIRATION_MILLIS:604800000}

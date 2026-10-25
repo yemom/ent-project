@@ -187,6 +187,61 @@ class AiAuthorizationTest {
                 .doesNotContain("patient_own_record");
     }
 
+    @Test
+    void datedForecastReturnsOnlyThePatientsOwnHistoryAndHonestInsufficientState() throws Exception {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String body = mockMvc.perform(get("/api/v1/ai/forecast/appointments")
+                        .param("from", today.minusDays(29).toString())
+                        .param("to", today.toString())
+                        .with(asUser(patientId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scope").value("Your appointments"))
+                .andExpect(jsonPath("$.actual.length()").value(30))
+                .andExpect(jsonPath("$.sufficientHistory").value(false))
+                .andExpect(jsonPath("$.predicted.length()").value(0))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(body).contains("No prediction is shown");
+    }
+
+    @Test
+    void datedForecastRejectsFutureDateRanges() throws Exception {
+        mockMvc.perform(get("/api/v1/ai/forecast/appointments")
+                        .param("from", java.time.LocalDate.now().toString())
+                        .param("to", java.time.LocalDate.now().plusDays(1).toString())
+                        .with(asUser(patientId)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patientBaselineUsesOnlyTheirOwnPersistedAppointments() throws Exception {
+        Doctor doctor = com.clinic.entity.Doctor.builder().id(doctorId).build();
+        Patient own = patientRepository.findById(patientId).orElseThrow();
+        Patient other = patientRepository.findById(otherPatientId).orElseThrow();
+        LocalDateTime today = LocalDateTime.now().toLocalDate().atStartOfDay();
+        for (int daysAgo = 6; daysAgo >= 0; daysAgo--) {
+            LocalDateTime date = today.minusDays(daysAgo).plusHours(9);
+            appointmentRepository.save(com.clinic.entity.Appointment.builder()
+                    .patient(own).doctor(doctor).appointmentDate(date).duration(30)
+                    .status(AppointmentStatus.SCHEDULED).build());
+            for (int extra = 0; extra < 3; extra++) {
+                appointmentRepository.save(com.clinic.entity.Appointment.builder()
+                        .patient(other).doctor(doctor).appointmentDate(date.plusMinutes(45L + extra * 35L))
+                        .duration(30).status(AppointmentStatus.SCHEDULED).build());
+            }
+        }
+        java.time.LocalDate todayDate = today.toLocalDate();
+        mockMvc.perform(get("/api/v1/ai/forecast/appointments")
+                        .param("from", todayDate.minusDays(29).toString())
+                        .param("to", todayDate.toString())
+                        .with(asUser(patientId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sufficientHistory").value(true))
+                .andExpect(jsonPath("$.actual.length()").value(30))
+                .andExpect(jsonPath("$.actual[23].value").value(1))
+                .andExpect(jsonPath("$.predicted.length()").value(7))
+                .andExpect(jsonPath("$.predicted[0].value").value(1));
+    }
+
     // ------------------------------------------------------------------
     // Denied capabilities
     // ------------------------------------------------------------------

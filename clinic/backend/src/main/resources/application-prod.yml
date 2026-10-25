@@ -7,7 +7,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/clinic_db}}
     username: ${SPRING_DATASOURCE_USERNAME:clinic_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:clinic_secure_password_change_me}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
       maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
       minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:1}
@@ -30,6 +30,11 @@ spring:
 springdoc:
   api-docs:
     enabled: false
+
+# Production must never fall back to the repository's development signing key.
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET}
   swagger-ui:
     enabled: false
 

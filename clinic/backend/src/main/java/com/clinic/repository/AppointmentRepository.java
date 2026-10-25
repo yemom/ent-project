@@ -85,6 +85,22 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
             """, nativeQuery = true)
     List<Object[]> dailyVolumeSince(@Param("from") LocalDateTime from);
 
+    /** Daily counts without identities, scoped by the authenticated caller when needed. */
+    @Query(value = """
+            SELECT CAST(appointment_date AS DATE) AS trend_day, COUNT(*) AS total
+            FROM appointments
+            WHERE deleted = false
+              AND appointment_date >= :from AND appointment_date < :to
+              AND (:scope = 'HOSPITAL' OR (:scope = 'DOCTOR' AND doctor_id = :ownerId)
+                   OR (:scope = 'PATIENT' AND patient_id = :ownerId))
+            GROUP BY CAST(appointment_date AS DATE)
+            ORDER BY trend_day
+            """, nativeQuery = true)
+    List<Object[]> dailyAppointmentSeries(@Param("from") LocalDateTime from,
+                                         @Param("to") LocalDateTime to,
+                                         @Param("scope") String scope,
+                                         @Param("ownerId") String ownerId);
+
     /** Next appointments for a doctor, ordered by time — the doctor's own panel. */
     @EntityGraph(attributePaths = {"patient", "doctor"})
     Page<Appointment> findByDoctorIdAndAppointmentDateAfterOrderByAppointmentDateAsc(

@@ -59,7 +59,34 @@ server that is already up.
 
 ---
 
-## 3. Required production environment
+## 3. Local Docker stack
+
+From the `clinic` directory, load the ignored local backend environment file for
+Compose run:
+
+```powershell
+docker compose up --build
+```
+
+The ignored `backend/.env.local` file is loaded into the PostgreSQL and backend
+containers. It must define `SPRING_DATASOURCE_PASSWORD` and `APP_JWT_SECRET`.
+PostgreSQL and Spring Boot use the same database password. Create it from
+`backend/.env.example` if it is missing, then replace the example credentials
+before starting the stack.
+
+The backend listens on port 8080 inside Compose; the dev stack publishes it at
+`localhost:8090`. The frontend is available at `http://localhost:3000`; its
+browser API URL defaults to `http://localhost:8090/api/v1`. For access from
+another device on the same LAN, set `LAN_HOST` in PowerShell to the Docker
+host's LAN IP before building, and open the frontend at that IP on port 3000.
+For example: `$env:LAN_HOST="192.168.1.20"; docker compose up --build`. Keep
+credentials in an ignored local env file or your environment
+and never commit them. The production frontend uses the
+same-origin `/api/v1` path, routed by Nginx, which is compiled into the image.
+Stop the stack with `docker compose down`; do not add `-v` if you need to retain
+the database volume.
+
+## 4. Required production environment
 
 | Variable | Required | Notes |
 |---|---|---|
@@ -96,7 +123,7 @@ Super Admin. To force a reset, set `SUPER_ADMIN_FORCE_PASSWORD=true`.
 
 ---
 
-## 4. Recovering from a failed migration
+## 5. Recovering from a failed migration
 
 Flyway records a failed migration in `flyway_schema_history` and then refuses every
 later run, so **one failed deploy bricks the next deploy too.**
@@ -128,7 +155,7 @@ Flyway re-run that migration against a database that already has it.
 
 ---
 
-## 5. Release checklist
+## 6. Release checklist
 
 - [ ] `./scripts/verify-all.ps1` green
 - [ ] `./scripts/verify-migrations.ps1` green, if any migration changed
@@ -139,7 +166,7 @@ Flyway re-run that migration against a database that already has it.
 
 ---
 
-## 6. If something fails
+## 7. If something fails
 
 | Symptom | Cause |
 |---|---|

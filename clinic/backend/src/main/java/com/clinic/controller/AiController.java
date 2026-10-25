@@ -130,6 +130,18 @@ public class AiController {
                 facts.computedAt()));
     }
 
+    /** Role-scoped dated appointment observations and deterministic baseline. */
+    @GetMapping("/forecast/appointments")
+    public ResponseEntity<com.clinic.dto.response.AiHistoricalForecastResponse> appointmentForecast(
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return ResponseEntity.ok(aiService.appointmentForecast(from, to));
+    }
+
     /** The caller's own conversations, newest first. */
     @GetMapping("/conversations")
     public ResponseEntity<List<AiConversationResponse>> conversations(
