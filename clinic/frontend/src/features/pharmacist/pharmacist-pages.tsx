@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { PharmacyInventoryForecastView } from "@/features/ai/role-forecast-views";
 import {
+  Sparkles,
   AlertCircle,
   ArrowRight,
   Check,
@@ -170,6 +172,17 @@ export function PharmacistDashboardPage() {
         title="Pharmacy Dashboard"
         description={`Active queue: ${stats.pending} prescriptions pending fulfillment`}
       />
+
+      {/* ── AI Pharmacy & Expiry Intelligence ─────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+            <Sparkles className="h-4 w-4 text-amber-500" /> Pharmacy Inventory &amp; Expiry AI Forecast
+          </h3>
+          <span className="text-xs text-muted-foreground">Stock Intelligence</span>
+        </div>
+        <PharmacyInventoryForecastView />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="rounded-3xl border-border/60 shadow-sm">

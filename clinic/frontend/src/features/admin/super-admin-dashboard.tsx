@@ -31,6 +31,7 @@ import { useHospitalStats } from '@/features/admin/use-hospital-stats';
 import { PERMISSIONS, type Permission } from '@/features/auth/permissions';
 import { useAuthStore } from '@/store/auth-store';
 import type { HospitalStats } from '@/services/api/stats';
+import { AiExecutiveDashboard } from '@/features/ai/ai-executive-dashboard';
 
 /**
  * Super Admin dashboard.
@@ -70,6 +71,9 @@ export function SuperAdminDashboardPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      {/* ── Role Switcher & AI Intelligence Workspace matching StockFlow ── */}
+      <AiExecutiveDashboard />
 
       {/* ---------------- people ---------------- */}
       <Section title="People" icon={Users} />

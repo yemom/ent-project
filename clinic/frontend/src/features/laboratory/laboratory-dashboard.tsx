@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, AlertCircle, ArrowUpRight, CheckCircle2, Clock, Download, FlaskConical, Plus, SlidersHorizontal, Eye } from 'lucide-react';
+import { LaboratoryForecastView } from "@/features/ai/role-forecast-views";
+import { Sparkles, Activity, AlertCircle, ArrowUpRight, CheckCircle2, Clock, Download, FlaskConical, Plus, SlidersHorizontal, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -155,6 +156,17 @@ export function LaboratoryDashboardPage() {
             </Button>
           </Link>
         </div>
+      </div>
+
+      {/* ── AI Laboratory Turnaround & Queue Forecast ────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+            <Sparkles className="h-4 w-4 text-cyan-500" /> Laboratory Queue &amp; Turnaround AI Forecast
+          </h3>
+          <span className="text-xs text-muted-foreground">Diagnostic Intelligence</span>
+        </div>
+        <LaboratoryForecastView />
       </div>
 
       {error ? (

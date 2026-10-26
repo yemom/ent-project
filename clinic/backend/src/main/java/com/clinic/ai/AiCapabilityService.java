@@ -272,8 +272,44 @@ public class AiCapabilityService {
     // Capabilities
     // ------------------------------------------------------------------
 
+    @Transactional(readOnly = true)
+    public AiCapabilityResult operationalForecastFor(UserRole requestedRole) {
+        assertAllowed(AiCapability.OPERATIONAL_FORECAST);
+        UserRole currentRole = currentUser.role().canonical();
+        UserRole effectiveRole = currentRole;
+        if (requestedRole != null) {
+            if (currentRole == UserRole.SUPER_ADMIN || currentRole == UserRole.ADMIN) {
+                effectiveRole = requestedRole.canonical();
+            } else {
+                throw new ForbiddenException("Only administrators can query forecasts for other roles.");
+            }
+        }
+        return operationalForecast(effectiveRole);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> allRoleForecasts() {
+        assertAllowed(AiCapability.OPERATIONAL_FORECAST);
+        UserRole currentRole = currentUser.role().canonical();
+        if (currentRole != UserRole.SUPER_ADMIN && currentRole != UserRole.ADMIN) {
+            throw new ForbiddenException("Only administrators can view cross-role operational forecasts.");
+        }
+        Map<String, Object> all = new LinkedHashMap<>();
+        all.put("hospital", operationalForecast(UserRole.SUPER_ADMIN).facts());
+        all.put("doctor", operationalForecast(UserRole.DOCTOR).facts());
+        all.put("nurse", operationalForecast(UserRole.NURSE).facts());
+        all.put("laboratory", operationalForecast(UserRole.LAB_TECHNICIAN).facts());
+        all.put("pharmacist", operationalForecast(UserRole.PHARMACIST).facts());
+        all.put("cashier", operationalForecast(UserRole.CASHIER).facts());
+        all.put("reception", operationalForecast(UserRole.RECEPTIONIST).facts());
+        return all;
+    }
+
     private AiCapabilityResult operationalForecast() {
-        UserRole role = currentUser.role().canonical();
+        return operationalForecast(currentUser.role().canonical());
+    }
+
+    private AiCapabilityResult operationalForecast(UserRole role) {
         LocalDate today = LocalDate.now();
         LocalDate currentStart = today.minusDays(30);
         LocalDate previousStart = currentStart.minusDays(30);
@@ -285,9 +321,22 @@ public class AiCapabilityService {
         facts.put("forecastHorizon", "next 30 days");
         facts.put("limitations", "Projection is directional, not a clinical or financial guarantee.");
 
+        if (role == UserRole.RECEPTIONIST) {
+            long registrations = patientRepository.countCreatedBetween(currentFrom, currentTo);
+            long appts = appointmentRepository.countByAppointmentDateBetween(currentFrom, currentTo);
+            facts.put("metric", "patient registration and bookings");
+            facts.put("patientRegistrations30Days", registrations);
+            facts.put("bookedAppointments30Days", appts);
+            facts.put("forecastAvailable", true);
+            facts.put("suggestions", List.of("Monitor peak arrival times and check doctor schedule availability.",
+                    "Ask the assistant to list available appointment slots."));
+            return AiCapabilityResult.of(facts, List.of("Front desk module", currentStart + " to " + today), false);
+        }
+
         if (role == UserRole.NURSE) {
-            long assigned = patientAssignmentRepository
-                    .countByNurseIdAndReleasedAtIsNull(currentUser.userId());
+            long assigned = currentUser.role().canonical() == UserRole.NURSE
+                    ? patientAssignmentRepository.countByNurseIdAndReleasedAtIsNull(currentUser.userId())
+                    : patientAssignmentRepository.countByReleasedAtIsNull();
             facts.put("metric", "assigned patients");
             facts.put("currentValue", assigned);
             facts.put("forecastAvailable", false);
@@ -343,11 +392,17 @@ public class AiCapabilityService {
         long previous;
         String scope;
         if (role == UserRole.DOCTOR) {
-            current = appointmentRepository.countByDoctorIdAndAppointmentDateBetween(
-                    currentUser.userId(), currentFrom, currentTo);
-            previous = appointmentRepository.countByDoctorIdAndAppointmentDateBetween(
-                    currentUser.userId(), previousFrom, currentFrom);
-            scope = "caller doctor's appointments";
+            if (currentUser.role().canonical() == UserRole.DOCTOR) {
+                current = appointmentRepository.countByDoctorIdAndAppointmentDateBetween(
+                        currentUser.userId(), currentFrom, currentTo);
+                previous = appointmentRepository.countByDoctorIdAndAppointmentDateBetween(
+                        currentUser.userId(), previousFrom, currentFrom);
+                scope = "caller doctor's appointments";
+            } else {
+                current = appointmentRepository.countByAppointmentDateBetween(currentFrom, currentTo);
+                previous = appointmentRepository.countByAppointmentDateBetween(previousFrom, currentFrom);
+                scope = "clinical appointments";
+            }
         } else if (role == UserRole.PATIENT) {
             current = appointmentRepository.findByPatientIdAndAppointmentDateBetween(
                     currentUser.userId(), currentFrom, currentTo, PageRequest.of(0, 1)).getTotalElements();

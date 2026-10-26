@@ -122,12 +122,19 @@ public class AiController {
      * model provider is disabled. No generated claim is presented as a fact.
      */
     @GetMapping("/forecast")
-    public ResponseEntity<AiForecastResponse> forecast() {
-        AiCapabilityResult facts = aiService.forecast();
+    public ResponseEntity<AiForecastResponse> forecast(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String role) {
+        AiCapabilityResult facts = aiService.forecast(role);
         return ResponseEntity.ok(new AiForecastResponse(
                 facts.facts(),
                 facts.sources(),
                 facts.computedAt()));
+    }
+
+    /** Returns all role operational forecasts at once for administrators. */
+    @GetMapping("/forecast/all")
+    public ResponseEntity<java.util.Map<String, Object>> allForecasts() {
+        return ResponseEntity.ok(aiService.allRoleForecasts());
     }
 
     /** Role-scoped dated appointment observations and deterministic baseline. */

@@ -79,7 +79,7 @@ export function AiAssistantPanel({
   });
   const forecast = useQuery({
     queryKey: ['ai', 'forecast'],
-    queryFn: getAiForecast,
+    queryFn: () => getAiForecast(),
     // Forecast access is role-scoped by the backend. Wait for the capability
     // response before requesting it so roles without forecast access do not
     // generate avoidable 403 responses on every dashboard.

@@ -3,7 +3,8 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, CalendarCheck2, ChevronDown, Clock3, FileText, MapPin, RefreshCw, Search, Star, X } from 'lucide-react';
+import { AskAssistantPanel } from '@/features/ai/ask-assistant-panel';
+import { Sparkles, Bell, CalendarCheck2, ChevronDown, Clock3, FileText, MapPin, RefreshCw, Search, Star, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -102,6 +103,17 @@ export function PatientDashboardPage() {
           </Button>
         </div>
       ) : null}
+
+      {/* ── AI Patient Health & Appointment Assistant ──────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+            <Sparkles className="h-4 w-4 text-blue-500" /> Patient Care &amp; Health Assistant
+          </h3>
+          <span className="text-xs text-muted-foreground">Verified Personal Health Records</span>
+        </div>
+        <AskAssistantPanel />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {/*

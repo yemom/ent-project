@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { BadgeDollarSign, Receipt, Wallet } from 'lucide-react';
+import { CashierBillingForecastView } from "@/features/ai/role-forecast-views";
+import { BadgeDollarSign, Receipt, Wallet, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,17 @@ export function CashierDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Cashier" description="Refunds requiring a decision." />
+
+      {/* ── AI Cashier & Billing Revenue Intelligence ────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+            <Sparkles className="h-4 w-4 text-emerald-500" /> Cashier &amp; Billing AI Financial Forecast
+          </h3>
+          <span className="text-xs text-muted-foreground">Revenue Intelligence</span>
+        </div>
+        <CashierBillingForecastView />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

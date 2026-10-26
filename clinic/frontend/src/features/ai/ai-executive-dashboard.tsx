@@ -1,12 +1,36 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, Database, Loader2, Sparkles } from 'lucide-react';
+import {
+  Activity,
+  Beaker,
+  BedDouble,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Database,
+  HeartPulse,
+  Loader2,
+  PillBottle,
+  Receipt,
+  Sparkles,
+  Stethoscope,
+  Wallet,
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { ForecastChart } from '@/features/ai/forecast-chart';
 import { AskAssistantPanel } from '@/features/ai/ask-assistant-panel';
 import { AiInsightPanel } from '@/features/ai/ai-insight-panel';
+import {
+  AdminAllForecastsOverview,
+  DoctorClinicalForecastView,
+  InpatientNurseForecastView,
+  PharmacyInventoryForecastView,
+  LaboratoryForecastView,
+  CashierBillingForecastView,
+} from '@/features/ai/role-forecast-views';
 import { getAiAppointmentForecast, type AiHistoricalForecastResponse } from '@/services/api/ai';
+import { useAuthStore } from '@/store/auth-store';
 
 export interface DateRange {
   from: string;
@@ -51,7 +75,20 @@ const RANGE_PRESETS = [
   { label: 'Last year', getRange: lastYearRange },
 ];
 
-export function AiExecutiveDashboard({ className }: { className?: string }) {
+export type RoleViewTab = 'executive' | 'doctor' | 'nurse' | 'pharmacy' | 'laboratory' | 'cashier';
+
+export function AiExecutiveDashboard({
+  className,
+  defaultTab = 'executive',
+}: {
+  className?: string;
+  defaultTab?: RoleViewTab;
+}) {
+  const user = useAuthStore((state) => state.user);
+  const userRole = user?.role;
+  const isElevatedRole = userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'HOSPITAL_ADMIN';
+
+  const [activeTab, setActiveTab] = useState<RoleViewTab>(defaultTab);
   const [range, setRange] = useState<DateRange>(() => lastNDays(30));
   const [activePreset, setActivePreset] = useState<string>('Last 30 days');
   const [horizon, setHorizon] = useState<number>(14);
@@ -72,113 +109,309 @@ export function AiExecutiveDashboard({ className }: { className?: string }) {
   const totalVisits = actualList.reduce((sum, item) => sum + (item.value ?? 0), 0);
 
   return (
-    <div className={`space-y-4 ${className ?? ''}`}>
-      {/* ── Top Date Filter Bar matching StockFlow ──────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-medium text-muted-foreground shrink-0">Date range</span>
-
-          <div className="flex items-center gap-1.5">
-            <input
-              type="date"
-              aria-label="Filter start date"
-              value={range.from}
-              max={range.to}
-              onChange={(e) => {
-                setActivePreset('');
-                setRange({ ...range, from: e.target.value });
-              }}
-              className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span className="text-xs text-muted-foreground">to</span>
-            <input
-              type="date"
-              aria-label="Filter end date"
-              value={range.to}
-              min={range.from}
-              onChange={(e) => {
-                setActivePreset('');
-                setRange({ ...range, to: e.target.value });
-              }}
-              className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+    <div className={`space-y-5 ${className ?? ''}`}>
+      {/* ── Role View Switcher for Administrators matching StockFlow ──────── */}
+      {isElevatedRole && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1 shadow-sm text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setActiveTab('executive')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
+                activeTab === 'executive'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5" />
+              Executive BI
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('doctor')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
+                activeTab === 'doctor'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <Stethoscope className="h-3.5 w-3.5" />
+              Doctor / Clinical View
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('nurse')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
+                activeTab === 'nurse'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <HeartPulse className="h-3.5 w-3.5" />
+              Inpatient / Nurse View
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pharmacy')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
+                activeTab === 'pharmacy'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <PillBottle className="h-3.5 w-3.5" />
+              Pharmacy View
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('laboratory')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
+                activeTab === 'laboratory'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <Beaker className="h-3.5 w-3.5" />
+              Laboratory View
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('cashier')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
+                activeTab === 'cashier'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <Wallet className="h-3.5 w-3.5" />
+              Cashier / Billing View
+            </button>
           </div>
-
-          <div className="ml-1 flex flex-wrap items-center gap-1">
-            {RANGE_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => handlePresetSelect(preset)}
-                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                  activePreset === preset.label
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {query.isFetching ? (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin text-blue-500" /> Updating
+          <span className="text-xs text-muted-foreground">
+            Role: <strong className="text-foreground">{userRole}</strong>
           </span>
-        ) : null}
-      </div>
+        </div>
+      )}
 
-      {/* ── Where these figures come from bar matching StockFlow ─────────── */}
-      <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm text-xs">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-semibold text-foreground">Where these figures come from</h4>
-            <p className="mt-0.5 text-muted-foreground">
-              {range.from} – {range.to} · {actualList.length} observation days · {totalVisits} recorded consultations
-            </p>
+      {/* ── View: Doctor / Clinical ───────────────────────────────────────── */}
+      {activeTab === 'doctor' && (
+        <div className="space-y-4">
+          <DoctorClinicalForecastView />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <ForecastChart
+                forecast={query.data}
+                isLoading={query.isLoading}
+                horizon={horizon}
+                onHorizonChange={setHorizon}
+                error={query.error ? (query.error as Error).message : null}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <AskAssistantPanel range={range} />
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowFigureSource(!showFigureSource)}
-            className="flex items-center gap-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            {showFigureSource ? 'Hide' : 'Show'}
-            {showFigureSource ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
         </div>
+      )}
 
-        {showFigureSource ? (
-          <div className="mt-3 border-t border-border pt-3 space-y-1.5 text-muted-foreground">
-            <p>
-              Every figure shown here is read directly from PostgreSQL production tables (<code className="rounded bg-muted px-1 py-0.5 text-[11px]">appointments</code>, <code className="rounded bg-muted px-1 py-0.5 text-[11px]">users</code>, <code className="rounded bg-muted px-1 py-0.5 text-[11px]">invoices</code>, and <code className="rounded bg-muted px-1 py-0.5 text-[11px]">stock_batches</code>).
-            </p>
-            <p>
-              Calculations are deterministic: there are no synthetic placeholder estimates. The trailing mean baseline provides predictive trajectory without hallucinating artificial figures.
-            </p>
+      {/* ── View: Inpatient / Nurse ───────────────────────────────────────── */}
+      {activeTab === 'nurse' && (
+        <div className="space-y-4">
+          <InpatientNurseForecastView />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <ForecastChart
+                forecast={query.data}
+                isLoading={query.isLoading}
+                horizon={horizon}
+                onHorizonChange={setHorizon}
+                error={query.error ? (query.error as Error).message : null}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <AskAssistantPanel range={range} />
+            </div>
           </div>
-        ) : null}
-      </div>
-
-      {/* ── Main Side-by-Side Grid matching StockFlow ───────────────────── */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <ForecastChart
-            forecast={query.data}
-            isLoading={query.isLoading}
-            horizon={horizon}
-            onHorizonChange={setHorizon}
-            error={query.error ? (query.error as Error).message : null}
-          />
         </div>
-        <div className="xl:col-span-1">
-          <AskAssistantPanel range={range} />
-        </div>
-      </div>
+      )}
 
-      {/* ── What the numbers say (Insights Panel) matching StockFlow ─────── */}
-      <AiInsightPanel forecast={query.data} isLoading={query.isLoading} />
+      {/* ── View: Pharmacy ────────────────────────────────────────────────── */}
+      {activeTab === 'pharmacy' && (
+        <div className="space-y-4">
+          <PharmacyInventoryForecastView />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <ForecastChart
+                forecast={query.data}
+                isLoading={query.isLoading}
+                horizon={horizon}
+                onHorizonChange={setHorizon}
+                error={query.error ? (query.error as Error).message : null}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <AskAssistantPanel range={range} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── View: Laboratory ──────────────────────────────────────────────── */}
+      {activeTab === 'laboratory' && (
+        <div className="space-y-4">
+          <LaboratoryForecastView />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <ForecastChart
+                forecast={query.data}
+                isLoading={query.isLoading}
+                horizon={horizon}
+                onHorizonChange={setHorizon}
+                error={query.error ? (query.error as Error).message : null}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <AskAssistantPanel range={range} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── View: Cashier / Billing ───────────────────────────────────────── */}
+      {activeTab === 'cashier' && (
+        <div className="space-y-4">
+          <CashierBillingForecastView />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <ForecastChart
+                forecast={query.data}
+                isLoading={query.isLoading}
+                horizon={horizon}
+                onHorizonChange={setHorizon}
+                error={query.error ? (query.error as Error).message : null}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <AskAssistantPanel range={range} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── View: Executive BI (Default) ──────────────────────────────────── */}
+      {activeTab === 'executive' && (
+        <>
+          {/* All departments live forecast summary row for administrators */}
+          {isElevatedRole && <AdminAllForecastsOverview />}
+
+          {/* ── Top Date Filter Bar matching StockFlow ──────────────────────── */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-xs font-medium text-muted-foreground shrink-0">Date range</span>
+
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  aria-label="Filter start date"
+                  value={range.from}
+                  max={range.to}
+                  onChange={(e) => {
+                    setActivePreset('');
+                    setRange({ ...range, from: e.target.value });
+                  }}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <input
+                  type="date"
+                  aria-label="Filter end date"
+                  value={range.to}
+                  min={range.from}
+                  onChange={(e) => {
+                    setActivePreset('');
+                    setRange({ ...range, to: e.target.value });
+                  }}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="ml-1 flex flex-wrap items-center gap-1">
+                {RANGE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => handlePresetSelect(preset)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                      activePreset === preset.label
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {query.isFetching ? (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin text-blue-500" /> Updating
+              </span>
+            ) : null}
+          </div>
+
+          {/* ── Where these figures come from bar matching StockFlow ─────────── */}
+          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm text-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-foreground">Where these figures come from</h4>
+                <p className="mt-0.5 text-muted-foreground">
+                  {range.from} – {range.to} · {actualList.length} observation days · {totalVisits} recorded consultations
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFigureSource(!showFigureSource)}
+                className="flex items-center gap-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {showFigureSource ? 'Hide' : 'Show'}
+                {showFigureSource ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+
+            {showFigureSource ? (
+              <div className="mt-3 border-t border-border pt-3 space-y-1.5 text-muted-foreground">
+                <p>
+                  Every figure shown here is read directly from PostgreSQL production tables (<code className="rounded bg-muted px-1 py-0.5 text-[11px]">appointments</code>, <code className="rounded bg-muted px-1 py-0.5 text-[11px]">users</code>, <code className="rounded bg-muted px-1 py-0.5 text-[11px]">invoices</code>, and <code className="rounded bg-muted px-1 py-0.5 text-[11px]">stock_batches</code>).
+                </p>
+                <p>
+                  Calculations are deterministic: there are no synthetic placeholder estimates. The trailing mean baseline provides predictive trajectory without hallucinating artificial figures.
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          {/* ── Main Side-by-Side Grid matching StockFlow ───────────────────── */}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <ForecastChart
+                forecast={query.data}
+                isLoading={query.isLoading}
+                horizon={horizon}
+                onHorizonChange={setHorizon}
+                error={query.error ? (query.error as Error).message : null}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <AskAssistantPanel range={range} />
+            </div>
+          </div>
+
+          {/* ── What the numbers say (Insights Panel) matching StockFlow ─────── */}
+          <AiInsightPanel forecast={query.data} isLoading={query.isLoading} />
+        </>
+      )}
     </div>
   );
 }

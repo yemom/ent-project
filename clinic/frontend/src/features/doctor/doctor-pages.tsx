@@ -2,7 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
+import { DoctorClinicalForecastView } from "@/features/ai/role-forecast-views";
+import { AskAssistantPanel } from "@/features/ai/ask-assistant-panel";
 import {
+  Sparkles,
   Beaker,
   Calendar,
   CheckCircle2,
@@ -133,6 +136,17 @@ export function DoctorDashboardPage() {
         actionLabel="New Record"
         actionHref="/doctor/records/new"
       />
+
+      {/* ── AI Clinical Forecast & Intelligence ─────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+            <Sparkles className="h-4 w-4 text-emerald-500" /> Clinical Forecast &amp; Patient Load
+          </h3>
+          <span className="text-xs text-muted-foreground">Doctor AI Intelligence</span>
+        </div>
+        <DoctorClinicalForecastView />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="rounded-3xl border-border/60 shadow-sm">

@@ -123,9 +123,25 @@ public class AiService {
      */
     @Transactional(readOnly = true)
     public AiCapabilityResult forecast() {
+        return forecast(null);
+    }
+
+    @Transactional(readOnly = true)
+    public AiCapabilityResult forecast(String roleStr) {
         AiCapability capability = AiCapability.OPERATIONAL_FORECAST;
         capabilityService.assertCallerAllowed(capability);
-        return capabilityService.execute(capability, Map.of());
+        com.clinic.entity.UserRole targetRole = null;
+        if (roleStr != null && !roleStr.isBlank()) {
+            try {
+                targetRole = com.clinic.entity.UserRole.valueOf(roleStr.trim().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return capabilityService.operationalForecastFor(targetRole);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> allRoleForecasts() {
+        return capabilityService.allRoleForecasts();
     }
 
     @Transactional(readOnly = true)

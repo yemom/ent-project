@@ -133,8 +133,15 @@ export async function askAiAssistant(
   return data;
 }
 
-export async function getAiForecast(): Promise<AiForecastResponse> {
-  const { data } = await apiClient.get<AiForecastResponse>('/ai/forecast');
+export async function getAiForecast(role?: string): Promise<AiForecastResponse> {
+  const { data } = await apiClient.get<AiForecastResponse>('/ai/forecast', {
+    params: role ? { role } : undefined,
+  });
+  return data;
+}
+
+export async function getAllRoleForecasts(): Promise<Record<string, Record<string, unknown>>> {
+  const { data } = await apiClient.get<Record<string, Record<string, unknown>>>('/ai/forecast/all');
   return data;
 }
 

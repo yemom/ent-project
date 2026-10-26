@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { ReceptionistForecastView } from "@/features/ai/role-forecast-views";
 import {
+  Sparkles,
   BedDouble,
   CalendarDays,
   CheckCircle2,
@@ -91,6 +93,17 @@ export function ReceptionDeskPage() {
       />
 
       <StatusAlert status={status} message={message} onDismiss={() => setStatus(null)} autoDismissMs={4000} />
+
+      {/* ── AI Front Desk Volume Forecast ────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+            <Sparkles className="h-4 w-4 text-blue-500" /> Reception Volume &amp; Registration AI Forecast
+          </h3>
+          <span className="text-xs text-muted-foreground">Front Desk Intelligence</span>
+        </div>
+        <ReceptionistForecastView />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

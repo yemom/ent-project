@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { InpatientNurseForecastView } from "@/features/ai/role-forecast-views";
 import {
+  Sparkles,
   Activity,
   ClipboardList,
   HeartPulse,
@@ -50,6 +52,17 @@ export function NurseDashboardPage() {
         title="Nursing Dashboard"
         description="Assigned patients, vitals and medication administration."
       />
+
+      {/* ── AI Inpatient & Care Forecast ──────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+            <Sparkles className="h-4 w-4 text-purple-500" /> Inpatient &amp; Nursing AI Forecast
+          </h3>
+          <span className="text-xs text-muted-foreground">Ward Intelligence</span>
+        </div>
+        <InpatientNurseForecastView />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Metric label="Assigned patients" value={patients.length} loading={isLoading} icon={HeartPulse} />

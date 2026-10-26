@@ -35,5 +35,7 @@ public interface PatientAssignmentRepository extends JpaRepository<PatientAssign
 
     long countByNurseIdAndReleasedAtIsNull(String nurseId);
 
+    long countByReleasedAtIsNull();
+
     boolean existsByPatientIdAndNurseIdAndReleasedAtIsNull(String patientId, String nurseId);
 }
