@@ -47,6 +47,7 @@ public class LabOrder extends BaseEntity {
     @Column(name = "test_name")
     @BatchSize(size = 50)
     @NotEmpty(message = "At least one test must be selected")
+    @Builder.Default
     private List<String> tests = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)

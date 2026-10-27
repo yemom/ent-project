@@ -22,7 +22,7 @@ spring:
     # subsequent run. A deploy that fails mid-migration therefore bricks the next
     # deploy as well, unless the failed entry is cleared. Repair runs before migrate
     # and removes only the failure markers -- it never rolls anything back.
-    repair-on-startup: true
+    repair-on-startup: ${SPRING_FLYWAY_REPAIR_ON_STARTUP:true}
   cache:
     type: ${SPRING_CACHE_TYPE:simple}
 

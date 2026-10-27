@@ -54,6 +54,7 @@ public class Notification extends BaseEntity {
     @NotNull(message = "Type is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 40)
+    @Builder.Default
     private NotificationType type = NotificationType.SYSTEM;
 
     @NotBlank(message = "Title is required")
