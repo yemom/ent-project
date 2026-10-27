@@ -101,6 +101,7 @@ the database volume.
 | `MAIL_START_TLS` | only if password reset is enabled | `true` for STARTTLS submission; set only according to the provider's documented transport |
 | `MAIL_SSL_ENABLE` | only if password reset is enabled | `true` only for an implicit-TLS SMTP endpoint; do not enable both modes unless the provider explicitly requires it |
 | `MAIL_CONNECTION_TIMEOUT_SECONDS` / `MAIL_TIMEOUT_SECONDS` / `MAIL_WRITE_TIMEOUT_SECONDS` | no | Defaults to 10 seconds each; keep finite |
+| `PASSWORD_RESET_FRONTEND_URL` | only if password reset is enabled | Public frontend reset route, for example `https://yemom-hospital.vercel.app/reset-password` |
 | `PORT` | Render-provided | The application binds to `0.0.0.0` through Render's port-aware server configuration; local/container default is `10000` |
 | `SPRING_JPA_HIBERNATE_DDL_AUTO` | no | Defaults to `validate`. Never `update` in production: it would silently patch the schema and hide a bad migration |
 
@@ -108,7 +109,10 @@ The application does not connect to SMTP during startup or health checks. It ope
 SMTP only while handling a password-reset request. A failed delivery returns
 `503 Service Unavailable`, records a sanitized audit event, and never logs the
 message body or reset token. `/api/v1/health` is intentionally independent of
-SMTP, the database, and Redis.
+SMTP, the database, and Redis. If `MAIL_HOST` is blank, password reset returns
+the same controlled 503 without attempting a connection. Do not set `MAIL_HOST`
+to `localhost` or an inbound MX hostname on Render; use the provider's SMTP
+submission hostname.
 
 ### Super Admin bootstrap
 

@@ -56,6 +56,30 @@ services:
         value: "500.00"
       - key: CORS_ALLOWED_ORIGINS
         value: "https://yemom-hospital.vercel.app,http://localhost:3001"
+      # Password reset email is optional. Configure a real SMTP submission
+      # endpoint when the reset flow is enabled; never use localhost here.
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_START_TLS
+        value: "true"
+      - key: MAIL_SSL_ENABLE
+        value: "false"
+      - key: MAIL_CONNECTION_TIMEOUT_SECONDS
+        value: "10"
+      - key: MAIL_TIMEOUT_SECONDS
+        value: "10"
+      - key: MAIL_WRITE_TIMEOUT_SECONDS
+        value: "10"
+      - key: PASSWORD_RESET_FRONTEND_URL
+        value: "https://yemom-hospital.vercel.app/reset-password"
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: health,info
       - key: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
