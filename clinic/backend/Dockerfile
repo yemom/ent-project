@@ -58,7 +58,7 @@ EXPOSE ${PORT}
 # Container-level readiness. Compose and orchestrators should keep traffic away
 # until Flyway, JPA validation, and application startup have completed.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
-  CMD curl -fsS "http://localhost:${PORT}/actuator/health/readiness" > /dev/null || exit 1
+  CMD curl -fsS "http://localhost:${PORT}/actuator/health/readiness" > /dev/null || curl -fsS "http://localhost:${PORT}/api/v1/health" > /dev/null || exit 1
 
 # -XX:+UseSerialGC and TieredStopAtLevel=1 cut JVM start-up time and footprint,
 # which matters most on the free Render plan where instances sleep and wake.

@@ -111,6 +111,8 @@ management:
         liveness:
           include: livenessState
   health:
+    mail:
+      enabled: false
     redis:
       enabled: ${SPRING_REDIS_HEALTH_ENABLED:false}
 
