@@ -10,7 +10,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
-        format_sql: true
+        format_sql: false
     open-in-view: false
     defer-datasource-initialization: true
   sql:
@@ -18,13 +18,15 @@ spring:
       mode: always
   flyway:
     enabled: false
-  security:
-    jwt:
-      secret: c2VjcmV0LWZvci10ZXN0cy1vbmx5LWNsaW5pY2VsLXNlY3JldC1rZXktMzI=
-      expiration-millis: 3600000
-      issuer: clinic-Test
+
+app:
+  jwt:
+    secret: c2VjcmV0LWZvci1kZXYtYW5kLXRlc3RzLW9ubHktY2xpbmljZWwtc2VjcmV0LWtleS02NC1ieXRlcy1taW4tZm9yLWhzNTEyIQ==
+    expiration-millis: 3600000
+    issuer: clinic-Test
+  rate-limit:
+    enabled: false
 
 logging:
   level:
     root: WARN
-

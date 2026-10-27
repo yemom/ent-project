@@ -129,7 +129,7 @@ logging:
 
 app:
   jwt:
-    secret: ${APP_JWT_SECRET}
+    secret: ${APP_JWT_SECRET:c2VjcmV0LWZvci1kZXYtYW5kLXRlc3RzLW9ubHktY2xpbmljZWwtc2VjcmV0LWtleS02NC1ieXRlcy1taW4tZm9yLWhzNTEyIQ==}
     # Short-lived access token; the frontend refreshes through rotation.
     expiration-millis: ${APP_JWT_EXPIRATION_MILLIS:900000}
     refresh-expiration-millis: ${APP_JWT_REFRESH_EXPIRATION_MILLIS:604800000}

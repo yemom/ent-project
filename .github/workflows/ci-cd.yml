@@ -45,9 +45,13 @@ jobs:
           cache: maven
 
       - name: Run backend tests
+        env:
+          APP_JWT_SECRET: c2VjcmV0LWZvci1kZXYtYW5kLXRlc3RzLW9ubHktY2xpbmljZWwtc2VjcmV0LWtleS02NC1ieXRlcy1taW4tZm9yLWhzNTEyIQ==
         run: mvn -B "-Dspring.profiles.active=test" test
 
       - name: Package backend
+        env:
+          APP_JWT_SECRET: c2VjcmV0LWZvci1kZXYtYW5kLXRlc3RzLW9ubHktY2xpbmljZWwtc2VjcmV0LWtleS02NC1ieXRlcy1taW4tZm9yLWhzNTEyIQ==
         run: mvn -B -DskipTests package
 
       - name: Upload backend artifact
